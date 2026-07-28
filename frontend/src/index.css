@@ -24,50 +24,140 @@
   html.light body {
     background-color: #f8fafc;
     color: #0f172a;
-    background-image: radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.08), transparent 50%);
+    background-image: radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.06), transparent 50%);
+  }
+
+  /* Surfaces */
+  html.light .bg-void {
+    background-color: #f8fafc !important;
   }
 
   html.light .bg-panel {
     background-color: #ffffff !important;
     border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   }
 
   html.light .bg-panel-raised {
-    background-color: #f1f5f9 !important;
+    background-color: #ffffff !important;
     border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   }
 
   html.light .bg-panel-sunken {
     background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  html.light aside {
+    background-color: #ffffff !important;
     border-color: #e2e8f0 !important;
   }
 
-  html.light .bg-void {
-    background-color: #f8fafc !important;
+  html.light header {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    border-color: #e2e8f0 !important;
   }
 
+  /* Typography / Ink */
   html.light .text-ink {
     color: #0f172a !important;
   }
 
   html.light .text-ink-secondary {
-    color: #475569 !important;
+    color: #334155 !important;
   }
 
   html.light .text-ink-muted {
-    color: #64748B !important;
+    color: #64748b !important;
   }
 
   html.light .text-ink-faint {
     color: #94a3b8 !important;
   }
 
+  html.light ::placeholder {
+    color: #94a3b8 !important;
+  }
+
+  /* Borders */
   html.light .border-hairline {
     border-color: #e2e8f0 !important;
   }
 
   html.light .border-hairline-strong {
     border-color: #cbd5e1 !important;
+  }
+
+  /* Controls & Inputs */
+  html.light input,
+  html.light select,
+  html.light textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  html.light select option {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Table styling in Light Mode */
+  html.light th {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light td {
+    border-color: #f1f5f9 !important;
+  }
+
+  html.light tr:hover td {
+    background-color: #f8fafc !important;
+  }
+
+  /* Light mode scrollbars */
+  html.light * {
+    scrollbar-color: #cbd5e1 #f8fafc;
+  }
+  html.light ::-webkit-scrollbar-track {
+    background: #f8fafc;
+  }
+  html.light ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+  }
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+  }
+
+  /* Dark mode glassmorphism & ambient glow */
+  html.dark .bg-panel {
+    background-color: rgba(17, 17, 24, 0.85) !important;
+    backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease;
+  }
+
+  html.dark .bg-panel-sunken {
+    background-color: rgba(11, 11, 16, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  html.dark .bg-panel-raised {
+    background-color: rgba(24, 24, 36, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+  }
+
+  /* Interactive Gen-Z Micro-Animations */
+  .animate-lift {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .animate-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px -8px rgba(59, 130, 246, 0.25);
   }
 
   html {

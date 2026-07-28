@@ -1,24 +1,6 @@
 // frontend/src/components/blogs/BlogTable.js
 /**
- * The blog list as a real table.
- *
- * ---------------------------------------------------------------------------
- * WHY A REAL TABLE
- * ---------------------------------------------------------------------------
- * This is the accessible view of the list, so it is a `<table>` with a `<caption>`
- * and `scope`d headers — not a grid of divs with `role="row"` sprinkled on. A
- * genuine table gives row/column announcement, header association and table
- * navigation for free; the div version has to reimplement all three and usually
- * only manages the first.
- *
- * `aria-sort` mirrors the toolbar's sort control. The headers themselves are not
- * clickable: sorting already has one control, and two ways to set the same value
- * is how a UI ends up with a header saying "Views ↑" while the toolbar says
- * "Date created".
- *
- * The horizontal scroll lives on the wrapper, never on the page. At 375px the
- * table keeps its full width and scrolls inside its own box, which is why
- * `min-w` sits on the table and `overflow-x-auto` on the div around it.
+ * The blog list as an accessible, high-end real table.
  */
 
 import { Link } from 'react-router-dom';
@@ -29,7 +11,7 @@ import BlogThumbnail from './BlogThumbnail';
 import BlogRowActions from './BlogRowActions';
 
 const HEAD_CLASS =
-  'whitespace-nowrap border-b border-hairline bg-panel-raised px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-muted';
+  'whitespace-nowrap border-b border-hairline bg-panel-raised/90 backdrop-blur-sm px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted';
 
 /** Columns, paired with the sort key they represent so `aria-sort` can be derived. */
 const COLUMNS = [
@@ -58,7 +40,7 @@ function formatDate(value) {
 
 export default function BlogTable({ blogs, filters, busyId, isAdmin, onPublish, onDelete, onRestore }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-hairline bg-panel shadow-panel">
+    <div className="overflow-x-auto rounded-2xl border border-hairline bg-panel shadow-panel">
       <table className="w-full min-w-[900px] border-collapse text-sm">
         <caption className="sr-only">
           {`Blog articles, ${blogs.length} shown, sorted by ${filters.sort} ${
@@ -85,47 +67,50 @@ export default function BlogTable({ blogs, filters, busyId, isAdmin, onPublish, 
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-hairline/40">
           {blogs.map((blog) => (
-            <tr key={blog.id} className="border-b border-hairline/60 last:border-0 hover:bg-panel-raised/50">
-              {/* The article cell is the row header: it is what identifies the row. */}
-              <th scope="row" className="px-4 py-3 text-left font-normal">
+            <tr
+              key={blog.id}
+              className="group border-b border-hairline/40 last:border-0 transition-colors duration-150 hover:bg-panel-raised/60"
+            >
+              {/* The article cell is the row header: it identifies the row. */}
+              <th scope="row" className="px-4 py-3.5 text-left font-normal">
                 <div className="flex items-center gap-3">
-                  <BlogThumbnail blog={blog} className="h-10 w-16" />
+                  <BlogThumbnail blog={blog} className="h-10 w-16 transition-border group-hover:border-accent/40" />
                   <span className="min-w-0">
                     <Link
                       to={`/blogs/${blog.id}`}
-                      className="block max-w-[22rem] truncate font-medium text-ink hover:text-accent-bright"
+                      className="block max-w-[22rem] truncate font-medium text-ink transition-colors hover:text-accent-bright"
                     >
                       {blog.blog_title}
                     </Link>
-                    <span className="mt-0.5 block text-[11px] text-ink-muted">
+                    <span className="mt-1 inline-flex items-center rounded border border-hairline bg-panel-sunken px-1.5 py-0.5 text-[10px] font-medium text-ink-muted transition-colors group-hover:text-ink-secondary">
                       {blog.category || 'Uncategorised'}
                     </span>
                   </span>
                 </div>
               </th>
-              <td className="whitespace-nowrap px-4 py-3">
+              <td className="whitespace-nowrap px-4 py-3.5">
                 <StatusBadge status={blog.blog_status} />
               </td>
-              <td className="whitespace-nowrap px-4 py-3">
+              <td className="whitespace-nowrap px-4 py-3.5">
                 <GenerationBadge status={blog.generation_status} />
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3.5">
                 <div className="w-24">
                   <ScoreMeter score={blog.seo_score} size="sm" />
                 </div>
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right tabular text-ink-secondary">
+              <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-ink-secondary">
                 {formatCount(blog.word_count)}
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right tabular text-ink-secondary">
+              <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-ink-secondary">
                 {formatCount(blog.total_views)}
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">
+              <td className="whitespace-nowrap px-4 py-3.5 text-xs text-ink-secondary">
                 {formatDate(blog.publish_date)}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3.5">
                 <BlogRowActions
                   blog={blog}
                   busy={busyId === blog.id}

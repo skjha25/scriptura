@@ -5,23 +5,12 @@
  * Split out of WizardPage so that page can be about state and routing and this
  * can be about layout. Two things here are load-bearing rather than cosmetic:
  *
- *   - The step body is a KEYED motion element with an entrance transition, and
- *     deliberately not an `<AnimatePresence mode="wait">` cross-fade. Two reasons.
- *     Without `mode="wait"` both steps are mounted at once, which for two full
- *     forms means duplicated labels and duplicated ids for the length of the
- *     transition. With it, a Back/Next pressed while the previous exit is still
- *     running can leave the presence machine holding an outgoing child that never
- *     leaves, and the wizard shows no step at all — a stuck form is a far worse
- *     outcome than a missing 200ms fade. An enter-only transition cannot wedge:
- *     the key changes, React swaps the subtree, the new step animates in.
- *
+ *   - The step body is a KEYED motion element with an entrance transition.
  *   - Next stays ENABLED when the step is incomplete, and refuses on click.
- *     A disabled button is unfocusable and so cannot explain itself; this way the
- *     author is told what is missing, in an alert, at the moment they ask to move
- *     on. `aria-describedby` ties the button to that list.
  */
 
 import { motion } from 'framer-motion';
+import clsx from 'clsx';
 
 import Button from '../ui/Button';
 import StepIndicator from './StepIndicator';
@@ -47,87 +36,96 @@ export default function WizardShell({
   const isLast = step === LAST_STEP;
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <header className="mb-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-xl font-semibold text-ink sm:text-2xl">New article</h1>
-          {/* Autosave state, announced politely — it must never steal focus or
-              interrupt what the author is typing. */}
-          <p className="text-xs text-ink-muted" aria-live="polite">
-            {saving
-              ? 'Saving…'
-              : savedAt
-                ? `Draft saved at ${savedAt.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}`
-                : 'Not saved yet'}
-          </p>
+    <div className="mx-auto max-w-4xl space-y-5">
+      <header className="rounded-2xl border border-hairline bg-panel p-5 shadow-panel sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-0.5 text-[11px] font-medium text-accent">
+              <span aria-hidden="true">✦</span>
+              <span>Agentic AI Article Generator</span>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-ink sm:text-xl">New article</h1>
+          </div>
+          {/* Autosave state */}
+          <div className="flex items-center gap-2 rounded-lg border border-hairline bg-panel-sunken px-3 py-1.5 text-xs text-ink-muted" aria-live="polite">
+            <span className={clsx('h-2 w-2 rounded-full', saving ? 'bg-status-warning animate-pulse' : 'bg-status-good')} />
+            <span>
+              {saving
+                ? 'Saving draft…'
+                : savedAt
+                  ? `Saved at ${savedAt.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}`
+                  : 'Draft not saved'}
+            </span>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-ink-muted">
-          Every step saves to the draft as you go, so you can leave and come back.
+        <p className="mt-2 text-xs text-ink-muted sm:text-sm">
+          Every step saves automatically to your draft, so you can safely leave and return anytime.
         </p>
       </header>
 
-      <StepIndicator
-        current={step}
-        furthest={furthest}
-        completed={completed}
-        onSelect={onStepChange}
-      />
+      <div className="rounded-2xl border border-hairline bg-panel p-4 shadow-panel sm:p-6">
+        <StepIndicator
+          current={step}
+          furthest={furthest}
+          completed={completed}
+          onSelect={onStepChange}
+        />
 
-      <motion.section
-        key={step}
-        initial={{ opacity: 0, x: 12 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={STEP_TRANSITION}
-        aria-labelledby="wizard-step-heading"
-      >
-        <h2 id="wizard-step-heading" className="sr-only">
-          {`Step ${step} of ${LAST_STEP}: ${meta.label}`}
-        </h2>
-        {children}
-      </motion.section>
+        <motion.section
+          key={step}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={STEP_TRANSITION}
+          aria-labelledby="wizard-step-heading"
+          className="mt-6"
+        >
+          <h2 id="wizard-step-heading" className="sr-only">
+            {`Step ${step} of ${LAST_STEP}: ${meta.label}`}
+          </h2>
+          {children}
+        </motion.section>
 
-      <footer className="mt-8 border-t border-hairline pt-5">
-        {showMissing && missing.length > 0 ? (
-          <div
-            role="alert"
-            id="wizard-missing"
-            className="mb-4 rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3"
-          >
-            <p className="text-sm text-ink">
-              {missing.length === 1
-                ? 'One thing is still needed on this step:'
-                : `${missing.length} things are still needed on this step:`}
-            </p>
-            <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs text-ink-secondary">
-              {missing.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="flex items-center justify-between gap-3">
-          <Button variant="ghost" onClick={onBack} disabled={step === FIRST_STEP}>
-            Back
-          </Button>
-          {isLast ? (
-            // Step 6 owns its own submit control; a second "Next" here would
-            // imply there is somewhere left to go.
-            <p className="text-xs text-ink-muted">Last step — start the run below.</p>
-          ) : (
-            <Button
-              variant="primary"
-              onClick={onNext}
-              aria-describedby={showMissing && missing.length > 0 ? 'wizard-missing' : undefined}
+        <footer className="mt-8 border-t border-hairline pt-5">
+          {showMissing && missing.length > 0 ? (
+            <div
+              role="alert"
+              id="wizard-missing"
+              className="mb-4 rounded-xl border border-status-warning/40 bg-status-warning/10 px-4 py-3"
             >
-              Next
+              <p className="text-sm font-medium text-ink">
+                {missing.length === 1
+                  ? 'One thing is still needed on this step:'
+                  : `${missing.length} things are still needed on this step:`}
+              </p>
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs text-ink-secondary">
+                {missing.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="ghost" onClick={onBack} disabled={step === FIRST_STEP}>
+              Back
             </Button>
-          )}
-        </div>
-      </footer>
+            {isLast ? (
+              <p className="text-xs text-ink-muted">Last step — start the run below.</p>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={onNext}
+                aria-describedby={showMissing && missing.length > 0 ? 'wizard-missing' : undefined}
+              >
+                Next
+              </Button>
+            )}
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

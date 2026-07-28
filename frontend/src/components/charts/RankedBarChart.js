@@ -9,13 +9,6 @@
  * vertical axis they would have to be rotated, and rotated type is the single
  * fastest way to make a chart unreadable. Turning the chart on its side gives each
  * label a full horizontal line.
- *
- * Sorted descending, which is what "top" means, so bar length and reading order
- * agree instead of fighting.
- *
- * ONE COLOUR, NOT ONE PER BAR: the category is already named on the axis, so
- * colouring each bar separately would encode the same fact twice and burn through
- * the validated palette for decoration. This is one series (rule 5 → no legend).
  */
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -32,8 +25,8 @@ import {
   formatCount,
 } from './chartTheme';
 
-/** Row height that keeps a 12-row chart readable without becoming a scroll trap. */
-const ROW_HEIGHT = 26;
+/** Row height that keeps a 12-row chart readable and uncrowded. */
+const ROW_HEIGHT = 32;
 
 /**
  * @param {object} props
@@ -60,19 +53,16 @@ export default function RankedBarChart({
       summary={summary}
       columns={columns}
       rows={data}
-      height={Math.max(160, data.length * ROW_HEIGHT + 32)}
+      height={Math.max(180, data.length * ROW_HEIGHT + 36)}
     >
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 6, right: 24, bottom: 6, left: 4 }}>
         <CartesianGrid {...GRID_PROPS} horizontal={false} />
         <XAxis type="number" {...AXIS_PROPS} allowDecimals={false} />
         <YAxis
           type="category"
           dataKey={labelKey}
           {...AXIS_PROPS}
-          // Fixed width so the plot does not jump as labels change length, and
-          // narrow enough that the bars still have room at 375px. The tooltip
-          // carries the untruncated text.
-          width={112}
+          width={135}
           tickFormatter={(value) => truncateLabel(value, 16)}
         />
         <Tooltip cursor={BAR_CURSOR} content={<ChartTooltip valueFormatter={formatCount} />} />
@@ -80,7 +70,7 @@ export default function RankedBarChart({
           dataKey={valueKey}
           name={valueName}
           fill={DATA_INK}
-          radius={[0, 3, 3, 0]}
+          radius={[0, 4, 4, 0]}
           maxBarSize={18}
           {...NO_MARK_ANIMATION}
         />

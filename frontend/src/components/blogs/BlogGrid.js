@@ -51,7 +51,7 @@ export default function BlogGrid({ blogs, busyId, isAdmin, onPublish, onDelete, 
               transition={{ duration: 0.2 }}
               className="min-w-0"
             >
-              <Card className="flex h-full flex-col overflow-hidden">
+              <Card className="flex h-full flex-col overflow-hidden animate-lift">
                 <BlogThumbnail blog={blog} className="aspect-[16/9] w-full rounded-none border-0 border-b" />
 
                 <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">

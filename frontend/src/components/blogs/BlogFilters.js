@@ -99,53 +99,32 @@ export default function BlogFilters({
           containerClassName="w-full sm:w-72 max-w-xs"
         />
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5">
-            <label htmlFor="rows-per-page-select" className="block text-xs font-medium text-ink-secondary">
-              Rows
-            </label>
-            <select
-              id="rows-per-page-select"
-              aria-label="Rows per page"
-              value={filters.limit || 20}
-              onChange={(e) => onChange({ limit: Number(e.target.value), page: 1 })}
-              className="bg-panel-sunken text-ink border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
-            >
-              <option value={10}>10 rows</option>
-              <option value={20}>20 rows (Default)</option>
-              <option value={25}>25 rows</option>
-              <option value={50}>50 rows</option>
-              <option value={100}>100 rows</option>
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="block text-xs font-medium text-ink-secondary">View</span>
-            <div
-              role="group"
-              aria-label="View mode"
-              className="inline-flex shrink-0 gap-0.5 rounded-lg border border-hairline bg-panel-sunken p-1"
-            >
-              {[
-                { key: 'grid', label: 'Grid' },
-                { key: 'table', label: 'Table' },
-              ].map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  aria-pressed={view === option.key}
-                  onClick={() => onViewChange(option.key)}
-                  className={clsx(
-                    TOGGLE_BUTTON,
-                    view === option.key
-                      ? 'bg-panel-raised text-ink'
-                      : 'text-ink-muted hover:text-ink-secondary'
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+        <div className="space-y-1.5">
+          <span className="block text-xs font-medium text-ink-secondary">View</span>
+          <div
+            role="group"
+            aria-label="View mode"
+            className="inline-flex shrink-0 gap-0.5 rounded-lg border border-hairline bg-panel-sunken p-1"
+          >
+            {[
+              { key: 'grid', label: 'Grid' },
+              { key: 'table', label: 'Table' },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={view === option.key}
+                onClick={() => onViewChange(option.key)}
+                className={clsx(
+                  TOGGLE_BUTTON,
+                  view === option.key
+                    ? 'bg-panel-raised text-ink'
+                    : 'text-ink-muted hover:text-ink-secondary'
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

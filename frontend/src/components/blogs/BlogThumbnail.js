@@ -1,38 +1,31 @@
 // frontend/src/components/blogs/BlogThumbnail.js
 /**
- * Article thumbnail, with a typed fallback.
- *
- * Two reasons this is its own component rather than an inline `<img>`:
- *
- *   - The path needs resolving. The API already hands back `blog_picture_url`, but
- *     a row saved before the resolver existed may only carry the raw storage path,
- *     so both are run through `resolveImageUrl`.
- *   - A missing image must still occupy its space. A conditional `<img>` that
- *     simply disappears makes the grid ragged and the table rows jump, so the
- *     fallback is a placeholder of identical dimensions.
- *
- * `alt` is empty by design: the title sits immediately beside it in every use, and
- * a screen reader announcing the title twice is worse than not announcing the
- * decorative image at all.
+ * Article thumbnail, with a clean vector SVG fallback placeholder.
+ * Handles missing images as well as broken/unresolved image URLs via onError.
  */
 
+import { useState } from 'react';
 import clsx from 'clsx';
 
 import { resolveImageUrl } from '../../lib/media';
 
 export default function BlogThumbnail({ blog, className = '' }) {
-  const src = resolveImageUrl(blog.blog_picture_url || blog.blog_picture);
+  const [imgError, setImgError] = useState(false);
+  const rawUrl = blog?.blog_picture_url || blog?.blog_picture;
+  const src = resolveImageUrl(rawUrl);
 
-  if (!src) {
+  if (!src || imgError) {
     return (
       <div
         aria-hidden="true"
         className={clsx(
-          'grid shrink-0 place-items-center rounded-lg border border-hairline bg-panel-sunken text-accent/40',
+          'grid shrink-0 place-items-center rounded-lg border border-hairline bg-panel-sunken text-ink-muted select-none',
           className
         )}
       >
-        ✧
+        <svg className="w-5 h-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+        </svg>
       </div>
     );
   }
@@ -42,6 +35,7 @@ export default function BlogThumbnail({ blog, className = '' }) {
       src={src}
       alt=""
       loading="lazy"
+      onError={() => setImgError(true)}
       className={clsx('shrink-0 rounded-lg border border-hairline object-cover', className)}
     />
   );

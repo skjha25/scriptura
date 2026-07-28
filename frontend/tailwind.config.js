@@ -1,6 +1,6 @@
 /**
- * Tailwind theme — the single source of truth for Scriptura's visual language.
- * Ultra-Premium AI SaaS Dark Luxury Theme.
+ * Tailwind theme — single source of truth for Scriptura's visual language.
+ * Ultra-Eye-Catching AI Dark Mode Theme with Aurora Ambient Mesh & Gen-Z Micro-Animations.
  */
 
 /** @type {import('tailwindcss').Config} */
@@ -10,18 +10,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // --- Surfaces -------------------------------------------------------
         void: {
-          DEFAULT: '#09090C', // ultra-deep obsidian page background
-          soft: '#0D0D12',
+          DEFAULT: '#09090D',
+          soft: '#0E0E14',
         },
         panel: {
-          DEFAULT: '#111116', // sleek glass card surface
-          raised: '#1A1A24', // elevated hover surface
-          sunken: '#0C0C10', // sunken input surface
+          DEFAULT: '#111118',
+          raised: '#181824',
+          sunken: '#0B0B10',
         },
 
-        // --- Ink ------------------------------------------------------------
         ink: {
           DEFAULT: '#FFFFFF',
           secondary: '#A1A1AA',
@@ -29,29 +27,26 @@ module.exports = {
           faint: '#52525B',
         },
 
-        // --- UI Accent (AI Electric & Cosmic Glow) ---------------------------
         accent: {
-          DEFAULT: '#4F8CFF', // vibrant AI electric blue
+          DEFAULT: '#3B82F6',
           bright: '#60A5FA',
-          deep: '#3B82F6',
+          deep: '#2563EB',
           violet: '#8B5CF6',
           magenta: '#EC4899',
           cyan: '#06B6D4',
         },
 
-        // --- Data encoding: categorical -------------------------------------
         series: {
-          1: '#4F8CFF', // blue
-          2: '#F97316', // orange
-          3: '#10B981', // emerald
-          4: '#F59E0B', // amber
-          5: '#EC4899', // pink
-          6: '#06B6D4', // cyan
-          7: '#8B5CF6', // violet
-          8: '#EF4444', // red
+          1: '#3B82F6',
+          2: '#F97316',
+          3: '#10B981',
+          4: '#F59E0B',
+          5: '#EC4899',
+          6: '#06B6D4',
+          7: '#8B5CF6',
+          8: '#EF4444',
         },
 
-        // --- Data encoding: sequential (score heatmaps) ---------------------
         sequential: {
           100: '#DBEAFE',
           200: '#BFDBFE',
@@ -62,7 +57,6 @@ module.exports = {
           700: '#1D4ED8',
         },
 
-        // --- Status (reserved) ----------------------------------------------
         status: {
           good: '#10B981',
           warning: '#F59E0B',
@@ -70,32 +64,30 @@ module.exports = {
           critical: '#EF4444',
         },
 
-        // --- Chart chrome ---------------------------------------------------
         grid: 'rgba(255, 255, 255, 0.05)',
         axis: 'rgba(255, 255, 255, 0.15)',
       },
 
-      // Translucent hairline borders
       borderColor: {
-        hairline: 'rgba(255, 255, 255, 0.08)',
-        'hairline-strong': 'rgba(255, 255, 255, 0.16)',
+        hairline: 'rgba(255, 255, 255, 0.09)',
+        'hairline-strong': 'rgba(255, 255, 255, 0.18)',
       },
 
       backgroundImage: {
-        'glow-accent': 'linear-gradient(135deg, #4F8CFF 0%, #8B5CF6 50%, #EC4899 100%)',
-        'glow-subtle': 'linear-gradient(135deg, rgba(79, 140, 255, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%)',
+        'glow-accent': 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%)',
+        'glow-subtle': 'linear-gradient(135deg, rgba(59, 130, 246, 0.16) 0%, rgba(139, 92, 246, 0.10) 100%)',
         'cosmic-wash':
-          'radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.14), transparent 50%), ' +
-          'radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.10), transparent 45%), ' +
-          'radial-gradient(circle at 15% 70%, rgba(236, 72, 153, 0.08), transparent 45%)',
+          'radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.22), transparent 70%), ' +
+          'radial-gradient(circle at 85% 25%, rgba(139, 92, 246, 0.16), transparent 55%), ' +
+          'radial-gradient(circle at 15% 75%, rgba(236, 72, 153, 0.12), transparent 55%)',
       },
 
       boxShadow: {
-        glow: '0 0 25px rgba(79, 140, 255, 0.35), 0 0 0 1px rgba(79, 140, 255, 0.4)',
-        'glow-sm': '0 0 15px rgba(79, 140, 255, 0.25), 0 0 0 1px rgba(79, 140, 255, 0.3)',
+        glow: '0 0 25px rgba(59, 130, 246, 0.35), 0 0 0 1px rgba(59, 130, 246, 0.4)',
+        'glow-sm': '0 0 15px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.3)',
         'glow-magenta': '0 0 25px rgba(236, 72, 153, 0.35), 0 0 0 1px rgba(236, 72, 153, 0.4)',
-        panel: '0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08)',
-        'focus-ring': '0 0 0 2px #09090C, 0 0 0 4px #4F8CFF',
+        panel: '0 12px 35px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+        'focus-ring': '0 0 0 2px #09090D, 0 0 0 4px #3B82F6',
       },
 
       fontFamily: {
@@ -105,12 +97,16 @@ module.exports = {
 
       keyframes: {
         'fade-in-up': {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         'pulse-glow': {
           '0%, 100%': { opacity: '0.55' },
           '50%': { opacity: '1' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-4px)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '-500px 0' },
@@ -122,8 +118,9 @@ module.exports = {
       },
 
       animation: {
-        'fade-in-up': 'fade-in-up 260ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-in-up': 'fade-in-up 300ms cubic-bezier(0.22, 1, 0.36, 1) both',
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+        float: 'float 3s ease-in-out infinite',
         shimmer: 'shimmer 1.6s linear infinite',
         'spin-slow': 'spin-slow 1.4s linear infinite',
       },
