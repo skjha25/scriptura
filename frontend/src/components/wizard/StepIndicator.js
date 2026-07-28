@@ -64,8 +64,7 @@ export default function StepIndicator({ current, furthest, onSelect, completed }
                           : 'bg-panel-sunken text-ink-faint'
                     )}
                   >
-                    {/* A tick, not a colour, is what says "done" to everyone. */}
-                    {isDone ? '✓' : index + 1}
+                    {index + 1}
                   </span>
                   <span
                     className={clsx(

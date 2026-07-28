@@ -45,31 +45,30 @@
   }
 
   ::selection {
-    background-color: rgba(144, 133, 233, 0.35);
+    background-color: rgba(79, 140, 255, 0.4);
     color: #fff;
   }
 
-  /* Dark-appropriate scrollbars. Without this, WebKit paints a light track that
-     is jarring against the page. */
+  /* Dark-appropriate scrollbars. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #332c52 transparent;
+    scrollbar-color: #272738 transparent;
   }
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: #332c52;
+    background-color: #272738;
     border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #453c6e;
+    background-color: #3f3f56;
   }
 
   /* Date inputs render a black-on-black calendar icon in WebKit otherwise. */

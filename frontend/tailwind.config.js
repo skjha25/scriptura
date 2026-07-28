@@ -1,32 +1,6 @@
 /**
  * Tailwind theme — the single source of truth for Scriptura's visual language.
- *
- * ---------------------------------------------------------------------------
- * WHY THESE COLOURS
- * ---------------------------------------------------------------------------
- * Two palettes live here and they serve different jobs. Mixing them up is the
- * usual way dashboards become unreadable, so they are kept separate on purpose:
- *
- *   `accent` / `void` / `panel` — UI chrome. A deep indigo "cosmic" surface with
- *      violet-magenta glow, which suits Divinetalk's astrology subject matter and
- *      satisfies the spec's dark-theme-with-glow requirement.
- *
- *   `series-1..8` — DATA encoding only. These are not decorative. They are a
- *      colourblind-safe categorical ramp, validated as a set against this exact
- *      surface (#141221) for: lightness band, chroma floor, adjacent-pair CVD
- *      separation (worst 8.4 ΔE, protan), normal-vision separation (worst 19.3
- *      ΔE) and ≥3:1 contrast. All checks pass.
- *
- * Rules that keep it valid — please do not break them casually:
- *   1. Assign series slots in fixed order (series-1, then -2, …). NEVER cycle or
- *      generate a 9th hue: a 9th series folds into "Other" or becomes a small
- *      multiple. Colour follows the entity, never its rank, so a filter that
- *      drops a series must not repaint the survivors.
- *   2. `status.*` is reserved for good/warning/serious/critical and must never be
- *      reused as "another series" colour. Status always ships with an icon or
- *      label, never colour alone.
- *   3. Re-validate if you change `panel` — contrast results are only meaningful
- *      against the surface the chart actually renders on.
+ * Ultra-Premium AI SaaS Dark Luxury Theme.
  */
 
 /** @type {import('tailwindcss').Config} */
@@ -38,98 +12,95 @@ module.exports = {
       colors: {
         // --- Surfaces -------------------------------------------------------
         void: {
-          DEFAULT: '#0a0912', // page plane
-          soft: '#0f0d1a',
+          DEFAULT: '#09090C', // ultra-deep obsidian page background
+          soft: '#0D0D12',
         },
         panel: {
-          DEFAULT: '#141221', // chart/card surface — the validated surface
-          raised: '#1c1930', // hover / elevated
-          sunken: '#100e1b',
+          DEFAULT: '#111116', // sleek glass card surface
+          raised: '#1A1A24', // elevated hover surface
+          sunken: '#0C0C10', // sunken input surface
         },
 
         // --- Ink ------------------------------------------------------------
         ink: {
-          DEFAULT: '#ffffff',
-          secondary: '#c0bcd6',
-          muted: '#8f8bab',
-          faint: '#5f5b7a',
+          DEFAULT: '#FFFFFF',
+          secondary: '#A1A1AA',
+          muted: '#71717A',
+          faint: '#52525B',
         },
 
-        // --- UI accent (chrome, never data) ---------------------------------
+        // --- UI Accent (AI Electric & Cosmic Glow) ---------------------------
         accent: {
-          DEFAULT: '#9085e9', // aurora violet
-          bright: '#a99ff2',
-          deep: '#6f62d6',
-          magenta: '#c964d8',
-          cyan: '#3987e5',
+          DEFAULT: '#4F8CFF', // vibrant AI electric blue
+          bright: '#60A5FA',
+          deep: '#3B82F6',
+          violet: '#8B5CF6',
+          magenta: '#EC4899',
+          cyan: '#06B6D4',
         },
 
-        // --- Data encoding: categorical (fixed order, validated set) --------
+        // --- Data encoding: categorical -------------------------------------
         series: {
-          1: '#3987e5', // blue
-          2: '#d95926', // orange
-          3: '#199e70', // aqua
-          4: '#c98500', // yellow
-          5: '#d55181', // magenta
-          6: '#008300', // green
-          7: '#9085e9', // violet
-          8: '#e66767', // red
+          1: '#4F8CFF', // blue
+          2: '#F97316', // orange
+          3: '#10B981', // emerald
+          4: '#F59E0B', // amber
+          5: '#EC4899', // pink
+          6: '#06B6D4', // cyan
+          7: '#8B5CF6', // violet
+          8: '#EF4444', // red
         },
 
-        // --- Data encoding: sequential (one hue, light -> dark) -------------
-        // For continuous magnitude only (score heatmaps). Never a rainbow.
+        // --- Data encoding: sequential (score heatmaps) ---------------------
         sequential: {
-          100: '#cde2fb',
-          200: '#9ec5f4',
-          300: '#6da7ec',
-          400: '#3987e5',
-          500: '#256abf',
-          600: '#184f95',
-          700: '#0d366b',
+          100: '#DBEAFE',
+          200: '#BFDBFE',
+          300: '#93C5FD',
+          400: '#60A5FA',
+          500: '#3B82F6',
+          600: '#2563EB',
+          700: '#1D4ED8',
         },
 
-        // --- Status (reserved; icon + label always accompany) ---------------
+        // --- Status (reserved) ----------------------------------------------
         status: {
-          good: '#0ca30c',
-          warning: '#fab219',
-          serious: '#ec835a',
-          critical: '#d03b3b',
+          good: '#10B981',
+          warning: '#F59E0B',
+          serious: '#F97316',
+          critical: '#EF4444',
         },
 
         // --- Chart chrome ---------------------------------------------------
-        grid: '#241f3a',
-        axis: '#332c52',
+        grid: 'rgba(255, 255, 255, 0.05)',
+        axis: 'rgba(255, 255, 255, 0.15)',
       },
 
-      // Hairline borders as translucent white so they sit correctly on any of
-      // the three surface levels without a per-surface variant.
+      // Translucent hairline borders
       borderColor: {
-        hairline: 'rgba(255,255,255,0.10)',
-        'hairline-strong': 'rgba(255,255,255,0.18)',
+        hairline: 'rgba(255, 255, 255, 0.08)',
+        'hairline-strong': 'rgba(255, 255, 255, 0.16)',
       },
 
       backgroundImage: {
-        'glow-accent': 'linear-gradient(135deg, #7c6ff0 0%, #c964d8 100%)',
-        'glow-subtle': 'linear-gradient(135deg, rgba(124,111,240,0.16) 0%, rgba(201,100,216,0.10) 100%)',
-        // Ambient page wash — two soft radial pools rather than a flat fill, so
-        // large dark areas do not read as dead space.
+        'glow-accent': 'linear-gradient(135deg, #4F8CFF 0%, #8B5CF6 50%, #EC4899 100%)',
+        'glow-subtle': 'linear-gradient(135deg, rgba(79, 140, 255, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%)',
         'cosmic-wash':
-          'radial-gradient(ellipse 80% 55% at 15% -5%, rgba(124,111,240,0.16), transparent 60%), ' +
-          'radial-gradient(ellipse 65% 50% at 95% 5%, rgba(201,100,216,0.10), transparent 60%)',
+          'radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.14), transparent 50%), ' +
+          'radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.10), transparent 45%), ' +
+          'radial-gradient(circle at 15% 70%, rgba(236, 72, 153, 0.08), transparent 45%)',
       },
 
       boxShadow: {
-        glow: '0 0 0 1px rgba(144,133,233,0.30), 0 8px 30px -8px rgba(124,111,240,0.45)',
-        'glow-sm': '0 0 0 1px rgba(144,133,233,0.25), 0 4px 16px -6px rgba(124,111,240,0.35)',
-        'glow-magenta': '0 0 0 1px rgba(201,100,216,0.30), 0 8px 30px -8px rgba(201,100,216,0.40)',
-        panel: '0 1px 2px rgba(0,0,0,0.40), 0 8px 24px -12px rgba(0,0,0,0.60)',
-        'focus-ring': '0 0 0 2px #0a0912, 0 0 0 4px #9085e9',
+        glow: '0 0 25px rgba(79, 140, 255, 0.35), 0 0 0 1px rgba(79, 140, 255, 0.4)',
+        'glow-sm': '0 0 15px rgba(79, 140, 255, 0.25), 0 0 0 1px rgba(79, 140, 255, 0.3)',
+        'glow-magenta': '0 0 25px rgba(236, 72, 153, 0.35), 0 0 0 1px rgba(236, 72, 153, 0.4)',
+        panel: '0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+        'focus-ring': '0 0 0 2px #09090C, 0 0 0 4px #4F8CFF',
       },
 
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
-        // Tabular figures for anything that must align vertically in a column.
-        numeric: ['system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        numeric: ['Inter', 'system-ui', 'sans-serif'],
       },
 
       keyframes: {
@@ -157,7 +128,6 @@ module.exports = {
         'spin-slow': 'spin-slow 1.4s linear infinite',
       },
 
-      // Breakpoints the spec names explicitly: 375 / 768 / 1440.
       screens: {
         xs: '375px',
       },
