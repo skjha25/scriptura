@@ -51,9 +51,9 @@ const TEMPERATURE = Object.freeze({
  * how you get a truncated JSON object, so these are generous.
  */
 const MAX_TOKENS = Object.freeze({
-  titles: 1024,
-  brandVoice: 1024,
-  outline: 2048,
+  titles: 8192,
+  brandVoice: 8192,
+  outline: 8192,
 });
 
 /** The prefill token that forces an object-shaped continuation. */
@@ -113,11 +113,9 @@ class AnthropicProvider extends BaseProvider {
         {
           model: this.model,
           max_tokens: maxTokens,
-          temperature,
           system: prompts.SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: prompt },
-            { role: 'assistant', content: JSON_PREFILL },
           ],
         },
         // Also set per request: a client-level timeout does not apply if a caller
@@ -139,8 +137,7 @@ class AnthropicProvider extends BaseProvider {
         });
       }
 
-      // Re-attach the prefill so the payload is a complete JSON object again.
-      return `${JSON_PREFILL}${text}`;
+      return text;
     });
   }
 

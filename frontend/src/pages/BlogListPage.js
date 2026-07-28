@@ -57,6 +57,7 @@ const SORT_VALUES = SORT_OPTIONS.map((option) => option.value);
 function readFilters(searchParams) {
   const sort = searchParams.get('sort');
   const generationStatus = searchParams.get('generation_status');
+  const limit = Number(searchParams.get('limit'));
 
   return {
     q: searchParams.get('q') || '',
@@ -69,6 +70,7 @@ function readFilters(searchParams) {
     sort: SORT_VALUES.includes(sort) ? sort : 'created_at',
     order: searchParams.get('order') === 'ASC' ? 'ASC' : 'DESC',
     page: Math.max(1, Number(searchParams.get('page')) || 1),
+    limit: [10, 20, 25, 50, 100].includes(limit) ? limit : PAGE_SIZE,
     includeDeleted: searchParams.get('include_deleted') === 'true',
   };
 }
@@ -86,6 +88,7 @@ function toSearchParams(filters) {
   if (filters.sort !== 'created_at') params.set('sort', filters.sort);
   if (filters.order !== 'DESC') params.set('order', filters.order);
   if (filters.page > 1) params.set('page', String(filters.page));
+  if (filters.limit && filters.limit !== PAGE_SIZE) params.set('limit', String(filters.limit));
   if (filters.includeDeleted) params.set('include_deleted', 'true');
   return params;
 }
@@ -195,7 +198,7 @@ export default function BlogListPage() {
   const query = useMemo(() => {
     const params = {
       page: filters.page,
-      limit: PAGE_SIZE,
+      limit: filters.limit || PAGE_SIZE,
       sort: filters.sort,
       order: filters.order,
     };
@@ -393,6 +396,8 @@ export default function BlogListPage() {
 
         <BlogPagination
           pagination={result?.pagination}
+          limit={filters.limit}
+          onLimitChange={(limit) => handleChange({ limit, page: 1 })}
           busy={loading}
           onPageChange={(page) => handleChange({ page })}
         />

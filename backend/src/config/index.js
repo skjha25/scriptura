@@ -21,7 +21,7 @@ const fs = require('fs');
 // Load .env from the backend root regardless of the cwd the process was started
 // from (matters for `sequelize-cli`, Jest, and Docker, which all differ).
 const backendRoot = path.resolve(__dirname, '..', '..');
-require('dotenv').config({ path: path.join(backendRoot, '.env') });
+require('dotenv').config({ path: path.join(backendRoot, '.env'), override: true });
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isTest = NODE_ENV === 'test';
@@ -310,7 +310,7 @@ const config = Object.freeze({
   }),
 
   pagination: Object.freeze({
-    defaultLimit: int(process.env.PAGINATION_DEFAULT_LIMIT, 20),
+    defaultLimit: int(process.env.PAGINATION_DEFAULT_LIMIT, 10),
     maxLimit: int(process.env.PAGINATION_MAX_LIMIT, 100),
   }),
 

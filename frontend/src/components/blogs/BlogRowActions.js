@@ -1,32 +1,14 @@
 // frontend/src/components/blogs/BlogRowActions.js
 /**
- * The actions available on one blog row, shared by the grid and the table.
- *
- * ---------------------------------------------------------------------------
- * THREE DECISIONS
- * ---------------------------------------------------------------------------
- * 1. DELETE IS TWO-STEP, IN PLACE. Deleting is soft, but it still removes a row
- *    from everyone's list, so it should not be one stray click on a touch target
- *    the size of a fingernail. An inline "Confirm?" is used rather than
- *    `window.confirm` because a native dialog cannot be styled, blocks the whole
- *    tab, and is unavailable in jsdom — so the safeguard would be the one thing
- *    the tests could not cover.
- *
- * 2. PUBLISH IS HIDDEN WHEN THE API WOULD REFUSE IT. `POST /blogs/{id}/publish`
- *    returns 422 for an article whose last generation failed or is still running,
- *    because publishing then would put a broken page on the live site. Offering a
- *    button that is guaranteed to error is worse than not offering it.
- *
- * 3. RESTORE IS ADMIN-ONLY, matching the endpoint's own 403.
+ * The actions available on one blog row, wrapped inside a 3-vertical-dots dropdown menu.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 import { BLOG_STATUS, GENERATION_IN_FLIGHT, GENERATION_STATUS } from '../../lib/constants';
 import Button from '../ui/Button';
 
-/** Whether the publish endpoint would accept this article right now. */
 function canPublish(blog) {
   if (blog.blog_status === BLOG_STATUS.PUBLISHED) return false;
   if (blog.generation_status === GENERATION_STATUS.FAILED) return false;
@@ -42,13 +24,25 @@ export default function BlogRowActions({
   onRestore,
   className = '',
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const menuRef = useRef(null);
 
-  // A soft-deleted row has nothing to edit or publish; restoring it is the only
-  // move, and only an admin has it.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setConfirmingDelete(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
   if (blog.deleted_at) {
     return (
-      <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      <div className={`flex items-center gap-2 ${className}`}>
         <span className="text-xs text-ink-faint">In trash</span>
         {isAdmin ? (
           <Button
@@ -66,66 +60,102 @@ export default function BlogRowActions({
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div ref={menuRef} className={`relative inline-block text-left ${className}`}>
       <Button
-        as={Link}
-        to={`/blogs/${blog.id}/edit`}
-        size="sm"
-        variant="secondary"
-        aria-label={`Edit ${blog.blog_title}`}
-      >
-        Edit
-      </Button>
-      <Button
-        as={Link}
-        to={`/blogs/${blog.id}`}
         size="sm"
         variant="ghost"
-        aria-label={`View ${blog.blog_title}`}
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={`More actions for ${blog.blog_title}`}
+        aria-expanded={isOpen}
+        className="px-2.5 py-1 text-lg font-bold leading-none text-ink-secondary hover:text-white hover:bg-white/[0.08] rounded-xl border border-white/10"
       >
-        View
+        ⋮
       </Button>
 
-      {canPublish(blog) ? (
+      <div
+        className={`absolute right-0 z-50 mt-1.5 w-44 origin-top-right rounded-2xl border border-white/[0.12] bg-[#141419]/95 p-1.5 shadow-2xl backdrop-blur-2xl space-y-1 transition-all duration-150 ${
+          isOpen
+            ? 'opacity-100 scale-100 pointer-events-auto visible'
+            : 'opacity-0 scale-95 pointer-events-none'
+        }`}
+      >
         <Button
+          as={Link}
+          to={`/blogs/${blog.id}/edit`}
           size="sm"
-          variant="success"
-          loading={busy}
-          onClick={() => onPublish(blog)}
-          aria-label={`Publish ${blog.blog_title}`}
+          variant="ghost"
+          onClick={() => setIsOpen(false)}
+          aria-label={`Edit ${blog.blog_title}`}
+          className="w-full justify-start text-xs text-white hover:bg-white/[0.08] rounded-xl"
         >
-          Publish
+          ✏ Edit
         </Button>
-      ) : null}
 
-      {confirmingDelete ? (
-        <>
+        <Button
+          as={Link}
+          to={`/blogs/${blog.id}`}
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsOpen(false)}
+          aria-label={`View ${blog.blog_title}`}
+          className="w-full justify-start text-xs text-white hover:bg-white/[0.08] rounded-xl"
+        >
+          👁 View
+        </Button>
+
+        {canPublish(blog) ? (
+          <Button
+            size="sm"
+            variant="success"
+            loading={busy}
+            onClick={() => {
+              setIsOpen(false);
+              onPublish(blog);
+            }}
+            aria-label={`Publish ${blog.blog_title}`}
+            className="w-full justify-start text-xs rounded-xl"
+          >
+            ✦ Publish
+          </Button>
+        ) : null}
+
+        {confirmingDelete ? (
+          <div className="flex items-center gap-1 pt-1 border-t border-white/10">
+            <Button
+              size="sm"
+              variant="danger"
+              loading={busy}
+              onClick={() => {
+                setConfirmingDelete(false);
+                setIsOpen(false);
+                onDelete(blog);
+              }}
+              aria-label={`Confirm deleting ${blog.blog_title}`}
+              className="w-full justify-start text-xs rounded-xl"
+            >
+              Confirm
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setConfirmingDelete(false)}
+              className="text-xs px-2 rounded-xl"
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
           <Button
             size="sm"
             variant="danger"
-            loading={busy}
-            onClick={() => {
-              setConfirmingDelete(false);
-              onDelete(blog);
-            }}
-            aria-label={`Confirm deleting ${blog.blog_title}`}
+            onClick={() => setConfirmingDelete(true)}
+            aria-label={`Delete ${blog.blog_title}`}
+            className="w-full justify-start text-xs rounded-xl"
           >
-            Confirm
+            🗑 Delete
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)}>
-            Cancel
-          </Button>
-        </>
-      ) : (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setConfirmingDelete(true)}
-          aria-label={`Delete ${blog.blog_title}`}
-        >
-          Delete
-        </Button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

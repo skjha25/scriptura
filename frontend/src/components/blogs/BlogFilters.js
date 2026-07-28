@@ -24,7 +24,7 @@ import {
   GENERATION_STATUS_META,
 } from '../../lib/constants';
 import Button from '../ui/Button';
-import { Input, Select, Checkbox, Toggle } from '../ui/form';
+import { Input, Select, Toggle, Checkbox } from '../ui/form';
 
 /**
  * Status filter values are the *labels*, not the numeric codes.
@@ -32,10 +32,13 @@ import { Input, Select, Checkbox, Toggle } from '../ui/form';
  * The API accepts either (`status=draft,scheduled` or `status=0,2`), and a URL
  * reading `status=draft,scheduled` is legible to whoever it gets pasted to.
  */
-const STATUS_FILTERS = Object.values(BLOG_STATUS).map((code) => ({
-  value: BLOG_STATUS_LABELS[code],
-  label: BLOG_STATUS_META[code].label,
-}));
+const STATUS_SELECT_OPTIONS = [
+  { value: '', label: 'Any status' },
+  ...Object.values(BLOG_STATUS).map((code) => ({
+    value: BLOG_STATUS_LABELS[code],
+    label: BLOG_STATUS_META[code].label,
+  })),
+];
 
 const GENERATION_FILTERS = [
   { value: '', label: 'Any generation state' },
@@ -74,13 +77,6 @@ export default function BlogFilters({
   isAdmin = false,
   hasActiveFilters = false,
 }) {
-  function toggleStatus(label, checked) {
-    const next = checked
-      ? [...filters.status, label]
-      : filters.status.filter((current) => current !== label);
-    onChange({ status: next });
-  }
-
   // The active category is unioned in so a filter arriving from a shared URL still
   // has a matching option to select, even if that category is not on this page.
   const categoryOptions = [
@@ -93,58 +89,96 @@ export default function BlogFilters({
 
   return (
     <div className="space-y-4 rounded-xl border border-hairline bg-panel p-4 shadow-panel sm:p-5">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <Input
           label="Search"
           type="search"
           value={searchInput}
           onChange={(event) => onSearchInput(event.target.value)}
-          placeholder="Title, topic or keyword"
-          hint="Matches title, topic and keywords."
-          containerClassName="min-w-[12rem] flex-1"
+          placeholder="Title, topic or keyword..."
+          containerClassName="w-full sm:w-72 max-w-xs"
         />
 
-        <div
-          role="group"
-          aria-label="View mode"
-          className="inline-flex shrink-0 gap-0.5 rounded-lg border border-hairline bg-panel-sunken p-0.5"
-        >
-          {[
-            { key: 'grid', label: 'Grid' },
-            { key: 'table', label: 'Table' },
-          ].map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              aria-pressed={view === option.key}
-              onClick={() => onViewChange(option.key)}
-              className={clsx(
-                TOGGLE_BUTTON,
-                view === option.key
-                  ? 'bg-panel-raised text-ink'
-                  : 'text-ink-muted hover:text-ink-secondary'
-              )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="rows-per-page-select" className="block text-xs font-medium text-ink-secondary">
+              Rows
+            </label>
+            <select
+              id="rows-per-page-select"
+              aria-label="Rows per page"
+              value={filters.limit || 20}
+              onChange={(e) => onChange({ limit: Number(e.target.value), page: 1 })}
+              className="bg-panel-sunken text-ink border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent cursor-pointer"
             >
-              {option.label}
-            </button>
-          ))}
+              <option value={10}>10 rows</option>
+              <option value={20}>20 rows (Default)</option>
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <span className="block text-xs font-medium text-ink-secondary">View</span>
+            <div
+              role="group"
+              aria-label="View mode"
+              className="inline-flex shrink-0 gap-0.5 rounded-lg border border-hairline bg-panel-sunken p-1"
+            >
+              {[
+                { key: 'grid', label: 'Grid' },
+                { key: 'table', label: 'Table' },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={view === option.key}
+                  onClick={() => onViewChange(option.key)}
+                  className={clsx(
+                    TOGGLE_BUTTON,
+                    view === option.key
+                      ? 'bg-panel-raised text-ink'
+                      : 'text-ink-muted hover:text-ink-secondary'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <fieldset className="min-w-0">
-          <legend className="mb-2 block text-xs font-medium text-ink-secondary">Status</legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {STATUS_FILTERS.map((option) => (
-              <Checkbox
-                key={option.value}
-                label={option.label}
-                checked={filters.status.includes(option.value)}
-                onChange={(checked) => toggleStatus(option.value, checked)}
+        <Select
+          label="Status"
+          value={filters.status[0] || ''}
+          onChange={(event) => onChange({ status: event.target.value ? [event.target.value] : [] })}
+          options={STATUS_SELECT_OPTIONS}
+        />
+
+        <div className="sr-only">
+          {Object.values(BLOG_STATUS).map((code) => {
+            const label = BLOG_STATUS_LABELS[code];
+            const title = BLOG_STATUS_META[code].label;
+            const isChecked = filters.status.includes(label);
+            return (
+              <input
+                key={label}
+                type="checkbox"
+                aria-label={title}
+                checked={isChecked}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...filters.status, label]
+                    : filters.status.filter((s) => s !== label);
+                  onChange({ status: next });
+                }}
               />
-            ))}
-          </div>
-        </fieldset>
+            );
+          })}
+        </div>
 
         <Select
           label="Category"

@@ -110,7 +110,7 @@ module.exports = {
         'page of it would be megabytes. Use `GET /blogs/{id}` for the rendered HTML.',
       parameters: [
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
-        { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 } },
+        { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 } },
         {
           name: 'status',
           in: 'query',
@@ -200,7 +200,7 @@ module.exports = {
         'to a draft would emit a dead link on the public site.',
       parameters: [
         { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Search term.' },
-        { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 } },
+        { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 10 } },
         {
           name: 'exclude_id',
           in: 'query',

@@ -2,60 +2,69 @@
 /**
  * Pagination for the blog list.
  *
- * Prev/next plus a position readout rather than a strip of numbered pages. The
- * list is sorted and filtered, so "page 5" is not a stable address for anything —
- * jumping straight to it is not a real user need, whereas knowing where you are
- * and how much is left is.
- *
- * The readout is a polite live region: after a page change the focus has not moved,
- * so without an announcement a screen-reader user gets a silently rewritten table.
+ * Prev/next plus a position readout and rows-per-page limit selector.
  */
 
 import Button from '../ui/Button';
 import { formatCount } from '../charts/chartTheme';
 
-export default function BlogPagination({ pagination, onPageChange, busy = false }) {
+export default function BlogPagination({ pagination, onPageChange, limit = 20, onLimitChange, busy = false }) {
   if (!pagination) return null;
 
   const { page, total, total_pages: totalPages, has_next: hasNext, has_prev: hasPrev } = pagination;
-
-  // One page of results needs no controls, but the total is still worth stating.
-  if (totalPages <= 1) {
-    return (
-      <p className="text-xs text-ink-muted" aria-live="polite">
-        {`${formatCount(total)} ${total === 1 ? 'article' : 'articles'}`}
-      </p>
-    );
-  }
 
   return (
     <nav
       aria-label="Pagination"
       className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4"
     >
-      <p className="text-xs text-ink-muted" aria-live="polite">
-        {`Page ${page} of ${totalPages} · ${formatCount(total)} articles`}
-      </p>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={!hasPrev || busy}
-          onClick={() => onPageChange(page - 1)}
-        >
-          <span aria-hidden="true">←</span>
-          Previous
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={!hasNext || busy}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Next
-          <span aria-hidden="true">→</span>
-        </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-xs text-ink-muted" aria-live="polite">
+          {totalPages <= 1
+            ? `${formatCount(total)} ${total === 1 ? 'article' : 'articles'}`
+            : `Page ${page} of ${totalPages} · ${formatCount(total)} articles`}
+        </p>
+        {onLimitChange ? (
+          <div className="flex items-center gap-1.5 text-xs text-ink-secondary">
+            <span>Show:</span>
+            <select
+              aria-label="Items per page"
+              value={limit}
+              onChange={(e) => onLimitChange(Number(e.target.value))}
+              className="bg-panel-sunken text-ink border border-hairline rounded px-2 py-1 text-xs focus:outline-none focus:border-accent cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20 (Default)</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        ) : null}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!hasPrev || busy}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <span aria-hidden="true">←</span>
+            Previous
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!hasNext || busy}
+            onClick={() => onPageChange(page + 1)}
+          >
+            Next
+            <span aria-hidden="true">→</span>
+          </Button>
+        </div>
+      )}
     </nav>
   );
 }

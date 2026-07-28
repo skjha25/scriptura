@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 import { analyticsApi } from '../lib/api';
-import { useInterval } from '../hooks/useDebouncedValue';
+
 import Button from '../components/ui/Button';
 import { Select } from '../components/ui/form';
 import {
@@ -43,6 +43,7 @@ import MonthlyAverageChart from '../components/charts/MonthlyAverageChart';
 import StatusDonutChart from '../components/charts/StatusDonutChart';
 import RankedBarChart from '../components/charts/RankedBarChart';
 import SerpRankChart from '../components/charts/SerpRankChart';
+import { useInterval } from '../hooks/useDebouncedValue';
 import { formatCount, formatCompact, formatAverage } from '../components/charts/chartTheme';
 
 /**
@@ -100,29 +101,14 @@ const ENTRANCE = {
 // In-flight generations
 // ---------------------------------------------------------------------------
 
-/** '45s' / '3m 12s'. Recomputed on each poll, which is close enough at 8s. */
 function formatElapsed(startedAt) {
-  if (!startedAt) return '';
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000));
+  if (!startedAt) return '0s';
+  const ms = Date.now() - new Date(startedAt).getTime();
+  const seconds = Math.max(0, Math.floor(ms / 1000));
   if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`;
 }
 
-/**
- * Live view of generations that are queued or running.
- *
- * Two decisions worth stating:
- *
- * 1. POLLING STOPS WHEN THE LIST EMPTIES. An idle dashboard left open on a second
- *    monitor would otherwise issue a request every eight seconds forever. Once
- *    nothing is in flight the interval is torn down and a "Check again" button
- *    takes over — an explicit action beats a background timer that never ends.
- *
- * 2. THE PROGRESS BAR IS INDETERMINATE. The API reports a *state* (queued,
- *    generating), not a percentage. Animating a bar to 60% would be a number we
- *    invented, so the bar only says "moving" and the elapsed time carries the
- *    actual information.
- */
 function InFlightPanel() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
@@ -140,8 +126,6 @@ function InFlightPanel() {
     poll();
   }, [poll]);
 
-  // `null` means the first response has not landed, so keep polling; an error
-  // stops it, because retrying a broken endpoint every 8s just fills the log.
   const shouldPoll = !error && (items === null || items.length > 0);
   useInterval(poll, shouldPoll ? IN_FLIGHT_POLL_MS : null);
 
@@ -204,6 +188,8 @@ function InFlightPanel() {
   );
 }
 
+
+
 // ---------------------------------------------------------------------------
 // Recent activity
 // ---------------------------------------------------------------------------
@@ -262,8 +248,8 @@ function RecentActivityPanel({ items = [] }) {
  */
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6" aria-busy="true">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="space-y-8" aria-busy="true">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => (
           // eslint-disable-next-line react/no-array-index-key -- position is the identity
           <Card key={index} className="p-5">
@@ -272,7 +258,7 @@ function DashboardSkeleton() {
           </Card>
         ))}
       </div>
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
           // eslint-disable-next-line react/no-array-index-key -- position is the identity
           <Card key={index} className="p-5">
@@ -317,7 +303,7 @@ export default function DashboardPage() {
   const categories = (data?.category_breakdown || []).slice(0, MAX_RANKED_ROWS);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* The header stays mounted through loading and errors, so the window
           selector never disappears out from under the user. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -348,7 +334,7 @@ export default function DashboardPage() {
           <motion.section
             {...ENTRANCE}
             aria-label="Key metrics"
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5"
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5"
           >
             <StatTile label="Total blogs" value={formatCount(totals.total)} />
             <StatTile
@@ -372,6 +358,8 @@ export default function DashboardPage() {
             />
           </motion.section>
 
+          <InFlightPanel />
+
           {totals.total === 0 ? (
             <Card>
               <EmptyState
@@ -390,7 +378,7 @@ export default function DashboardPage() {
             // the window length changes the chart heights.
             <motion.div
               layout
-              className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
+              className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2"
             >
               <PublishedOverTimeChart data={data.published_over_time} />
               <StatusDonutChart data={data.status_breakdown} />
@@ -416,29 +404,27 @@ export default function DashboardPage() {
 
               <ScoreDistributionChart data={data.seo_score_distribution} />
 
-              {keywords.length > 0 ? (
-                <RankedBarChart
-                  title="Top keywords"
-                  summary={`The ${keywords.length} most-targeted keywords, primary and secondary combined, counted across all articles.`}
-                  data={keywords}
-                  labelKey="keyword"
-                  valueKey="count"
-                  valueName="Articles"
-                  columns={KEYWORD_COLUMNS}
-                />
-              ) : null}
+              <RankedBarChart
+                title="Top keywords"
+                summary={`The ${keywords.length} most-targeted keywords, primary and secondary combined, counted across all articles.`}
+                data={keywords}
+                labelKey="keyword"
+                valueKey="count"
+                valueName="Articles"
+                columns={KEYWORD_COLUMNS}
+              />
 
-              {categories.length > 0 ? (
-                <RankedBarChart
-                  title="Content mix by category"
-                  summary={`How the library is distributed across ${categories.length} categories. Articles with no category are grouped as Uncategorised.`}
-                  data={categories}
-                  labelKey="category"
-                  valueKey="count"
-                  valueName="Articles"
-                  columns={CATEGORY_COLUMNS}
-                />
-              ) : null}
+              <RankedBarChart
+                title="Content mix by category"
+                summary={`How the library is distributed across ${categories.length} categories. Articles with no category are grouped as Uncategorised.`}
+                data={categories}
+                labelKey="category"
+                valueKey="count"
+                valueName="Articles"
+                columns={CATEGORY_COLUMNS}
+              />
+
+              <RecentActivityPanel items={data.recent} />
 
               {/* Section 6 makes this chart conditional: `serp_rank` is absent
                   from the payload unless SerpAPI is configured, so the flag is
@@ -449,10 +435,7 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
-          <motion.div {...ENTRANCE} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-            <InFlightPanel />
-            <RecentActivityPanel items={data.recent} />
-          </motion.div>
+
         </>
       ) : null}
     </div>

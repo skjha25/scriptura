@@ -81,6 +81,7 @@
     "Remove this override once the suite moves to Jest's native ESM mode."
   ],
   "overrides": {
-    "htmlparser2": "^9.1.0"
+    "htmlparser2": "^9.1.0",
+    "undici": "^6.28.0"
   }
 }

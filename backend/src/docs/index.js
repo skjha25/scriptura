@@ -171,7 +171,7 @@ const openApiSpec = {
         type: 'object',
         properties: {
           page: { type: 'integer', example: 1 },
-          limit: { type: 'integer', example: 20 },
+          limit: { type: 'integer', example: 10 },
           total: { type: 'integer', example: 137 },
           total_pages: { type: 'integer', example: 7 },
           has_next: { type: 'boolean' },

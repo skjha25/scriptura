@@ -21,7 +21,7 @@ import Button from '../ui/Button';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: '◈', end: true },
-  { to: '/blogs', label: 'All blogs', icon: '☰' },
+  { to: '/blogs', label: 'All blogs', icon: '☰', end: true },
   { to: '/blogs/new', label: 'New article', icon: '✦' },
 ];
 
