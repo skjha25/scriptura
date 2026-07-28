@@ -1,0 +1,481 @@
+{
+  "$comment": "GENERATED FILE — do not hand-edit. Regenerate with `node backend/scripts/generate-block-fixtures.js`. Pins the contract between backend/src/services/blocksToHtml.js (canonical) and frontend/src/components/BlockRenderer.js (must produce a matching DOM).",
+  "generator": "backend/scripts/generate-block-fixtures.js",
+  "cases": [
+    {
+      "name": "all_block_types",
+      "description": "One of every supported block type, in insert-menu order.",
+      "blocks": [
+        {
+          "id": "b1",
+          "type": "paragraph",
+          "data": {
+            "text": "Shravana arrives with a shift in cosmic rhythm.",
+            "is_lead": true
+          }
+        },
+        {
+          "id": "b2",
+          "type": "heading",
+          "data": {
+            "level": 2,
+            "text": "The Essence of Shravana"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "paragraph",
+          "data": {
+            "html": "This is <strong>devotion</strong> and <a href=\"https://divinetalk.com/shravana\">renewal</a>."
+          }
+        },
+        {
+          "id": "b4",
+          "type": "heading",
+          "data": {
+            "level": 3,
+            "text": "Rituals that matter"
+          }
+        },
+        {
+          "id": "b5",
+          "type": "list",
+          "data": {
+            "style": "bullet",
+            "items": [
+              "Offer water to Shiva",
+              "Observe Monday fasts"
+            ]
+          }
+        },
+        {
+          "id": "b6",
+          "type": "list",
+          "data": {
+            "style": "numbered",
+            "items": [
+              "Wake before sunrise",
+              "Bathe the lingam",
+              "Offer bel leaves"
+            ]
+          }
+        },
+        {
+          "id": "b7",
+          "type": "image",
+          "data": {
+            "url": "blogs/July2026/shravana.png",
+            "alt_text": "A Shiva lingam during abhishekam",
+            "caption": "Abhishekam at dawn"
+          }
+        },
+        {
+          "id": "b8",
+          "type": "quote",
+          "data": {
+            "text": "Devotion is the shortest path.",
+            "attribution": "Sant Tukaram"
+          }
+        },
+        {
+          "id": "b9",
+          "type": "table",
+          "data": {
+            "caption": "Auspicious days",
+            "headers": [
+              "Day",
+              "Ritual"
+            ],
+            "rows": [
+              [
+                "Monday",
+                "Rudrabhishek"
+              ],
+              [
+                "Saturday",
+                "Deep daan"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "b10",
+          "type": "faq_accordion",
+          "data": {
+            "items": [
+              {
+                "question": "When does Shravana begin?",
+                "answer": "It begins in late July and runs for a lunar month."
+              },
+              {
+                "question": "Who should fast?",
+                "answer": "Anyone in good health may observe Monday fasts."
+              }
+            ]
+          }
+        },
+        {
+          "id": "b11",
+          "type": "key_takeaway",
+          "data": {
+            "title": "Key takeaways",
+            "items": [
+              "Shravana favours new beginnings",
+              "Mondays carry the strongest charge"
+            ]
+          }
+        },
+        {
+          "id": "b12",
+          "type": "cta_button",
+          "data": {
+            "text": "Talk to an astrologer",
+            "url": "https://divinetalk.com/consult"
+          }
+        },
+        {
+          "id": "b13",
+          "type": "embed",
+          "data": {
+            "url": "https://www.youtube.com/embed/abc123",
+            "title": "Shravana aarti"
+          }
+        }
+      ],
+      "expected_html": "<p class=\"lead\">Shravana arrives with a shift in cosmic rhythm.</p><h2>The Essence of Shravana</h2><p>This is <strong>devotion</strong> and <a href=\"https://divinetalk.com/shravana\" rel=\"noopener noreferrer\" target=\"_blank\">renewal</a>.</p><h3>Rituals that matter</h3><ul class=\"scriptura-list scriptura-list-bullet\"><li>Offer water to Shiva</li><li>Observe Monday fasts</li></ul><ol class=\"scriptura-list scriptura-list-numbered\"><li>Wake before sunrise</li><li>Bathe the lingam</li><li>Offer bel leaves</li></ol><figure class=\"scriptura-figure\"><img class=\"scriptura-image\" src=\"blogs/July2026/shravana.png\" alt=\"A Shiva lingam during abhishekam\" loading=\"lazy\" decoding=\"async\" /><figcaption class=\"scriptura-figcaption\">Abhishekam at dawn</figcaption></figure><blockquote class=\"scriptura-quote\"><p>Devotion is the shortest path.</p><cite class=\"scriptura-quote-attribution\">Sant Tukaram</cite></blockquote><div class=\"scriptura-table-wrap\"><table class=\"scriptura-table\"><caption class=\"scriptura-table-caption\">Auspicious days</caption><thead><tr><th scope=\"col\">Day</th><th scope=\"col\">Ritual</th></tr></thead><tbody><tr><td>Monday</td><td>Rudrabhishek</td></tr><tr><td>Saturday</td><td>Deep daan</td></tr></tbody></table></div><section class=\"scriptura-faq\"><details class=\"scriptura-faq-item\"><summary class=\"scriptura-faq-question\">When does Shravana begin?</summary><div class=\"scriptura-faq-answer\">It begins in late July and runs for a lunar month.</div></details><details class=\"scriptura-faq-item\"><summary class=\"scriptura-faq-question\">Who should fast?</summary><div class=\"scriptura-faq-answer\">Anyone in good health may observe Monday fasts.</div></details></section><section class=\"scriptura-takeaway\"><h3 class=\"scriptura-takeaway-title\">Key takeaways</h3><ul class=\"scriptura-takeaway-list\"><li>Shravana favours new beginnings</li><li>Mondays carry the strongest charge</li></ul></section><div class=\"scriptura-cta\"><a class=\"scriptura-cta-button\" href=\"https://divinetalk.com/consult\" rel=\"noopener noreferrer\" target=\"_blank\">Talk to an astrologer</a></div><div class=\"scriptura-embed\"><iframe class=\"scriptura-embed-frame\" src=\"https://www.youtube.com/embed/abc123\" title=\"Shravana aarti\" loading=\"lazy\" allowfullscreen></iframe></div>",
+      "expected_word_count": 88
+    },
+    {
+      "name": "empty_and_unknown_blocks_are_omitted",
+      "description": "Blocks with no content, and block types this renderer does not know, leave no trace in the output.",
+      "blocks": [
+        {
+          "id": "c1",
+          "type": "paragraph",
+          "data": {
+            "text": "Kept."
+          }
+        },
+        {
+          "id": "c2",
+          "type": "paragraph",
+          "data": {
+            "text": ""
+          }
+        },
+        {
+          "id": "c3",
+          "type": "heading",
+          "data": {
+            "level": 2,
+            "text": ""
+          }
+        },
+        {
+          "id": "c4",
+          "type": "list",
+          "data": {
+            "items": []
+          }
+        },
+        {
+          "id": "c5",
+          "type": "table",
+          "data": {
+            "headers": [],
+            "rows": []
+          }
+        },
+        {
+          "id": "c6",
+          "type": "faq_accordion",
+          "data": {
+            "items": []
+          }
+        },
+        {
+          "id": "c7",
+          "type": "image",
+          "data": {
+            "alt_text": "no url given"
+          }
+        },
+        {
+          "id": "c8",
+          "type": "cta_button",
+          "data": {
+            "text": "No link"
+          }
+        },
+        {
+          "id": "c9",
+          "type": "a_type_from_a_newer_frontend",
+          "data": {
+            "text": "must not appear"
+          }
+        },
+        {
+          "id": "c10",
+          "type": "paragraph",
+          "data": {
+            "text": "Also kept."
+          }
+        }
+      ],
+      "expected_html": "<p>Kept.</p><p>Also kept.</p>",
+      "expected_word_count": 3
+    },
+    {
+      "name": "xss_payloads_are_neutralised",
+      "description": "Script tags, event handlers, javascript: URLs and data: images must not survive rendering.",
+      "blocks": [
+        {
+          "id": "x1",
+          "type": "paragraph",
+          "data": {
+            "html": "<script>alert(1)</script>Tail survives."
+          }
+        },
+        {
+          "id": "x2",
+          "type": "paragraph",
+          "data": {
+            "html": "Click <a href=\"javascript:alert(2)\">here</a>."
+          }
+        },
+        {
+          "id": "x3",
+          "type": "image",
+          "data": {
+            "url": "javascript:alert(3)",
+            "alt_text": "blocked"
+          }
+        },
+        {
+          "id": "x4",
+          "type": "image",
+          "data": {
+            "url": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+            "alt_text": "blocked too"
+          }
+        },
+        {
+          "id": "x5",
+          "type": "cta_button",
+          "data": {
+            "text": "Bad",
+            "url": "javascript:alert(4)"
+          }
+        },
+        {
+          "id": "x6",
+          "type": "heading",
+          "data": {
+            "level": 2,
+            "text": "<img src=x onerror=alert(5)>"
+          }
+        },
+        {
+          "id": "x7",
+          "type": "table",
+          "data": {
+            "headers": [
+              "<script>h</script>"
+            ],
+            "rows": [
+              [
+                "<img src=x onerror=alert(6)>"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "x8",
+          "type": "embed",
+          "data": {
+            "url": "http://insecure.example.com/frame",
+            "title": "Downgraded to a link"
+          }
+        }
+      ],
+      "expected_html": "<p>Tail survives.</p><p>Click <a>here</a>.</p><h2>&lt;img src=x onerror=alert(5)&gt;</h2><div class=\"scriptura-table-wrap\"><table class=\"scriptura-table\"><thead><tr><th scope=\"col\"></th></tr></thead><tbody><tr><td></td></tr></tbody></table></div><p class=\"scriptura-embed\"><a href=\"http://insecure.example.com/frame\" rel=\"noopener noreferrer\" target=\"_blank\">Downgraded to a link</a></p>",
+      "expected_word_count": 4
+    },
+    {
+      "name": "heading_levels_are_clamped",
+      "description": "h1 is reserved for the page title and levels beyond h4 are not offered, so out-of-range levels clamp into 2..4.",
+      "blocks": [
+        {
+          "id": "h1",
+          "type": "heading",
+          "data": {
+            "level": 1,
+            "text": "Clamped up to h2"
+          }
+        },
+        {
+          "id": "h2",
+          "type": "heading",
+          "data": {
+            "level": 2,
+            "text": "Stays h2"
+          }
+        },
+        {
+          "id": "h3",
+          "type": "heading",
+          "data": {
+            "level": 4,
+            "text": "Stays h4"
+          }
+        },
+        {
+          "id": "h4",
+          "type": "heading",
+          "data": {
+            "level": 6,
+            "text": "Clamped down to h4"
+          }
+        },
+        {
+          "id": "h5",
+          "type": "heading",
+          "data": {
+            "level": "not a number",
+            "text": "Defaults to h2"
+          }
+        }
+      ],
+      "expected_html": "<h2>Clamped up to h2</h2><h2>Stays h2</h2><h4>Stays h4</h4><h4>Clamped down to h4</h4><h2>Defaults to h2</h2>",
+      "expected_word_count": 15
+    },
+    {
+      "name": "malformed_data_degrades_gracefully",
+      "description": "Wrong types where a shape is expected must not throw; the block is skipped or coerced.",
+      "blocks": [
+        {
+          "id": "m1",
+          "type": "paragraph",
+          "data": {
+            "text": "Before."
+          }
+        },
+        {
+          "id": "m2",
+          "type": "list",
+          "data": {
+            "items": "not an array"
+          }
+        },
+        {
+          "id": "m3",
+          "type": "table",
+          "data": {
+            "headers": "nope",
+            "rows": "nope"
+          }
+        },
+        {
+          "id": "m4",
+          "type": "faq_accordion",
+          "data": {
+            "items": [
+              null,
+              {
+                "question": "Only a question"
+              }
+            ]
+          }
+        },
+        {
+          "id": "m5",
+          "type": "list",
+          "data": {
+            "items": [
+              "ok",
+              null,
+              null,
+              "",
+              "  ",
+              "also ok"
+            ]
+          }
+        },
+        {
+          "id": "m6",
+          "type": "paragraph",
+          "data": {}
+        },
+        {
+          "id": "m7",
+          "type": "heading",
+          "data": null
+        },
+        {
+          "id": "m8",
+          "type": "paragraph",
+          "data": {
+            "text": "After."
+          }
+        }
+      ],
+      "expected_html": "<p>Before.</p><section class=\"scriptura-faq\"><details class=\"scriptura-faq-item\"><summary class=\"scriptura-faq-question\">Only a question</summary><div class=\"scriptura-faq-answer\"></div></details></section><ul class=\"scriptura-list scriptura-list-bullet\"><li>ok</li><li>also ok</li></ul><p>After.</p>",
+      "expected_word_count": 8
+    },
+    {
+      "name": "multiline_text_becomes_line_breaks",
+      "description": "Explicit newlines in plain text survive as <br /> rather than collapsing.",
+      "blocks": [
+        {
+          "id": "n1",
+          "type": "paragraph",
+          "data": {
+            "text": "First line.\nSecond line.\nThird line."
+          }
+        }
+      ],
+      "expected_html": "<p>First line.<br />Second line.<br />Third line.</p>",
+      "expected_word_count": 6
+    },
+    {
+      "name": "unicode_content_round_trips",
+      "description": "The live table holds Devanagari and emoji; neither may be mangled or dropped.",
+      "blocks": [
+        {
+          "id": "u1",
+          "type": "heading",
+          "data": {
+            "level": 2,
+            "text": "श्रावण मास की महिमा"
+          }
+        },
+        {
+          "id": "u2",
+          "type": "paragraph",
+          "data": {
+            "text": "ॐ नमः शिवाय 🙏 — chanted at dawn."
+          }
+        },
+        {
+          "id": "u3",
+          "type": "list",
+          "data": {
+            "items": [
+              "सोमवार व्रत",
+              "रुद्राभिषेक"
+            ]
+          }
+        }
+      ],
+      "expected_html": "<h2>श्रावण मास की महिमा</h2><p>ॐ नमः शिवाय 🙏 — chanted at dawn.</p><ul class=\"scriptura-list scriptura-list-bullet\"><li>सोमवार व्रत</li><li>रुद्राभिषेक</li></ul>",
+      "expected_word_count": 15
+    },
+    {
+      "name": "empty_block_list",
+      "description": "No blocks renders to an empty string, not to stray wrapper markup.",
+      "blocks": [],
+      "expected_html": "",
+      "expected_word_count": 0
+    }
+  ]
+}

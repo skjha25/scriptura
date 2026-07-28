@@ -1,0 +1,121 @@
+# Scriptura — full local stack.
+#
+#   docker compose up --build
+#
+# Brings up MySQL 8, runs migrations and seeders against it, starts the API on
+# :5000 and the web app on :3000. Nothing else needs installing.
+#
+# API keys are optional. Without ANTHROPIC_API_KEY / OPENAI_API_KEY the app still
+# runs end to end using the deterministic mock providers — see the notes in
+# backend/.env.example. Drop real keys into a `.env` file beside this one (or
+# export them) and they are picked up on the next `up`.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: scriptura-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-scriptura_root_pw}
+      MYSQL_DATABASE: ${DB_NAME:-scriptura}
+      MYSQL_USER: ${DB_USER:-scriptura}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+    # utf8mb4 is not optional: the live content contains Devanagari and emoji.
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # The blogs table is wide; the default is fine but being explicit avoids a
+      # surprise if a future column pushes the row size.
+      - --innodb-default-row-format=dynamic
+    ports:
+      # Exposed so you can point a GUI client at it. Change the host port if 3306
+      # is already taken locally.
+      - '${DB_HOST_PORT:-3306}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # The API's entrypoint waits on this. Without a healthcheck the API starts
+      # before MySQL finishes initialising and dies on its first connection.
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-p${DB_ROOT_PASSWORD:-scriptura_root_pw}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [scriptura]
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scriptura-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+
+      # Dev-only fallback secrets so the stack boots with no configuration. The
+      # backend refuses to start in production without real ones (config/index.js).
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-32chars-min}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-refresh-secret-change-me-32chars-min}
+
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-scriptura}
+      DB_USER: ${DB_USER:-scriptura}
+      DB_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+
+      # Absent keys degrade to the mock providers rather than failing.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+      SERPAPI_ENABLED: ${SERPAPI_ENABLED:-false}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+
+      STORAGE_DRIVER: local
+      UPLOADS_DIR: ./uploads
+
+      # Seed demo blogs on first boot. Set to false for an empty database.
+      SEED_ON_START: ${SEED_ON_START:-true}
+    ports:
+      - '${API_HOST_PORT:-5000}:5000'
+    volumes:
+      # Uploads persist across container rebuilds — losing generated images on
+      # every `up --build` would be maddening.
+      - uploads-data:/app/uploads
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:5000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    networks: [scriptura]
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked in at build time: Create React App inlines REACT_APP_* into the
+        # bundle, so this cannot be changed at runtime.
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000}
+    container_name: scriptura-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - '${WEB_HOST_PORT:-3000}:80'
+    networks: [scriptura]
+
+volumes:
+  mysql-data:
+  uploads-data:
+
+networks:
+  scriptura:
+    driver: bridge

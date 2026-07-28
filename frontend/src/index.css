@@ -1,0 +1,257 @@
+/* frontend/src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Global base styles.
+ *
+ * Tailwind handles almost everything inline; this file carries only what a
+ * utility class cannot express — root theming, focus behaviour, the reduced-motion
+ * contract, scrollbar treatment, and the `.prose-scriptura` typography used to render
+ * article content.
+ */
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    /* Anchored scroll targets (the editor's block links) must not land under the
+       sticky header. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-void text-ink font-sans;
+    /* The ambient wash is fixed rather than scrolled so it reads as a backdrop
+       instead of sliding away on long pages. */
+    background-image: theme('backgroundImage.cosmic-wash');
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    /* Prevents the layout shifting horizontally when a modal locks scrolling. */
+    scrollbar-gutter: stable;
+  }
+
+  /* Keyboard focus is visible everywhere; mouse focus is not. `:focus-visible`
+     gives that for free, so we never remove an outline without a replacement. */
+  :focus-visible {
+    @apply outline-none;
+    box-shadow: theme('boxShadow.focus-ring');
+    border-radius: 0.375rem;
+  }
+
+  ::selection {
+    background-color: rgba(144, 133, 233, 0.35);
+    color: #fff;
+  }
+
+  /* Dark-appropriate scrollbars. Without this, WebKit paints a light track that
+     is jarring against the page. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #332c52 transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #332c52;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #453c6e;
+  }
+
+  /* Date inputs render a black-on-black calendar icon in WebKit otherwise. */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(0.75);
+    cursor: pointer;
+  }
+
+  /* Tabular figures wherever numbers must align in a column. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /**
+   * Article typography.
+   *
+   * Applied to the output of the block renderer, in both the editor's live
+   * preview and the public blog page — the same class in both places, so what an
+   * author sees while editing is what a reader gets. The `scriptura-` prefixed class
+   * names come from the backend's blocksToHtml, which is why these selectors
+   * match its markup exactly.
+   */
+  .prose-scriptura {
+    @apply text-ink-secondary leading-relaxed;
+  }
+  .prose-scriptura > * + * {
+    @apply mt-5;
+  }
+  .prose-scriptura h1 {
+    @apply text-3xl font-semibold text-ink mt-10 mb-4 leading-tight;
+  }
+  .prose-scriptura h2 {
+    @apply text-2xl font-semibold text-ink mt-10 mb-3 leading-snug;
+  }
+  .prose-scriptura h3 {
+    @apply text-xl font-semibold text-ink mt-8 mb-2;
+  }
+  .prose-scriptura h4 {
+    @apply text-lg font-semibold text-ink mt-6 mb-2;
+  }
+  .prose-scriptura p {
+    @apply text-[15px] leading-7;
+  }
+  .prose-scriptura p.lead {
+    @apply text-lg leading-8 text-ink;
+  }
+  .prose-scriptura strong {
+    @apply text-ink font-semibold;
+  }
+  .prose-scriptura a {
+    @apply text-accent-bright underline decoration-accent/40 underline-offset-2 hover:decoration-accent-bright;
+  }
+  .prose-scriptura ul.scriptura-list,
+  .prose-scriptura ol.scriptura-list {
+    @apply pl-6 space-y-2 text-[15px] leading-7;
+  }
+  .prose-scriptura ul.scriptura-list-bullet {
+    @apply list-disc marker:text-accent/70;
+  }
+  .prose-scriptura ol.scriptura-list-numbered {
+    @apply list-decimal marker:text-accent/70;
+  }
+
+  .prose-scriptura figure.scriptura-figure {
+    @apply my-7;
+  }
+  .prose-scriptura img.scriptura-image {
+    @apply w-full rounded-xl border border-hairline;
+  }
+  .prose-scriptura figcaption.scriptura-figcaption {
+    @apply mt-2 text-center text-xs text-ink-muted;
+  }
+
+  .prose-scriptura blockquote.scriptura-quote {
+    @apply my-7 border-l-2 border-accent/60 pl-5 italic text-ink;
+  }
+  .prose-scriptura blockquote.scriptura-quote cite {
+    @apply mt-2 block text-xs not-italic text-ink-muted;
+  }
+
+  /* The wrapper is what lets a wide table scroll instead of widening the page. */
+  .prose-scriptura div.scriptura-table-wrap {
+    @apply my-7 overflow-x-auto rounded-xl border border-hairline;
+  }
+  .prose-scriptura table.scriptura-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .prose-scriptura table.scriptura-table caption {
+    @apply px-4 py-3 text-left text-xs uppercase tracking-wide text-ink-muted;
+  }
+  .prose-scriptura table.scriptura-table th {
+    @apply bg-panel-raised px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink;
+  }
+  .prose-scriptura table.scriptura-table td {
+    @apply border-t border-hairline px-4 py-2.5 align-top;
+  }
+
+  .prose-scriptura section.scriptura-faq {
+    @apply my-7 space-y-2;
+  }
+  .prose-scriptura details.scriptura-faq-item {
+    @apply rounded-xl border border-hairline bg-panel-raised/60 px-4 py-3;
+  }
+  .prose-scriptura summary.scriptura-faq-question {
+    @apply cursor-pointer list-none font-medium text-ink marker:hidden;
+  }
+  .prose-scriptura summary.scriptura-faq-question::-webkit-details-marker {
+    display: none;
+  }
+  .prose-scriptura summary.scriptura-faq-question::after {
+    content: '+';
+    @apply float-right text-accent;
+  }
+  .prose-scriptura details[open] > summary.scriptura-faq-question::after {
+    content: '−';
+  }
+  .prose-scriptura div.scriptura-faq-answer {
+    @apply mt-2 text-sm leading-6;
+  }
+
+  .prose-scriptura section.scriptura-takeaway {
+    @apply my-7 rounded-xl border border-accent/25 bg-glow-subtle p-5;
+  }
+  .prose-scriptura h3.scriptura-takeaway-title {
+    @apply mt-0 mb-3 text-sm font-semibold uppercase tracking-wide text-accent-bright;
+  }
+  .prose-scriptura ul.scriptura-takeaway-list {
+    @apply list-disc space-y-1.5 pl-5 text-sm marker:text-accent;
+  }
+
+  .prose-scriptura div.scriptura-cta {
+    @apply my-8 text-center;
+  }
+  .prose-scriptura a.scriptura-cta-button {
+    @apply inline-block rounded-lg bg-glow-accent px-6 py-3 font-semibold text-white no-underline shadow-glow-sm;
+  }
+
+  .prose-scriptura div.scriptura-embed {
+    @apply my-7 overflow-hidden rounded-xl border border-hairline;
+  }
+  .prose-scriptura iframe.scriptura-embed-frame {
+    @apply aspect-video w-full;
+  }
+
+  /* Loading placeholder. */
+  .skeleton {
+    @apply rounded bg-panel-raised;
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 500px 100%;
+    background-repeat: no-repeat;
+    @apply animate-shimmer;
+  }
+}
+
+/**
+ * Reduced motion.
+ *
+ * The spec requires honouring `prefers-reduced-motion`. Framer Motion is told
+ * separately via MotionConfig (see src/index.js) because it animates in JS and
+ * would otherwise ignore CSS; this block covers everything CSS-driven.
+ *
+ * Durations are collapsed to ~0 rather than set to `none`, because `none` can
+ * stop transitionend/animationend from firing and leave a component that waits
+ * on those events stuck mid-state.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    background-image: none;
+  }
+}

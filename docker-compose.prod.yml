@@ -1,0 +1,84 @@
+# Scriptura — Docker Hub Stack
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Pulls prebuilt containers directly from Docker Hub (skjha25):
+#   - skjha25/scriptura-backend:latest
+#   - skjha25/scriptura-frontend:latest
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: scriptura-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-scriptura_root_pw}
+      MYSQL_DATABASE: ${DB_NAME:-scriptura}
+      MYSQL_USER: ${DB_USER:-scriptura}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-default-row-format=dynamic
+    ports:
+      - '${DB_HOST_PORT:-3306}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-p${DB_ROOT_PASSWORD:-scriptura_root_pw}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [scriptura]
+
+  api:
+    image: skjha25/scriptura-backend:latest
+    container_name: scriptura-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-32chars-min}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-refresh-secret-change-me-32chars-min}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-scriptura}
+      DB_USER: ${DB_USER:-scriptura}
+      DB_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SERPAPI_ENABLED: ${SERPAPI_ENABLED:-false}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      STORAGE_DRIVER: local
+      UPLOADS_DIR: ./uploads
+      SEED_ON_START: ${SEED_ON_START:-true}
+    ports:
+      - '${API_HOST_PORT:-5000}:5000'
+    volumes:
+      - uploads-data:/app/uploads
+    networks: [scriptura]
+
+  web:
+    image: skjha25/scriptura-frontend:latest
+    container_name: scriptura-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - '${WEB_HOST_PORT:-3000}:80'
+    networks: [scriptura]
+
+volumes:
+  mysql-data:
+  uploads-data:
+
+networks:
+  scriptura:
+    driver: bridge

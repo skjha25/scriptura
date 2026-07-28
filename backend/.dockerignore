@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+uploads/*
+!uploads/.gitkeep
+tests
+coverage
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.sqlite3

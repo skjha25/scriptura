@@ -1,0 +1,1 @@
+// scripts/generate-scaffold.js

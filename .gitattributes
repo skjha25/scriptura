@@ -1,0 +1,34 @@
+# .gitattributes
+# Normalise line endings.
+#
+# The important line is the shell script. This repo is developed on Windows, where
+# git's autocrlf would otherwise check `docker-entrypoint.sh` out with CRLF endings.
+# A CRLF shebang line fails inside the container with the notoriously unhelpful
+# "no such file or directory" — the interpreter path picks up a trailing \r. Forcing
+# LF prevents a class of bug that is very hard to diagnose from the error message.
+
+* text=auto eol=lf
+
+# Must be LF: executed by /bin/sh inside a Linux container.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+
+# Dockerfiles and compose files are read by Linux tooling.
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary — never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.docx binary
+*.pdf binary
+
+# Generated: the renderer contract between backend and frontend. Diffs are
+# meaningful, so keep it as text, but mark it so reviewers know not to hand-edit.
+shared/block-fixtures.json text eol=lf linguist-generated=true

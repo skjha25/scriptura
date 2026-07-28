@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build output
+frontend/build/
+backend/dist/
+
+# Uploads (runtime artifacts — keep the directory, ignore the contents)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.nyc_output/
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+e2e/.auth/

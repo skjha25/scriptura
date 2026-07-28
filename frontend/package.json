@@ -1,0 +1,75 @@
+{
+  "name": "scriptura-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scriptura — Divinetalk internal AI blog automation tool (web app)",
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^7.0.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "axios": "^1.7.9",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.1",
+    "react-scripts": "5.0.1",
+    "recharts": "^2.15.0"
+  },
+  "//devDependencies": [
+    "The three @testing-library packages must all resolve ONE copy of",
+    "@testing-library/dom. react@14 depends on dom ^9 while user-event@14 resolves",
+    "dom ^10, which installs both — a hoisted v10 and a nested v9. RTL then",
+    "configures the nested copy while user-event imports the hoisted one, so",
+    "interactions ran against unconfigured wrappers: ~35 spurious 'not wrapped in",
+    "act' warnings, and state updates not flushed when an interaction resolved.",
+    "react@16 peers on dom ^10, so pinning react ^16 + dom ^10 aligns all three.",
+    "Verify after any bump with: npm ls @testing-library/dom (expect one version)."
+  ],
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --watchAll=false",
+    "test:watch": "react-scripts test",
+    "test:coverage": "react-scripts test --watchAll=false --coverage",
+    "eject": "react-scripts eject"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/**/*.test.js"
+    ],
+    "resetMocks": false
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5000"
+}
