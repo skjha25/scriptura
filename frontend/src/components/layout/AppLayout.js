@@ -19,6 +19,8 @@ import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
 
+import ThemeToggle from '../ui/ThemeToggle';
+
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: '◈', end: true },
   { to: '/blogs', label: 'All blogs', icon: '☰', end: true },
@@ -80,18 +82,20 @@ function SidebarContent({ onNavigate }) {
 
   return (
     <div className="flex h-full flex-col gap-6 p-4">
-      <Link
-        to="/"
-        onClick={onNavigate}
-        className="flex items-center gap-2.5 px-2 py-1"
-        aria-label="Scriptura home"
-      >
-        
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold leading-tight text-ink">Scriptura</span>
-          <span className="block text-[11px] leading-tight text-ink-muted">Divinetalk content</span>
-        </span>
-      </Link>
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <Link
+          to="/"
+          onClick={onNavigate}
+          className="flex items-center gap-2.5"
+          aria-label="Scriptura home"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold leading-tight text-ink">Scriptura</span>
+            <span className="block text-[11px] leading-tight text-ink-muted">Divinetalk content</span>
+          </span>
+        </Link>
+        <ThemeToggle />
+      </div>
 
       <NavItems onNavigate={onNavigate} />
 
@@ -173,21 +177,28 @@ export default function AppLayout() {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-col">
+        {/* Desktop top header bar. */}
+        <header className="hidden border-b border-hairline bg-panel/30 px-6 py-3 lg:flex lg:items-center lg:justify-end">
+          <ThemeToggle />
+        </header>
+
         {/* Mobile top bar. Hidden from lg up, where the sidebar carries the brand. */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-hairline bg-void/90 px-4 py-3 backdrop-blur lg:hidden">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
-            aria-expanded={drawerOpen}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-hairline text-ink-secondary hover:text-ink"
-          >
-            <span aria-hidden="true">☰</span>
-          </button>
-          <Link to="/" className="flex items-center gap-2">
-            
-            <span className="text-sm font-semibold text-ink">Scriptura</span>
-          </Link>
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-hairline bg-void/90 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              className="grid h-9 w-9 place-items-center rounded-lg border border-hairline text-ink-secondary hover:text-ink"
+            >
+              <span aria-hidden="true">☰</span>
+            </button>
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-ink">Scriptura</span>
+            </Link>
+          </div>
+          <ThemeToggle />
         </header>
 
         {/* `min-w-0` on the flex child is what stops a wide table or long

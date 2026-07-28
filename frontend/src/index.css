@@ -17,6 +17,59 @@
     color-scheme: dark;
   }
 
+  html.light {
+    color-scheme: light;
+  }
+
+  html.light body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    background-image: radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.08), transparent 50%);
+  }
+
+  html.light .bg-panel {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .bg-panel-raised {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  html.light .bg-panel-sunken {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .bg-void {
+    background-color: #f8fafc !important;
+  }
+
+  html.light .text-ink {
+    color: #0f172a !important;
+  }
+
+  html.light .text-ink-secondary {
+    color: #475569 !important;
+  }
+
+  html.light .text-ink-muted {
+    color: #64748B !important;
+  }
+
+  html.light .text-ink-faint {
+    color: #94a3b8 !important;
+  }
+
+  html.light .border-hairline {
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .border-hairline-strong {
+    border-color: #cbd5e1 !important;
+  }
+
   html {
     /* Anchored scroll targets (the editor's block links) must not land under the
        sticky header. */
