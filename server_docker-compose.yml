@@ -1,4 +1,6 @@
-version: '3.3'
+# Scriptura — Docker Hub Production Stack
+#
+#   docker compose -f server_docker-compose.yml up -d
 
 services:
   mysql:
@@ -18,13 +20,21 @@ services:
       - '${DB_HOST_PORT:-3306}:3306'
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-p${DB_ROOT_PASSWORD:-scriptura_root_pw}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [scriptura]
 
   api:
     image: divinetalk/scriptura-backend:latest
     container_name: scriptura-api
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 5000
@@ -48,16 +58,23 @@ services:
       - '${API_HOST_PORT:-5000}:5000'
     volumes:
       - uploads-data:/app/uploads
+    networks: [scriptura]
 
   web:
     image: divinetalk/scriptura-frontend:latest
     container_name: scriptura-web
     restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_started
     ports:
       - '${WEB_HOST_PORT:-3000}:80'
+    networks: [scriptura]
 
 volumes:
   mysql-data:
   uploads-data:
+
+networks:
+  scriptura:
+    driver: bridge
