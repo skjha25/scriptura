@@ -42,7 +42,7 @@ COPY . .
 # CRA inlines REACT_APP_* variables into the bundle at build time, so the API URL
 # is a build argument rather than a runtime environment variable. Changing it
 # means rebuilding this image.
-ARG REACT_APP_API_URL=http://localhost:5000
+ARG REACT_APP_API_URL=
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # CI=true makes react-scripts treat warnings as warnings rather than prompting,

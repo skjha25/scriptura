@@ -29,7 +29,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 5000
       APP_URL: ${APP_URL:-http://localhost:5000}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-scriptura_production_access_secret_32chars_min}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-scriptura_production_refresh_secret_32chars_min}
       DB_HOST: mysql
