@@ -68,6 +68,50 @@ function FloatingParticles() {
   );
 }
 
+// ─── Promo Workflow (Idle State) ────────────────────────────────────────────
+function PromoWorkflow() {
+  const steps = [
+    { id: 'Idea', icon: '💡', desc: 'Brainstorm concepts' },
+    { id: 'Draft', icon: '📝', desc: 'Write full article' },
+    { id: 'Review', icon: '✅', desc: 'Check SEO & facts' },
+    { id: 'Publish', icon: '🚀', desc: 'Go live anytime' },
+  ];
+
+  return (
+    <div className="w-full max-w-4xl mx-auto my-8 relative z-10">
+      <div className="text-center mb-10">
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+          Your content creates itself. <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">You stay in control.</span>
+        </h2>
+        <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
+          Define your niche and standards just once. From there, our AI engine dreams up fresh topics, drafts full articles, verifies facts, and optimizes for search. You just drop in whenever you're ready to review and publish.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative">
+        {/* Connection line */}
+        <div className="hidden md:block absolute top-[40%] left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-blue-500/20 via-purple-500/50 to-pink-500/20 -translate-y-1/2 z-0" />
+        
+        {steps.map((step, i) => (
+          <motion.div
+            key={step.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + i * 0.1 }}
+            className="relative z-10 flex flex-col items-center p-5 bg-panel/40 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl hover:bg-panel/80 hover:border-white/20 transition-all"
+          >
+            <div className="text-3xl mb-3 p-4 bg-white/5 rounded-full shadow-inner border border-white/5">
+              {step.icon}
+            </div>
+            <h3 className="text-white font-bold text-lg mb-1">{step.id}</h3>
+            <p className="text-gray-400 text-xs md:text-sm text-center">{step.desc}</p>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Animated stage card ────────────────────────────────────────────────────
 function StageCard({ stage, elapsed, details, error }) {
   const def = STAGES.find((s) => s.key === stage) || STAGES[0];
@@ -444,10 +488,14 @@ export default function AutomatedBlogPage() {
         </motion.div>
       )}
 
-      {/* Main card */}
-      <div className="relative z-10 w-full max-w-lg">
-        <StageCard stage={stage} elapsed={elapsed} details={details} error={error} />
-      </div>
+      {/* Main content or Promo */}
+      {stage === 'idle' ? (
+        <PromoWorkflow />
+      ) : (
+        <div className="relative z-10 w-full max-w-lg mt-8">
+          <StageCard stage={stage} elapsed={elapsed} details={details} error={error} />
+        </div>
+      )}
 
       {/* Action buttons */}
       <motion.div
