@@ -59,6 +59,13 @@ router.get(
   controller.getStatus
 );
 
+router.post(
+  '/auto-topic',
+  requireAuth,
+  generationLimiter,
+  controller.generateAutoTopic
+);
+
 /**
  * Admin-only: unstick rows abandoned in `generating` by a restart.
  *

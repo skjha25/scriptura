@@ -42,6 +42,15 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    to: '/blogs/automated',
+    label: 'Automated AI Blog',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
 ];
 
 function BrandLogo() {

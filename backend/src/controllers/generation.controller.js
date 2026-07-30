@@ -106,6 +106,15 @@ const reapStale = asyncHandler(async (req, res) => {
   res.json({ ...result, in_flight_statuses: [...GENERATION_IN_FLIGHT] });
 });
 
+/**
+ * POST /generate/auto-topic
+ * AI picks a trending astrology topic with keywords and title suggestions.
+ */
+const generateAutoTopic = asyncHandler(async (req, res) => {
+  const result = await generation.generateAutoTopic();
+  res.json(result);
+});
+
 module.exports = {
   generateTitle,
   generateOutline,
@@ -113,4 +122,5 @@ module.exports = {
   getStatus,
   generationStatusHandler,
   reapStale,
+  generateAutoTopic,
 };

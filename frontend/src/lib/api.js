@@ -297,6 +297,7 @@ export const generateApi = {
   titles: (payload) => api.post('/generate/title', payload).then((r) => r.data),
   outline: (payload) => api.post('/generate/outline', payload).then((r) => r.data),
   article: (payload) => api.post('/generate/article', payload).then((r) => r.data),
+  autoTopic: () => api.post('/generate/auto-topic').then((r) => r.data),
 };
 
 export const brandVoiceApi = {

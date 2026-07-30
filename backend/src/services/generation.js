@@ -795,6 +795,64 @@ async function generateOutline(input, { provider } = {}) {
   };
 }
 
+/**
+ * Auto-generates a trending astrology topic, keywords, and title suggestions.
+ *
+ * Used by the fully automated blog page: the user clicks one button and the
+ * system picks a topic, generates a title, and runs the full pipeline.
+ *
+ * @param {object} [options]
+ * @param {object} [options.provider] Text provider override, for tests.
+ * @returns {Promise<{topic: string, seo_keywords: string, secondary_keywords: string[], titles: Array<{title: string, char_count: number, seo: object}>}>}
+ */
+async function generateAutoTopic({ provider } = {}) {
+  const textProvider = provider || getTextProvider();
+
+  const astrologyTopics = [
+    'Mercury Retrograde effects', 'Full Moon astrology', 'Zodiac compatibility',
+    'Saturn Return meaning', 'Jupiter transit horoscope', 'Venus retrograde love',
+    'Solar eclipse astrology', 'Lunar nodes karma', 'Pisces season predictions',
+    'Aries season energy', 'Natal chart reading', 'Moon sign personality',
+    'Horoscope weekly predictions', 'Astrology birth chart', 'Planetary alignment effects',
+  ];
+
+  const randomTopic = astrologyTopics[Math.floor(Math.random() * astrologyTopics.length)];
+
+  const { titles } = await textProvider.generateTitles({
+    topic: randomTopic,
+    keyword: randomTopic.toLowerCase(),
+    secondaryKeywords: [],
+    articleType: 'general',
+    count: 3,
+    toneOfVoice: 'informative',
+    pointOfView: 'second_person',
+    readabilityLevel: '8th_grade',
+    language: 'en',
+    targetCountry: 'IN',
+  });
+
+  const keyword = randomTopic.toLowerCase();
+
+  return {
+    provider: textProvider.name,
+    topic: randomTopic,
+    seo_keywords: keyword,
+    secondary_keywords: astrologyTopics
+      .filter((t) => t !== randomTopic)
+      .slice(0, 4)
+      .map((t) => t.toLowerCase()),
+    titles: titles.map((entry) => {
+      const safe = sanitizeInline(entry.title) || entry.title;
+      const plain = toPlainText(safe) || safe;
+      return {
+        title: plain,
+        char_count: plain.length,
+        seo: scoreTitle(plain, { keyword }),
+      };
+    }),
+  };
+}
+
 module.exports = {
   validateGenerationConfig,
   startGeneration,
@@ -803,6 +861,7 @@ module.exports = {
   getGenerationStatus,
   generateTitles,
   generateOutline,
+  generateAutoTopic,
   resolveBrandVoice,
   resolveInternalLinks,
   deriveMetaDescription,
