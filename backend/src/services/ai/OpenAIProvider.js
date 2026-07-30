@@ -250,7 +250,7 @@ class OpenAIProvider extends BaseProvider {
     const parsed = this.parse(raw, 'article response');
 
     return {
-      blocks: normalizeBlocks(parsed?.blocks, {
+      blocks: normalizeBlocks(parsed?.blocks || parsed, {
         seoStructure,
         provider: this.name,
         allowedTypes: BLOCK_TYPES,

@@ -1,0 +1,63 @@
+version: '3.3'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: scriptura-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-scriptura_root_pw}
+      MYSQL_DATABASE: ${DB_NAME:-scriptura}
+      MYSQL_USER: ${DB_USER:-scriptura}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-default-row-format=dynamic
+    ports:
+      - '${DB_HOST_PORT:-3306}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  api:
+    image: divinetalk/scriptura-backend:latest
+    container_name: scriptura-api
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-scriptura_production_access_secret_32chars_min}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-scriptura_production_refresh_secret_32chars_min}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-scriptura}
+      DB_USER: ${DB_USER:-scriptura}
+      DB_PASSWORD: ${DB_PASSWORD:-scriptura_pw}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SERPAPI_ENABLED: ${SERPAPI_ENABLED:-false}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      STORAGE_DRIVER: local
+      UPLOADS_DIR: ./uploads
+      SEED_ON_START: ${SEED_ON_START:-true}
+    ports:
+      - '${API_HOST_PORT:-5000}:5000'
+    volumes:
+      - uploads-data:/app/uploads
+
+  web:
+    image: divinetalk/scriptura-frontend:latest
+    container_name: scriptura-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '${WEB_HOST_PORT:-3000}:80'
+
+volumes:
+  mysql-data:
+  uploads-data:

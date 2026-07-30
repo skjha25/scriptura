@@ -332,11 +332,21 @@ const EMPHASIS_TAG_RE = /<\/?(?:strong|b|em|i|u)\b[^>]*>/gi;
  * @param {string[]} options.allowedTypes Usually constants.BLOCK_TYPES.
  * @returns {Array<{id: string, type: string, data: object}>}
  */
-function normalizeBlocks(blocks, { seoStructure = {}, provider = 'ai', allowedTypes } = {}) {
+function normalizeBlocks(rawBlocksInput, { seoStructure = {}, provider = 'ai', allowedTypes } = {}) {
+  let blocks = rawBlocksInput;
+
+  if (!Array.isArray(blocks) && blocks && typeof blocks === 'object') {
+    if (Array.isArray(blocks.blocks)) blocks = blocks.blocks;
+    else if (Array.isArray(blocks.article)) blocks = blocks.article;
+    else if (Array.isArray(blocks.content)) blocks = blocks.content;
+    else if (Array.isArray(blocks.data)) blocks = blocks.data;
+    else if (Array.isArray(blocks.items)) blocks = blocks.items;
+  }
+
   if (!Array.isArray(blocks)) {
     throw ApiError.upstream(`${provider} returned an article without a blocks array.`, {
       code: 'UPSTREAM_BAD_RESPONSE',
-      details: { provider, received: typeof blocks },
+      details: { provider, received: typeof rawBlocksInput },
     });
   }
 

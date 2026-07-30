@@ -57,32 +57,37 @@ export default function BlockSettingsPanel({
 
   return (
     <AnimatePresence>
-      {block ? (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16 }}
-            onClick={onClose}
-            aria-hidden="true"
-            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
-          />
+      {block && (
+        <motion.div
+          key="block-settings-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          onClick={onClose}
+          onPointerDown={onClose}
+          onTap={onClose}
+          aria-hidden="true"
+          className="fixed inset-0 z-30 bg-black/60 cursor-pointer lg:hidden"
+        />
+      )}
 
-          <motion.aside
-            role="region"
-            aria-label={`Settings for ${label} block, position ${index + 1} of ${total}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className={
-              'fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-2xl ' +
-              'border-t border-hairline bg-panel p-4 shadow-panel ' +
-              'lg:static lg:z-auto lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border ' +
-              'lg:p-0 lg:shadow-none'
-            }
-          >
+      {block && (
+        <motion.aside
+          key="block-settings-aside"
+          role="region"
+          aria-label={`Settings for ${label} block, position ${index + 1} of ${total}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          className={
+            'fixed inset-x-0 bottom-0 z-40 max-h-[75vh] overflow-y-auto rounded-t-2xl ' +
+            'border-t border-hairline bg-panel p-4 shadow-panel ' +
+            'lg:static lg:z-auto lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border ' +
+            'lg:p-0 lg:shadow-none'
+          }
+        >
             <div className="lg:sticky lg:top-6">
               <div className="mb-4 flex items-start justify-between gap-3 lg:border-b lg:border-hairline lg:p-4">
                 <div className="min-w-0">
@@ -138,8 +143,7 @@ export default function BlockSettingsPanel({
               </div>
             </div>
           </motion.aside>
-        </>
-      ) : null}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
   );
 }

@@ -24,7 +24,7 @@ import {
   GENERATION_STATUS_META,
 } from '../../lib/constants';
 import Button from '../ui/Button';
-import { Input, Select, Toggle, Checkbox } from '../ui/form';
+import { Input, Select, Toggle } from '../ui/form';
 
 /**
  * Status filter values are the *labels*, not the numeric codes.
