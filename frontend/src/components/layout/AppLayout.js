@@ -220,19 +220,17 @@ export default function AppLayout() {
       {/* Off-canvas drawer below lg. */}
       <AnimatePresence>
         {drawerOpen && (
-          <motion.div
+          <motion.button
+            type="button"
             key="drawer-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setDrawerOpen(false);
-            }}
-            className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm cursor-pointer lg:hidden"
-            style={{ touchAction: 'none' }}
-            aria-hidden="true"
+            onClick={() => setDrawerOpen(false)}
+            onPointerDown={() => setDrawerOpen(false)}
+            className="fixed inset-0 z-40 h-full w-full border-0 bg-black/75 p-0 backdrop-blur-sm cursor-pointer lg:hidden focus:outline-none"
+            aria-label="Close navigation overlay"
           />
         )}
         {drawerOpen && (

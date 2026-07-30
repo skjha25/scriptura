@@ -42,4 +42,16 @@ describe('AppLayout mobile drawer', () => {
     fireEvent.click(backdrop);
     expect(openBtn).toHaveAttribute('aria-expanded', 'false');
   });
+
+  test('closes menu when clicking close X button in drawer header', () => {
+    renderLayout();
+
+    const openBtn = screen.getByRole('button', { name: /open navigation/i });
+    fireEvent.click(openBtn);
+    expect(openBtn).toHaveAttribute('aria-expanded', 'true');
+
+    const closeBtn = screen.getByRole('button', { name: /close navigation$/i });
+    fireEvent.click(closeBtn);
+    expect(openBtn).toHaveAttribute('aria-expanded', 'false');
+  });
 });
