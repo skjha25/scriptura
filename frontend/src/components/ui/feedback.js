@@ -5,12 +5,13 @@
 import clsx from 'clsx';
 import { BLOG_STATUS_META, GENERATION_STATUS_META } from '../../lib/constants';
 
-/** Panel surface. `glow` is for the one element that should draw the eye. */
-export function Card({ children, className = '', glow = false, as: Component = 'div', ...rest }) {
+export function Card({ children, className = '', glow = false, interactive = true, as: Component = 'div', ...rest }) {
   return (
     <Component
       className={clsx(
-        'rounded-xl border border-hairline bg-panel shadow-panel',
+        'rounded-xl border border-white/5 bg-panel/60 backdrop-blur-2xl shadow-panel',
+        'transition-all duration-500 ease-out',
+        interactive && 'hover:-translate-y-1 hover:border-white/10 hover:shadow-glow-sm',
         glow && 'shadow-glow-sm border-accent/25',
         className
       )}

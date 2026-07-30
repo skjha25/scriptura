@@ -167,16 +167,34 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  @keyframes ambient-breathe {
+    0%, 100% { background-position: 0% 0%; background-size: 100% 100%; }
+    50% { background-position: 100% 100%; background-size: 120% 120%; }
+  }
+
   body {
-    @apply bg-void text-ink font-sans;
-    /* The ambient wash is fixed rather than scrolled so it reads as a backdrop
-       instead of sliding away on long pages. */
+    @apply bg-void text-ink font-sans relative;
     background-image: theme('backgroundImage.cosmic-wash');
     background-attachment: fixed;
     background-repeat: no-repeat;
     min-height: 100vh;
-    /* Prevents the layout shifting horizontally when a modal locks scrolling. */
     scrollbar-gutter: stable;
+    animation: ambient-breathe 25s ease-in-out infinite;
+  }
+
+  /* Next.js style subtle grid background overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
   }
 
   /* Keyboard focus is visible everywhere; mouse focus is not. `:focus-visible`
