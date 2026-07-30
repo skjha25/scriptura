@@ -17,12 +17,25 @@ import './index.css';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 
+function getBasename() {
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL;
+  if (typeof window !== 'undefined' && window.location) {
+    const path = window.location.pathname;
+    const match = path.match(/^(\/[^/]+)/);
+    if (match && !['/blogs', '/login', '/api', '/static'].includes(match[1])) {
+      return match[1];
+    }
+  }
+  return '';
+}
+
+const basename = getBasename();
 const container = document.getElementById('root');
 
 createRoot(container).render(
   <StrictMode>
     <MotionConfig reducedMotion="user">
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <AuthProvider>
           <App />
         </AuthProvider>
