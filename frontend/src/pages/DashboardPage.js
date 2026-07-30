@@ -218,16 +218,20 @@ function RecentActivityPanel({ items = [] }) {
               >
                 {item.blog_title}
               </Link>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <StatusBadge status={item.blog_status} />
-                <GenerationBadge status={item.generation_status} />
-                <span className="text-[11px] text-ink-muted">
-                  {item.word_count ? `${formatCount(item.word_count)} words` : 'No content'}
-                </span>
-                {/* A div, not a span: ScoreMeter renders a block-level meter and
-                    a div inside a span is invalid nesting. */}
-                <div className="ml-auto w-24 shrink-0">
-                  <ScoreMeter score={item.seo_score} size="sm" />
+              <div className="mt-2.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={item.blog_status} />
+                  <GenerationBadge status={item.generation_status} />
+                  <span className="text-[11px] text-ink-muted">
+                    {item.word_count ? `${formatCount(item.word_count)} words` : 'No content'}
+                  </span>
+                </div>
+                {/* A structured container for the meter that looks like a clean labeled row on mobile */}
+                <div className="flex items-center justify-between rounded-md bg-panel-raised sm:bg-transparent px-3 py-2 sm:p-0 sm:w-24 shrink-0 gap-3">
+                  <span className="text-[11px] font-medium text-ink-muted sm:hidden">SEO Score</span>
+                  <div className="w-24 shrink-0 sm:w-full">
+                    <ScoreMeter score={item.seo_score} size="sm" />
+                  </div>
                 </div>
               </div>
             </li>
