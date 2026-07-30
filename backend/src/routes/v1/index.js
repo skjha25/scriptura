@@ -27,6 +27,7 @@ const brandVoiceRoutes = require('./brandVoice.routes');
 const mediaRoutes = require('./media.routes');
 const serpRoutes = require('./serp.routes');
 const analyticsRoutes = require('./analytics.routes');
+const settingsRoutes = require('./settings.routes');
 
 const router = express.Router();
 
@@ -88,5 +89,6 @@ router.use('/brand-voice', brandVoiceRoutes);
 router.use('/media', mediaRoutes);
 router.use('/serp', serpRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/settings', settingsRoutes);
 
 module.exports = router;

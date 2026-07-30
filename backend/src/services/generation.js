@@ -57,6 +57,7 @@ const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 const { validateValue } = require('../middleware/validate');
 
+const { AutomatedTopic } = require('../models');
 const { getTextProvider } = require('./ai');
 const { blocksToHtml, countWords } = require('./blocksToHtml');
 const { sanitizeInline, toPlainText } = require('./sanitize');
@@ -808,13 +809,21 @@ async function generateOutline(input, { provider } = {}) {
 async function generateAutoTopic({ provider } = {}) {
   const textProvider = provider || getTextProvider();
 
-  const astrologyTopics = [
-    'Mercury Retrograde effects', 'Full Moon astrology', 'Zodiac compatibility',
-    'Saturn Return meaning', 'Jupiter transit horoscope', 'Venus retrograde love',
-    'Solar eclipse astrology', 'Lunar nodes karma', 'Pisces season predictions',
-    'Aries season energy', 'Natal chart reading', 'Moon sign personality',
-    'Horoscope weekly predictions', 'Astrology birth chart', 'Planetary alignment effects',
-  ];
+  const dbTopics = await AutomatedTopic.findAll();
+  let astrologyTopics = [];
+  
+  if (dbTopics && dbTopics.length > 0) {
+    astrologyTopics = dbTopics.map((t) => t.topic);
+  } else {
+    // Fallback if the database is empty
+    astrologyTopics = [
+      'Mercury Retrograde effects', 'Full Moon astrology', 'Zodiac compatibility',
+      'Saturn Return meaning', 'Jupiter transit horoscope', 'Venus retrograde love',
+      'Solar eclipse astrology', 'Lunar nodes karma', 'Pisces season predictions',
+      'Aries season energy', 'Natal chart reading', 'Moon sign personality',
+      'Horoscope weekly predictions', 'Astrology birth chart', 'Planetary alignment effects',
+    ];
+  }
 
   const randomTopic = astrologyTopics[Math.floor(Math.random() * astrologyTopics.length)];
 

@@ -17,12 +17,14 @@ const { sequelize, Sequelize } = require('../config/database');
 
 const Blog = require('./blog')(sequelize);
 const User = require('./user')(sequelize);
+const AutomatedTopic = require('./automatedTopic')(sequelize);
 
 const db = {
   sequelize,
   Sequelize,
   Blog,
   User,
+  AutomatedTopic,
 };
 
 /**

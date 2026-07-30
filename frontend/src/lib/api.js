@@ -342,4 +342,10 @@ export const analyticsApi = {
   inFlight: () => api.get('/analytics/in-flight').then((r) => r.data.data),
 };
 
+export const settingsApi = {
+  getTopics: () => api.get('/settings/topics').then((r) => r.data.data),
+  addTopic: (payload) => api.post('/settings/topics', payload).then((r) => r.data.data),
+  deleteTopic: (id) => api.delete(`/settings/topics/${id}`),
+};
+
 export default api;
