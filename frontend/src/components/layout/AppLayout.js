@@ -106,24 +106,40 @@ function ProviderNotice({ collapsed = false }) {
   );
 }
 
-function SidebarContent({ onNavigate, collapsed = false }) {
+function SidebarContent({ onNavigate, onClose, collapsed = false }) {
   const { user, logout } = useAuth();
 
   return (
     <div className={clsx('flex h-full flex-col gap-6 p-4', collapsed && 'items-center px-2')}>
-      <Link
-        to="/"
-        onClick={onNavigate}
-        title="Scriptura"
-        className={clsx('flex items-center gap-2.5 px-2 py-1', collapsed && 'justify-center px-0')}
-        aria-label="Scriptura home"
-      >
-        <BrandLogo />
-        <span className={clsx('min-w-0', collapsed && 'hidden lg:hidden')}>
-          <span className="block text-sm font-semibold leading-tight text-ink">Scriptura</span>
-          <span className="block text-[11px] leading-tight text-ink-muted">Divinetalk content</span>
-        </span>
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          to="/"
+          onClick={onNavigate}
+          title="Scriptura"
+          className={clsx('flex items-center gap-2.5 px-2 py-1', collapsed && 'justify-center px-0')}
+          aria-label="Scriptura home"
+        >
+          <BrandLogo />
+          <span className={clsx('min-w-0', collapsed && 'hidden lg:hidden')}>
+            <span className="block text-sm font-semibold leading-tight text-ink">Scriptura</span>
+            <span className="block text-[11px] leading-tight text-ink-muted">Divinetalk content</span>
+          </span>
+        </Link>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation"
+            title="Close navigation"
+            className="grid h-8 w-8 place-items-center rounded-lg border border-hairline text-ink-secondary hover:bg-panel-raised hover:text-ink transition-colors lg:hidden"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
 
       <NavItems onNavigate={onNavigate} collapsed={collapsed} />
 
@@ -231,7 +247,11 @@ export default function AppLayout() {
             aria-modal="true"
             aria-label="Navigation"
           >
-            <SidebarContent onNavigate={() => setDrawerOpen(false)} collapsed={false} />
+            <SidebarContent
+              onNavigate={() => setDrawerOpen(false)}
+              onClose={() => setDrawerOpen(false)}
+              collapsed={false}
+            />
           </motion.aside>
         )}
       </AnimatePresence>
