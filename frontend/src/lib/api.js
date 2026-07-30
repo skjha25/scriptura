@@ -25,7 +25,21 @@ import axios from 'axios';
  * base URL avoids CORS entirely. In production the app is served from the same
  * origin as the API, or REACT_APP_API_URL points at it.
  */
-const API_BASE = `${process.env.REACT_APP_API_URL || ''}/api/v1`;
+function resolveApiBase() {
+  if (process.env.REACT_APP_API_URL) {
+    return `${process.env.REACT_APP_API_URL.replace(/\/$/, '')}/api/v1`;
+  }
+  if (typeof window !== 'undefined' && window.location) {
+    const path = window.location.pathname;
+    const match = path.match(/^(\/[^/]+)/);
+    if (match && !['/blogs', '/login', '/api'].includes(match[1])) {
+      return `${match[1]}/api/v1`;
+    }
+  }
+  return '/api/v1';
+}
+
+const API_BASE = resolveApiBase();
 
 const ACCESS_TOKEN_KEY = 'scriptura.access_token';
 const REFRESH_TOKEN_KEY = 'scriptura.refresh_token';
