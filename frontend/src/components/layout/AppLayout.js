@@ -3,7 +3,7 @@
  * Supports folding/collapsing the left sidebar on desktop into a thin icon bar.
  */
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -130,6 +130,7 @@ function SidebarContent({ onNavigate, onClose, collapsed = false }) {
           <button
             type="button"
             onClick={onClose}
+            onTouchStart={onClose}
             aria-label="Close navigation"
             title="Close navigation"
             className="grid h-8 w-8 place-items-center rounded-lg border border-hairline text-ink-secondary hover:bg-panel-raised hover:text-ink transition-colors lg:hidden"
@@ -190,16 +191,15 @@ export default function AppLayout() {
     setDrawerOpen(false);
   }, [location.pathname]);
 
+  // Handle escape key (removed buggy body overflow lock for iOS Safari).
   useEffect(() => {
     if (!drawerOpen) return undefined;
     const onKeyDown = (event) => {
       if (event.key === 'Escape') setDrawerOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
-    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = '';
     };
   }, [drawerOpen]);
 
@@ -229,6 +229,7 @@ export default function AppLayout() {
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             onClick={() => setDrawerOpen(false)}
             onPointerDown={() => setDrawerOpen(false)}
+            onTouchStart={() => setDrawerOpen(false)}
             className="fixed inset-0 z-40 h-full w-full border-0 bg-black/75 p-0 backdrop-blur-sm cursor-pointer lg:hidden focus:outline-none"
             aria-label="Close navigation overlay"
           />
@@ -296,7 +297,13 @@ export default function AppLayout() {
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <Outlet />
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-hairline border-t-accent" />
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
