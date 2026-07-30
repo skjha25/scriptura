@@ -35,7 +35,7 @@ describe('AppLayout mobile drawer', () => {
     expect(openBtn).toHaveAttribute('aria-expanded', 'true');
 
     // Find the backdrop element
-    const backdrop = document.querySelector('.bg-black\\/70');
+    const backdrop = document.querySelector('.bg-black\\/75');
     expect(backdrop).not.toBeNull();
 
     // Click backdrop

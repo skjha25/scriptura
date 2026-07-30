@@ -209,11 +209,13 @@ export default function AppLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setDrawerOpen(false)}
-            onPointerDown={() => setDrawerOpen(false)}
-            onTap={() => setDrawerOpen(false)}
-            className="fixed inset-0 z-40 bg-black/70 cursor-pointer lg:hidden"
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDrawerOpen(false);
+            }}
+            className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm cursor-pointer lg:hidden"
+            style={{ touchAction: 'none' }}
             aria-hidden="true"
           />
         )}
@@ -223,8 +225,8 @@ export default function AppLayout() {
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-y-0 left-0 z-50 w-[min(280px,85vw)] border-r border-hairline bg-panel lg:hidden"
+            transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-y-0 left-0 z-50 w-[min(280px,85vw)] border-r border-hairline bg-panel shadow-2xl lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation"
@@ -260,7 +262,7 @@ export default function AppLayout() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => setDrawerOpen((prev) => !prev)}
               aria-label="Open navigation"
               aria-expanded={drawerOpen}
               className="grid h-9 w-9 place-items-center rounded-lg border border-hairline text-ink-secondary hover:text-ink"
