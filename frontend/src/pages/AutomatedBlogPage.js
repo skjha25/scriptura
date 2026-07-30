@@ -469,7 +469,7 @@ export default function AutomatedBlogPage() {
       >
         <h1 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2">
           <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Automated AI Blog
+            Autopilot Mode
           </span>
         </h1>
         <p className="text-ink-muted text-sm sm:text-base max-w-md mx-auto">
