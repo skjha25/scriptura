@@ -344,6 +344,7 @@ export const analyticsApi = {
 
 export const settingsApi = {
   getTopics: () => api.get('/settings/topics').then((r) => r.data.data),
+  suggestTopics: () => api.get('/settings/topics/suggest').then((r) => r.data.data),
   addTopic: (payload) => api.post('/settings/topics', payload).then((r) => r.data.data),
   deleteTopic: (id) => api.delete(`/settings/topics/${id}`),
 };

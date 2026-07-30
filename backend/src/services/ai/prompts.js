@@ -487,6 +487,18 @@ function imagePrompt({ topic, style = 'photo', altHint } = {}) {
     .join(' ');
 }
 
+function suggestTopicsPrompt(count = 5) {
+  return [
+    `You are a digital marketing expert for Divinetalk, an astrology platform.`,
+    `Your task is to generate ${count} trending astrology topics that are currently highly searched or contextually relevant (e.g. current retrogrades, transits, or evergreen topics with high volume).`,
+    `Do NOT invent fake news. Use real astrological concepts.`,
+    `Respond ONLY with a JSON object in this exact shape, and nothing else:`,
+    `{`,
+    `  "topics": ["string"]`,
+    `}`
+  ].join('\n\n');
+}
+
 module.exports = {
   SYSTEM_PROMPT,
   BRAND_VOICE_SAMPLE_MAX_CHARS,
@@ -496,6 +508,7 @@ module.exports = {
   outlinePrompt,
   articlePrompt,
   imagePrompt,
+  suggestTopicsPrompt,
   blockSchemaFor,
   clamp,
   fence,

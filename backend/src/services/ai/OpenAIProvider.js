@@ -148,6 +148,24 @@ class OpenAIProvider extends BaseProvider {
     });
   }
 
+  async suggestTopics(opts = {}) {
+    const raw = await this.complete({
+      operation: 'suggestTopics',
+      prompt: prompts.suggestTopicsPrompt(opts.count || 5),
+      temperature: 0.9,
+      maxTokens: 1024,
+    });
+    
+    const parsed = this.parse(raw, 'topics response');
+    const topics = Array.isArray(parsed?.topics) ? parsed.topics : [];
+    
+    return {
+      topics: topics
+        .filter((t) => typeof t === 'string' && t.trim() !== '')
+        .map((t) => t.trim()),
+    };
+  }
+
   /**
    * Generates SEO title candidates.
    * @param {object} opts See prompts.titlesPrompt.

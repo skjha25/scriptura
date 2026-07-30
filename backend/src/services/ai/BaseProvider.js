@@ -450,6 +450,14 @@ class BaseProvider {
   }
 
   /**
+   * @param {{count?: number}} opts
+   * @returns {Promise<{topics: string[]}>}
+   */
+  async suggestTopics(opts) {
+    return this.notImplemented('suggestTopics', opts);
+  }
+
+  /**
    * @param {{sample: string}} opts
    * @returns {Promise<{tone: string, pov: string, traits: string[], summary: string}>}
    */

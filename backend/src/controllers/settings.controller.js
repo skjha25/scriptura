@@ -53,8 +53,17 @@ const deleteTopic = asyncHandler(async (req, res) => {
   res.status(204).send();
 });
 
+const suggestTopics = asyncHandler(async (req, res) => {
+  const { getTextProvider } = require('../services/ai');
+  const provider = getTextProvider();
+  
+  const result = await provider.suggestTopics({ count: 5 });
+  res.json({ data: result.topics });
+});
+
 module.exports = {
   getTopics,
   addTopic,
   deleteTopic,
+  suggestTopics,
 };

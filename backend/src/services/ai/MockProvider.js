@@ -373,6 +373,16 @@ class MockProvider extends BaseProvider {
    * @param {object} opts See prompts.titlesPrompt.
    * @returns {Promise<{titles: Array<{title: string, angle: string, char_count: number}>}>}
    */
+  async suggestTopics(opts = {}) {
+    const { count = 5 } = opts;
+    const allTopics = [
+      'Venus in Leo 2027', 'Mars Retrograde Effects', 'Jupiter Return Meaning',
+      'Pluto in Aquarius', 'North Node in Aries', 'Saturn in Pisces Transit',
+      'Solar Eclipse 2027', 'Lunar Nodes Karma'
+    ];
+    return { topics: allTopics.slice(0, count) };
+  }
+
   async generateTitles(opts = {}) {
     const { topic, keyword, secondaryKeywords, count = 5 } = opts;
     const vars = varsFor({ topic, keyword, secondaryKeywords });
