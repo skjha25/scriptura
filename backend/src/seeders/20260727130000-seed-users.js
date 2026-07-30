@@ -70,7 +70,7 @@ module.exports = {
       }))
     );
 
-    await queryInterface.bulkInsert('users', rows);
+    await queryInterface.bulkInsert('users_scriptura', rows);
 
     /* eslint-disable no-console */
     console.log(`  Seeded ${TEAM.length} users. Password for all: ${DEV_PASSWORD}`);
@@ -80,7 +80,7 @@ module.exports = {
 
   async down(queryInterface) {
     const { Op } = require('sequelize');
-    await queryInterface.bulkDelete('users', {
+    await queryInterface.bulkDelete('users_scriptura', {
       email: { [Op.in]: TEAM.map((m) => m.email) },
     });
   },

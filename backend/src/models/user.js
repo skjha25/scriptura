@@ -88,7 +88,7 @@ module.exports = (sequelize) => {
       },
     },
     {
-      tableName: 'users',
+      tableName: 'users_scriptura',
       timestamps: true,
       createdAt: 'created_at',
       updatedAt: 'updated_at',

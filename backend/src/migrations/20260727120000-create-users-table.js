@@ -14,7 +14,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable(
-      'users',
+      'users_scriptura',
       {
         id: {
           type: Sequelize.BIGINT.UNSIGNED,
@@ -77,8 +77,8 @@ module.exports = {
       }
     );
 
-    await queryInterface.addIndex('users', {
-      name: 'users_email_unique',
+    await queryInterface.addIndex('users_scriptura', {
+      name: 'users_scriptura_email_unique',
       fields: ['email'],
       unique: true,
     });
@@ -86,6 +86,6 @@ module.exports = {
 
   async down(queryInterface) {
     // dropTable removes the table's indexes with it.
-    await queryInterface.dropTable('users');
+    await queryInterface.dropTable('users_scriptura');
   },
 };
