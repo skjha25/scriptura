@@ -106,7 +106,7 @@ module.exports = (sequelize) => {
         withPassword: { attributes: { include: ['password_hash'] } },
         active: { where: { is_active: true } },
       },
-      indexes: [{ name: 'users_email_unique', unique: true, fields: ['email'] }],
+      indexes: [{ name: 'users_scriptura_email_unique', unique: true, fields: ['email'] }],
     }
   );
 
