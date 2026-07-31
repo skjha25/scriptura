@@ -56,6 +56,7 @@ services:
       SERPAPI_ENABLED: ${SERPAPI_ENABLED:-false}
       SERPAPI_KEY: ${SERPAPI_KEY:-}
       STORAGE_DRIVER: local
+      STORAGE_PUBLIC_PATH: /scriptura/uploads
       UPLOADS_DIR: ./uploads
       SEED_ON_START: ${SEED_ON_START:-true}
     ports:
