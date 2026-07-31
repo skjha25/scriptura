@@ -334,6 +334,8 @@ async function safeGroundFacts(input) {
     });
     return null;
   }
+}
+
 /**
  * Fetches SERP data for a keyword.
  * Used for keyword-first autopilot flow.
