@@ -9,7 +9,7 @@
  */
 
 /** Where the API serves uploads from. Matches STORAGE_PUBLIC_PATH on the server. */
-const UPLOADS_PREFIX = '/uploads';
+const UPLOADS_PREFIX = process.env.REACT_APP_UPLOADS_PREFIX || '/scriptura/uploads';
 
 /**
  * Turns a stored image reference into something an `<img src>` can load.
