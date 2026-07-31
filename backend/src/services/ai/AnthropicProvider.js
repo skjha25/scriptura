@@ -113,7 +113,6 @@ class AnthropicProvider extends BaseProvider {
         {
           model: this.model,
           max_tokens: maxTokens,
-          temperature,
           system: prompts.SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: prompt },
