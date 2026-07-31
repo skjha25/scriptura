@@ -113,9 +113,11 @@ class AnthropicProvider extends BaseProvider {
         {
           model: this.model,
           max_tokens: maxTokens,
+          temperature,
           system: prompts.SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: prompt },
+            { role: 'assistant', content: JSON_PREFILL },
           ],
         },
         // Also set per request: a client-level timeout does not apply if a caller
@@ -137,7 +139,8 @@ class AnthropicProvider extends BaseProvider {
         });
       }
 
-      return text;
+      // Re-attach the prefill so the payload is a complete JSON object again.
+      return `${JSON_PREFILL}${text}`;
     });
   }
 
