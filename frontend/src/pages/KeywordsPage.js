@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { keywordsApi } from '../lib/api';
-import Button from '../components/ui/Button';
 
 export default function KeywordsPage() {
   const [keywords, setKeywords] = useState([]);
