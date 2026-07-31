@@ -116,7 +116,6 @@ class AnthropicProvider extends BaseProvider {
           system: prompts.SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: prompt },
-            { role: 'assistant', content: JSON_PREFILL },
           ],
         },
         // Also set per request: a client-level timeout does not apply if a caller
@@ -138,8 +137,7 @@ class AnthropicProvider extends BaseProvider {
         });
       }
 
-      // Re-attach the prefill so the payload is a complete JSON object again.
-      return `${JSON_PREFILL}${text}`;
+      return text;
     });
   }
 
