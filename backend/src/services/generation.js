@@ -340,6 +340,34 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     const html = blocksToHtml(blocks);
     const wordCount = countWords(blocks);
 
+    let generatedImages = [];
+    if (cfg.include_images && cfg.image_count > 0) {
+      try {
+        const { generateBlogImage } = require('./imageGeneration');
+        generatedImages = await generateBlogImage({
+          prompt: cfg.topic || blog.topic || blog.blog_title,
+          topic: cfg.topic || blog.topic || blog.blog_title,
+          style: cfg.image_style || 'photo',
+          logoOverlay: cfg.logo_overlay || false,
+          logoPosition: cfg.logo_position || 'none',
+          count: cfg.image_count,
+        });
+
+        if (generatedImages.length > 0) {
+          blog.blog_picture = generatedImages[0].relativePath;
+          blog.extra_images = generatedImages.map((img) => ({
+            ...img,
+            url: img.relativePath,
+          }));
+        }
+      } catch (imgErr) {
+        logger.error('Failed to generate images during article generation', {
+          blogId: blog.id,
+          error: imgErr.message,
+        });
+      }
+    }
+
     const metaDescription =
       cfg.meta_description ||
       blog.meta_description ||
