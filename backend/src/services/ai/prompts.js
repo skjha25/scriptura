@@ -499,6 +499,31 @@ function suggestTopicsPrompt(count = 5) {
   ].join('\n\n');
 }
 
+function suggestTopicsFromKeywordPrompt({ keyword, secondaryKeywords = [], serpData } = {}) {
+  const serpText = serpData ? [
+    serpData.top_10_results?.length ? `Top Ranking Titles/Snippets:\n${serpData.top_10_results.map(r => `- ${r.title} (${r.snippet})`).join('\n')}` : '',
+    serpData.people_also_ask?.length ? `People Also Ask:\n${serpData.people_also_ask.map(q => `- ${q}`).join('\n')}` : '',
+    serpData.related_searches?.length ? `Related Searches:\n${serpData.related_searches.map(q => `- ${q}`).join('\n')}` : ''
+  ].filter(Boolean).join('\n\n') : '';
+
+  return [
+    `You are a digital marketing expert for Divinetalk, an astrology platform.`,
+    `Your task is to take the provided primary keyword and generate an optimized topic title, 3 SEO-optimized blog titles, and related secondary keywords.`,
+    `in real PAA questions aur competitor gaps ko target karke primary topic, SEO-optimized titles, aur secondary keywords refine karo — jo primary_keyword diya gaya hai use as-is rakho, secondary_keywords ko SerpAPI ke related_searches/PAA se enrich karo.`,
+    '',
+    fence('primary_keyword', keyword),
+    secondaryKeywords.length ? fence('initial_secondary_keywords', secondaryKeywords.join(', ')) : '',
+    serpText ? fence('serp_competitor_data', serpText) : '',
+    '',
+    `Respond ONLY with a JSON object in this exact shape, and nothing else:`,
+    `{`,
+    `  "topic": "string",`,
+    `  "secondary_keywords": ["string"],`,
+    `  "titles": [{"title": "string", "angle": "string"}]`,
+    `}`
+  ].join('\n');
+}
+
 module.exports = {
   SYSTEM_PROMPT,
   BRAND_VOICE_SAMPLE_MAX_CHARS,
@@ -509,6 +534,7 @@ module.exports = {
   articlePrompt,
   imagePrompt,
   suggestTopicsPrompt,
+  suggestTopicsFromKeywordPrompt,
   blockSchemaFor,
   clamp,
   fence,

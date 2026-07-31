@@ -279,6 +279,27 @@ class AnthropicProvider extends BaseProvider {
         typeof parsed?.meta_description === 'string' ? parsed.meta_description.trim() : null,
     };
   }
+
+  async generateAutoTopicFromKeyword(opts = {}) {
+    const raw = await this.complete({
+      operation: 'generateAutoTopicFromKeyword',
+      prompt: prompts.suggestTopicsFromKeywordPrompt(opts),
+      temperature: 0.7,
+      maxTokens: 1024,
+    });
+    
+    const parsed = this.parse(raw, 'auto topic from keyword response');
+    
+    const titles = Array.isArray(parsed?.titles) ? parsed.titles : [];
+    const suggested_secondary_keywords = Array.isArray(parsed?.secondary_keywords) ? parsed.secondary_keywords : [];
+    const topic = typeof parsed?.topic === 'string' ? parsed.topic : opts.keyword;
+
+    return {
+      topic,
+      suggested_secondary_keywords,
+      titles,
+    };
+  }
 }
 
 module.exports = { AnthropicProvider, TEMPERATURE, MAX_TOKENS, JSON_PREFILL };

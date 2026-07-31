@@ -18,6 +18,11 @@ const { sequelize, Sequelize } = require('../config/database');
 const Blog = require('./blog')(sequelize);
 const User = require('./user')(sequelize);
 const AutomatedTopic = require('./automatedTopic')(sequelize);
+const ScripturaKeyword = require('./scripturaKeyword')(sequelize);
+
+// Set up associations
+ScripturaKeyword.hasMany(Blog, { foreignKey: 'keyword_pool_id', as: 'blogs' });
+Blog.belongsTo(ScripturaKeyword, { foreignKey: 'keyword_pool_id', as: 'keyword' });
 
 const db = {
   sequelize,
@@ -25,6 +30,7 @@ const db = {
   Blog,
   User,
   AutomatedTopic,
+  ScripturaKeyword,
 };
 
 /**

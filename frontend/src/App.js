@@ -24,6 +24,7 @@ const WizardPage = lazy(() => import('./pages/WizardPage'));
 const EditorPage = lazy(() => import('./pages/EditorPage'));
 const BlogViewPage = lazy(() => import('./pages/BlogViewPage'));
 const AutomatedBlogPage = lazy(() => import('./pages/AutomatedBlogPage'));
+const KeywordsPage = lazy(() => import('./pages/KeywordsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 /** Full-screen loading state, used while a lazy route or the session resolves. */
 function FullScreenLoader({ label = 'Loading' }) {
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="blogs/:id/wizard" element={<WizardPage />} />
           <Route path="blogs/:id/edit" element={<EditorPage />} />
           <Route path="blogs/:id" element={<BlogViewPage />} />
+          <Route path="keywords" element={<KeywordsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

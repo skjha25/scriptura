@@ -88,6 +88,21 @@ const create = asyncHandler(async (req, res) => {
   payload.blog_status = BLOG_STATUS.DRAFT;
   payload.generation_status = GENERATION_STATUS.DRAFT;
 
+  // Link keyword if present in keyword pool
+  if (payload.seo_keywords) {
+    const { ScripturaKeyword } = require('../models');
+    const keyword = await ScripturaKeyword.findOne({
+      where: {
+        primary_keyword: payload.seo_keywords,
+        status: 'in_progress',
+      },
+      order: [['created_at', 'DESC']],
+    });
+    if (keyword) {
+      payload.keyword_pool_id = keyword.id;
+    }
+  }
+
   const blog = await Blog.create(payload);
 
   logger.info('Blog created', {

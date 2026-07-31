@@ -349,4 +349,13 @@ export const settingsApi = {
   deleteTopic: (id) => api.delete(`/settings/topics/${id}`),
 };
 
+export const keywordsApi = {
+  list: (params) => api.get('/keywords', { params }).then((r) => r.data),
+  create: (payload) => api.post('/keywords', payload).then((r) => r.data.data),
+  update: (id, payload) => api.put(`/keywords/${id}`, payload).then((r) => r.data.data),
+  remove: (id) => api.delete(`/keywords/${id}`).then((r) => r.data.data),
+  bulkImport: (payload) => api.post('/keywords/bulk-import', payload).then((r) => r.data),
+  suggest: (topic) => api.get('/keywords/suggest', { params: { topic } }).then((r) => r.data.data),
+};
+
 export default api;

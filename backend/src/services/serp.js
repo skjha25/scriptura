@@ -334,6 +334,54 @@ async function safeGroundFacts(input) {
     });
     return null;
   }
+/**
+ * Fetches SERP data for a keyword.
+ * Used for keyword-first autopilot flow.
+ *
+ * @param {string} keyword Search query.
+ * @returns {Promise<{top_10_results: Array<{title: string, snippet: string, url: string}>, people_also_ask: string[], related_searches: string[]}>}
+ */
+async function fetchSerpDataForKeyword(keyword) {
+  assertEnabled('Keyword fact grounding');
+
+  const query = String(keyword || '').trim();
+  if (query === '') {
+    throw ApiError.badRequest('A keyword is required.', { code: 'KEYWORD_REQUIRED' });
+  }
+
+  const body = await request(
+    {
+      engine: 'google',
+      q: query,
+      num: 10,
+      gl: DEFAULT_LOCALE.gl,
+      hl: DEFAULT_LOCALE.hl,
+    },
+    'fetchSerpDataForKeyword'
+  );
+
+  const top_10_results = (Array.isArray(body.organic_results) ? body.organic_results : [])
+    .slice(0, 10)
+    .map((result) => ({
+      title: toPlainText(String(result?.title || '')).slice(0, 200),
+      snippet: toPlainText(String(result?.snippet || '')).slice(0, SNIPPET_MAX_CHARS),
+      url: typeof result?.link === 'string' ? result.link : '',
+    }))
+    .filter((source) => source.title !== '' || source.snippet !== '');
+
+  const people_also_ask = (Array.isArray(body.related_questions) ? body.related_questions : [])
+    .map((entry) => toPlainText(String(entry?.question || '')).slice(0, 200))
+    .filter(Boolean);
+
+  const related_searches = (Array.isArray(body.related_searches) ? body.related_searches : [])
+    .map((entry) => toPlainText(String(entry?.query || '')).slice(0, 200))
+    .filter(Boolean);
+
+  return {
+    top_10_results,
+    people_also_ask,
+    related_searches,
+  };
 }
 
 module.exports = {
@@ -342,6 +390,7 @@ module.exports = {
   checkRank,
   groundFacts,
   safeGroundFacts,
+  fetchSerpDataForKeyword,
   hostOf,
   RANK_CHECK_DEPTH,
   GROUNDING_RESULTS,

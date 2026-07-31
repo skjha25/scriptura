@@ -90,5 +90,6 @@ router.use('/media', mediaRoutes);
 router.use('/serp', serpRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/keywords', require('./keywords.routes'));
 
 module.exports = router;

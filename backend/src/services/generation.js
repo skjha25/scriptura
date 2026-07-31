@@ -436,6 +436,20 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     // NOTE: blog_status is deliberately untouched. See the file header.
     await blog.save();
 
+    if (blog.keyword_pool_id) {
+      try {
+        const { ScripturaKeyword } = require('../models');
+        const keywordPoolRow = await ScripturaKeyword.findByPk(blog.keyword_pool_id);
+        if (keywordPoolRow) {
+          keywordPoolRow.status = 'used';
+          keywordPoolRow.used_in_blog_id = blog.id;
+          await keywordPoolRow.save();
+        }
+      } catch (poolErr) {
+        logger.error('Failed to update keyword pool status', { blogId: blog.id, keywordPoolId: blog.keyword_pool_id, error: poolErr.message });
+      }
+    }
+
     logger.info('Generation completed', {
       blogId: blog.id,
       words: wordCount,
@@ -808,55 +822,77 @@ async function generateOutline(input, { provider } = {}) {
  */
 async function generateAutoTopic({ provider } = {}) {
   const textProvider = provider || getTextProvider();
+  const { ScripturaKeyword } = require('../models');
 
-  const dbTopics = await AutomatedTopic.findAll();
-  let astrologyTopics = [];
-  
-  if (dbTopics && dbTopics.length > 0) {
-    astrologyTopics = dbTopics.map((t) => t.topic);
-  } else {
-    // Fallback if the database is empty
-    astrologyTopics = [
-      'Mercury Retrograde effects', 'Full Moon astrology', 'Zodiac compatibility',
-      'Saturn Return meaning', 'Jupiter transit horoscope', 'Venus retrograde love',
-      'Solar eclipse astrology', 'Lunar nodes karma', 'Pisces season predictions',
-      'Aries season energy', 'Natal chart reading', 'Moon sign personality',
-      'Horoscope weekly predictions', 'Astrology birth chart', 'Planetary alignment effects',
-    ];
-  }
-
-  const randomTopic = astrologyTopics[Math.floor(Math.random() * astrologyTopics.length)];
-
-  const { titles } = await textProvider.generateTitles({
-    topic: randomTopic,
-    keyword: randomTopic.toLowerCase(),
-    secondaryKeywords: [],
-    articleType: 'general',
-    count: 3,
-    toneOfVoice: 'informative',
-    pointOfView: 'second_person',
-    readabilityLevel: '8th_grade',
-    language: 'en',
-    targetCountry: 'IN',
+  let keywordRow = await ScripturaKeyword.findOne({
+    where: { status: 'not_used' },
+    order: [['created_at', 'ASC']],
   });
 
-  const keyword = randomTopic.toLowerCase();
+  let primaryKeyword;
+  let secondaryKeywords = [];
+  let serpData = null;
+
+  if (!keywordRow) {
+    // Fallback: Generate keyword from Claude if none found
+    const dbTopics = await AutomatedTopic.findAll();
+    let astrologyTopics = [];
+    
+    if (dbTopics && dbTopics.length > 0) {
+      astrologyTopics = dbTopics.map((t) => t.topic);
+    } else {
+      astrologyTopics = [
+        'Mercury Retrograde effects', 'Full Moon astrology', 'Zodiac compatibility',
+        'Saturn Return meaning', 'Jupiter transit horoscope', 'Venus retrograde love',
+        'Solar eclipse astrology', 'Lunar nodes karma', 'Pisces season predictions',
+        'Aries season energy', 'Natal chart reading', 'Moon sign personality',
+        'Horoscope weekly predictions', 'Astrology birth chart', 'Planetary alignment effects',
+      ];
+    }
+  
+    const randomTopic = astrologyTopics[Math.floor(Math.random() * astrologyTopics.length)];
+    primaryKeyword = randomTopic.toLowerCase();
+    
+    keywordRow = await ScripturaKeyword.create({
+      primary_keyword: primaryKeyword,
+      status: 'in_progress'
+    });
+  } else {
+    primaryKeyword = keywordRow.primary_keyword;
+    secondaryKeywords = keywordRow.secondary_keywords || [];
+    keywordRow.status = 'in_progress';
+    await keywordRow.save();
+  }
+
+  if (serp.isEnabled()) {
+    try {
+      serpData = await serp.fetchSerpDataForKeyword(primaryKeyword);
+      keywordRow.serp_data = serpData;
+      await keywordRow.save();
+    } catch (err) {
+      logger.warn('Failed to fetch SERP data for keyword-first autopilot', { error: err.message });
+    }
+  }
+
+  // Suggest topics, injecting SERP data
+  const { titles, topic, suggested_secondary_keywords } = await textProvider.generateAutoTopicFromKeyword({
+    keyword: primaryKeyword,
+    secondaryKeywords,
+    serpData
+  });
 
   return {
     provider: textProvider.name,
-    topic: randomTopic,
-    seo_keywords: keyword,
-    secondary_keywords: astrologyTopics
-      .filter((t) => t !== randomTopic)
-      .slice(0, 4)
-      .map((t) => t.toLowerCase()),
+    topic: topic || primaryKeyword,
+    seo_keywords: primaryKeyword,
+    secondary_keywords: suggested_secondary_keywords || secondaryKeywords,
     titles: titles.map((entry) => {
       const safe = sanitizeInline(entry.title) || entry.title;
       const plain = toPlainText(safe) || safe;
       return {
         title: plain,
         char_count: plain.length,
-        seo: scoreTitle(plain, { keyword }),
+        seo: scoreTitle(plain, { keyword: primaryKeyword }),
       };
     }),
   };
