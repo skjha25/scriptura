@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { keywordsApi } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { keywordsApi, clustersApi } from '../lib/api';
 
 export default function KeywordsPage() {
+  const navigate = useNavigate();
   const [keywords, setKeywords] = useState([]);
   const [newKeyword, setNewKeyword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -206,13 +208,33 @@ export default function KeywordsPage() {
                         {k.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(k.id)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors text-sm font-medium"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const cluster = await clustersApi.create({
+                              name: `${k.primary_keyword} cluster`,
+                              head_keyword: k.primary_keyword,
+                              keywords: (k.secondary_keywords || []).map((sk) => ({ keyword: sk })),
+                            });
+                            navigate(`/clusters/${cluster.id}`);
+                          } catch (err) {
+                            setError(err.message || 'Failed to create cluster');
+                          }
+                        }}
+                        className="text-accent hover:text-accent-bright hover:bg-accent/10 p-2 rounded-lg transition-colors text-xs font-medium whitespace-nowrap"
+                      >
+                        Expand to Cluster
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(k.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>

@@ -1,6 +1,6 @@
 // frontend/src/components/charts/ScoreDistributionChart.js
 /**
- * SEO score distribution across the five buckets the API returns.
+ * Score distribution across the five buckets the API returns.
  *
  * WHY A HISTOGRAM, IN BUCKET ORDER: the x-axis is a continuous score band, so the
  * bars must stay in score order. Sorting a histogram by count — the reflex from
@@ -9,6 +9,11 @@
  * One series, so no legend. Each bar is labelled with its count directly, in an
  * ink token rather than the bar's own colour (rule 7), so the exact figure is
  * readable without a hover.
+ *
+ * Parametrized by `scoreLabel` ("SEO" | "AEO" | "GEO") rather than forked three
+ * times: the shape, the bucket ordering rule and the "unscored drafts excluded"
+ * caveat are identical for all three scores, only the label in the title and
+ * summary sentence differs.
  */
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList } from 'recharts';
@@ -31,17 +36,17 @@ const TABLE_COLUMNS = [
   { key: 'count', label: 'Articles', align: 'right', format: (value) => formatCount(value) },
 ];
 
-export default function ScoreDistributionChart({ data = [] }) {
+export default function ScoreDistributionChart({ data = [], scoreLabel = 'SEO' }) {
   const scored = data.reduce((sum, row) => sum + (row.count || 0), 0);
   const summary =
     scored === 0
-      ? 'No articles have been scored yet, so every band is empty.'
-      : `How ${formatCount(scored)} scored articles fall across the five SEO bands, lowest to ` +
+      ? `No articles have been ${scoreLabel} scored yet, so every band is empty.`
+      : `How ${formatCount(scored)} scored articles fall across the five ${scoreLabel} bands, lowest to ` +
         'highest. Unscored drafts are not counted.';
 
   return (
     <ChartFrame
-      title="SEO score distribution"
+      title={`${scoreLabel} score distribution`}
       summary={summary}
       columns={TABLE_COLUMNS}
       rows={data}

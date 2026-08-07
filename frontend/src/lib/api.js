@@ -358,4 +358,24 @@ export const keywordsApi = {
   suggest: (topic) => api.get('/keywords/suggest', { params: { topic } }).then((r) => r.data.data),
 };
 
+export const clustersApi = {
+  list: (params) => api.get('/clusters', { params }).then((r) => r.data),
+  get: (id) => api.get(`/clusters/${id}`).then((r) => r.data.data),
+  create: (payload) => api.post('/clusters', payload).then((r) => r.data.data),
+  update: (id, payload) => api.patch(`/clusters/${id}`, payload).then((r) => r.data.data),
+  remove: (id) => api.delete(`/clusters/${id}`).then((r) => r.data.data),
+  expand: (id, payload) => api.post(`/clusters/${id}/expand`, payload).then((r) => r.data.data),
+  checkCannibalization: (payload) => api.post('/clusters/check-cannibalization', payload).then((r) => r.data.data),
+  updateKeyword: (id, keywordId, payload) => api.patch(`/clusters/${id}/keywords/${keywordId}`, payload).then((r) => r.data.data),
+  removeKeyword: (id, keywordId) => api.delete(`/clusters/${id}/keywords/${keywordId}`).then((r) => r.data.data),
+  checkTimeSlot: (datetime, excludeKeywordId) => api.get('/clusters/check-time-slot', { params: { datetime, exclude_keyword_id: excludeKeywordId } }).then((r) => r.data.data),
+  scheduleAll: (id, payload) => api.post(`/clusters/${id}/schedule-all`, payload).then((r) => r.data.data),
+  autoSchedule: (id, payload) => api.post(`/clusters/${id}/auto-schedule`, payload).then((r) => r.data.data),
+};
+
+export const autopilotSettingsApi = {
+  get: () => api.get('/settings/autopilot').then((r) => r.data.data),
+  update: (payload) => api.put('/settings/autopilot', payload).then((r) => r.data.data),
+};
+
 export default api;

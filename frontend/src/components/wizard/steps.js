@@ -77,6 +77,11 @@ export const INITIAL_CONFIG = Object.freeze({
   external_web_grounding: false,
   outline: [],
 
+  // 'balanced' is the safe default: even weight across SEO/AEO/GEO rather than
+  // silently favouring one axis for an author who never opens step 3's
+  // optimisation-profile picker.
+  optimization_profile: 'balanced',
+
   include_images: true,
   image_count: IMAGE_COUNT_MIN,
   image_style: 'photo',
@@ -234,9 +239,11 @@ export function publishModeOf(config = {}) {
   return PUBLISH_MODE.DRAFT;
 }
 
-/** Today as YYYY-MM-DD, matching the DATEONLY columns without timezone drift. */
-export function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+/** Today as YYYY-MM-DDTHH:mm, matching the datetime-local format. */
+export function todayIsoDatetime() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 }
 
 /** The column patch for a chosen publish mode. */
@@ -244,11 +251,11 @@ export function patchForPublishMode(mode, currentDate) {
   if (mode === PUBLISH_MODE.SCHEDULE) {
     return {
       blog_status: BLOG_STATUS.SCHEDULED,
-      publish_date: filled(currentDate) ? currentDate : todayIsoDate(),
+      publish_date: filled(currentDate) ? currentDate : todayIsoDatetime(),
     };
   }
   if (mode === PUBLISH_MODE.NOW) {
-    return { blog_status: BLOG_STATUS.DRAFT, publish_date: todayIsoDate() };
+    return { blog_status: BLOG_STATUS.DRAFT, publish_date: todayIsoDatetime() };
   }
   return { blog_status: BLOG_STATUS.DRAFT, publish_date: null };
 }

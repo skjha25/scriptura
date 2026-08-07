@@ -132,6 +132,69 @@ function styleDirectives({ toneOfVoice, pointOfView, readabilityLevel, language,
   return lines;
 }
 
+/**
+ * Renders directives for the selected optimisation profile.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THESE EXACT LINES
+ * ---------------------------------------------------------------------------
+ * Each directive corresponds to a specific criterion the scorer actually
+ * checks — see services/aeoScore.js's AEO_WEIGHTS and services/geoScore.js's
+ * GEO_WEIGHTS. Asking the model for "better AEO" would be unfalsifiable; asking
+ * for "a 40-80 word answer immediately after the first H2" produces text the
+ * scorer either does or does not reward, so a low score after generation is
+ * traceable to a specific missed instruction rather than a vague miss.
+ *
+ * `seo` and `balanced` still receive the AEO/GEO baseline directives (a
+ * reasonable direct answer and at least one sourced claim cost nothing and
+ * help every profile) — only the EMPHASIS differs: aeo/geo profiles get
+ * stronger, more specific asks for their respective dimension.
+ *
+ * @param {string} [profile] One of OPTIMIZATION_PROFILES ('seo'|'aeo'|'geo'|'balanced').
+ * @returns {string[]} Directive lines, ready to join into the requirements list.
+ */
+function optimizationDirectives(profile = 'balanced') {
+  const lines = [];
+
+  // Baseline — cheap wins for every profile, matching aeoScore's DIRECT_ANSWER
+  // and geoScore's ANSWER_FRONT_LOADING criteria.
+  lines.push(
+    '- Answer the core question directly within the first 100-150 words, before any scene-setting.'
+  );
+
+  if (profile === 'aeo' || profile === 'balanced') {
+    lines.push(
+      '- Phrase at least half of the H2/H3 headings as natural questions ("What is...", "How does...", "Why do...").',
+      '- Immediately after each question heading, give a complete, self-contained answer in 40-80 words — the paragraph must make sense if read with no other context, because it may be lifted verbatim into a search snippet.'
+    );
+  }
+
+  if (profile === 'aeo') {
+    lines.push(
+      '- The FAQ section (if included) must have at least 3 question/answer pairs, each answer a complete standalone sentence or two.',
+      '- Prefer list and table blocks over long paragraphs wherever the content is naturally a sequence or a comparison — structured blocks are what gets lifted into featured snippets.'
+    );
+  }
+
+  if (profile === 'geo' || profile === 'balanced') {
+    lines.push(
+      '- Include at least 2 inline citations to real external authoritative sources using HTML anchor tags (<a href="https://...">...</a>) within paragraph text.',
+      '- Write declaratively. Avoid hedging language ("might", "could possibly", "some believe") — state what is established as established.'
+    );
+  }
+
+  if (profile === 'geo') {
+    lines.push(
+      '- Include at least one specific, sourced statistic (a sentence containing a number/digit AND an attribution cue like "according to", "a study by", etc.).',
+      '- Include at least one "quote" block and fill its "attribution" field with the real name and credential of an expert.',
+      '- Reference at least one classical or authoritative named text relevant to the topic (e.g. a named Vedic/astrological text), not a generic "ancient texts say".',
+      '- Favour precise, encyclopaedic phrasing for definitional sentences over conversational hedging — generative engines cite the confident, specific sentence over the cautious one.'
+    );
+  }
+
+  return lines;
+}
+
 /** Renders a confirmed brand voice into its own fenced block. */
 function brandVoiceSection(brandVoice) {
   if (!brandVoice) return '';
@@ -381,6 +444,7 @@ function articlePrompt({
   internalLinks = [],
   articleType = 'general',
   aiContentCleaning = false,
+  optimizationProfile = 'balanced',
   ...style
 } = {}) {
   const structure = { ...DEFAULT_SEO_STRUCTURE, ...(seoStructure || {}) };
@@ -432,13 +496,14 @@ function articlePrompt({
     structure.tables ? '- Include at most one table, and only where a comparison genuinely needs one.' : '',
     structure.quotes ? '- At most one quote block. Attribute it to a tradition, not to a fabricated person.' : '',
     linkText
-      ? '- Link to each internal target once, from a paragraph html block, using the /blog/<slug> path.'
+      ? '- Integrate the provided internal links naturally where contextually relevant. Use a paragraph html block and the /blog/<slug> path.'
       : '',
     '- End with one cta_button block pointing at https://divinetalk.com/consult.',
     aiContentCleaning
       ? '- Write the way a human editor would: vary sentence length, avoid the "moreover / furthermore / in conclusion" register, and cut every sentence that only restates the previous one.'
       : '',
     '- No emoji. No headings that are questions unless the section answers them directly.',
+    ...optimizationDirectives(optimizationProfile),
     '',
     'Respond with JSON of exactly this shape:',
     '{"blocks":[{"type":"paragraph","data":{"text":"...","is_lead":true}}],',

@@ -10,10 +10,10 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
-import { blogsApi } from '../lib/api';
+import { blogsApi, generateApi } from '../lib/api';
 import { resolveImageUrl } from '../lib/media';
 import BlockRenderer from '../components/BlockRenderer';
 import Button from '../components/ui/Button';
@@ -21,9 +21,12 @@ import { StatusBadge, ErrorBanner, Skeleton, EmptyState, ScoreMeter } from '../c
 
 export default function BlogViewPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,55 @@ export default function BlogViewPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleRetryGeneration() {
+    if (retrying) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      // Use the stored generation_config from the blog, or sensible defaults
+      const cfg = blog.generation_config && Object.keys(blog.generation_config).length > 0
+        ? { ...blog.generation_config }
+        : {
+            topic: blog.topic || blog.blog_title,
+            title: blog.blog_title,
+            keyword: blog.seo_keywords || '',
+            secondary_keywords: blog.secondary_keywords || [],
+            article_type: blog.article_type || 'general',
+            target_word_count: 2000,
+            language: blog.language || 'en',
+            target_country: blog.target_country || 'India',
+            readability_level: blog.readability_level || '8th_grade',
+            tone_of_voice: blog.tone_of_voice || 'informative',
+            include_images: blog.include_images ?? true,
+            image_count: blog.image_count || 2,
+            image_style: blog.image_style || 'illustration',
+            logo_overlay: blog.logo_overlay ?? true,
+            logo_position: blog.logo_position || 'bottom_right',
+            internal_linking: blog.internal_linking ?? true,
+            external_web_grounding: blog.external_web_grounding ?? false,
+            ai_content_cleaning: blog.ai_content_cleaning ?? true,
+            optimization_profile: blog.optimization_profile || 'balanced',
+            seo_structure_config: blog.seo_structure_config || {
+              h1: true, h2: true, h3: true, faq: true,
+              tables: false, key_takeaways: true, quotes: false,
+              lists: true, emphasis: true,
+            },
+            brand_voice: { source_type: 'none' },
+          };
+
+      // Remove internal _run metadata if present
+      delete cfg._run;
+
+      await generateApi.article({ blog_id: Number(id), config: cfg });
+      // Navigate to wizard Step 6 style polling or just reload after a delay
+      navigate(`/blogs/${id}/edit`);
+    } catch (err) {
+      setRetryError(err.message || 'Failed to start generation. Please try again.');
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -63,11 +115,12 @@ export default function BlogViewPage() {
 
   const blocks = blog.content_blocks || [];
   const publishedDate = blog.publish_date
-    ? new Date(`${blog.publish_date}T00:00:00Z`).toLocaleDateString('en-GB', {
+    ? new Date(blog.publish_date.includes('T') ? blog.publish_date : `${blog.publish_date}T00:00:00Z`).toLocaleString('en-GB', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
-        timeZone: 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
       })
     : null;
 
@@ -124,29 +177,74 @@ export default function BlogViewPage() {
           <img
             src={blog.blog_picture_url}
             alt={blog.meta_title || blog.blog_title}
-            className="mt-6 aspect-[16/9] w-full rounded-xl border border-hairline object-cover"
+            className="mt-6 w-full rounded-xl border border-hairline"
             loading="lazy"
           />
         ) : null}
       </header>
 
       {blocks.length === 0 ? (
-        <EmptyState
-          icon="✧"
-          title="No content yet"
-          message={
-            blog.generation_status === 'failed'
-              ? 'The last generation run failed. Open the wizard to retry it.'
-              : 'This article has no content blocks. Open the editor to add some.'
-          }
-          action={
-            <Button as={Link} to={`/blogs/${blog.id}/edit`} variant="primary">
-              Open editor
-            </Button>
-          }
-        />
+        <div className="space-y-4">
+          {blog.generation_status === 'failed' ? (
+            <div className="rounded-xl border border-status-critical/30 bg-status-critical/5 p-6 text-center space-y-4">
+              <div className="text-3xl">❌</div>
+              <h3 className="text-lg font-semibold text-ink">Generation Failed</h3>
+              {blog.generation_error ? (
+                <p className="text-sm text-ink-muted max-w-md mx-auto">
+                  {blog.generation_error}
+                </p>
+              ) : null}
+              {retryError ? (
+                <p className="text-xs text-status-critical">{retryError}</p>
+              ) : null}
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Button
+                  variant="primary"
+                  onClick={handleRetryGeneration}
+                  loading={retrying}
+                >
+                  {retrying ? 'Starting...' : '🔄 Retry Generation'}
+                </Button>
+                <Button as={Link} to={`/blogs/${blog.id}/edit`} variant="secondary" size="sm">
+                  Open Editor
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon="✧"
+              title="No content yet"
+              message="This article has no content blocks. Open the editor to add some."
+              action={
+                <Button as={Link} to={`/blogs/${blog.id}/edit`} variant="primary">
+                  Open editor
+                </Button>
+              }
+            />
+          )}
+        </div>
       ) : (
-        <BlockRenderer blocks={blocks} resolveUrl={resolveImageUrl} />
+        <>
+          {/* Show retry banner at top if generation failed but there ARE old blocks */}
+          {blog.generation_status === 'failed' ? (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-status-critical/30 bg-status-critical/5 px-4 py-3">
+              <span className="text-sm text-ink">
+                ⚠️ Last generation failed{blog.generation_error ? `: ${blog.generation_error.slice(0, 100)}` : ''}
+              </span>
+              {retryError ? <span className="text-xs text-status-critical">{retryError}</span> : null}
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleRetryGeneration}
+                loading={retrying}
+                className="ml-auto"
+              >
+                {retrying ? 'Starting...' : '🔄 Retry'}
+              </Button>
+            </div>
+          ) : null}
+          <BlockRenderer blocks={blocks} resolveUrl={resolveImageUrl} />
+        </>
       )}
 
       {blog.tags?.length > 0 ? (

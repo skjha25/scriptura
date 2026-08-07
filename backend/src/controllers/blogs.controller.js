@@ -175,7 +175,7 @@ const publish = asyncHandler(async (req, res) => {
     // Depending on it here left both dates null on any immediate publish of a
     // blog that had no date yet. The hook stays as the safety net for other
     // write paths; this handler no longer relies on it.
-    blog.publish_date = publishDate || blog.publish_date || new Date().toISOString().slice(0, 10);
+    blog.publish_date = publishDate || blog.publish_date || new Date().toISOString();
   }
 
   // Mirrors the existing production convention of a one-year content window.

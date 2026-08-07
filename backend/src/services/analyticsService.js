@@ -91,6 +91,8 @@ async function getOverview({ months = 7 } = {}) {
       'blog_status',
       'generation_status',
       'seo_score',
+      'aeo_score',
+      'geo_score',
       'word_count',
       'total_views',
       'publish_date',
@@ -132,8 +134,13 @@ async function getOverview({ months = 7 } = {}) {
     archived: statusCounts[BLOG_STATUS.ARCHIVED],
     total_views: rows.reduce((sum, r) => sum + (r.total_views || 0), 0),
     // Averaged over scored articles only — counting unscored drafts as zero
-    // would drag the number down and misrepresent published quality.
+    // would drag the number down and misrepresent published quality. Same
+    // convention for aeo/geo: both are null until an article has content (see
+    // the beforeSave hook in models/blog.js), so they are excluded from the
+    // average by average()'s Number.isFinite filter exactly like seo_score.
     avg_seo_score: average(rows.map((r) => r.seo_score)),
+    avg_aeo_score: average(rows.map((r) => r.aeo_score)),
+    avg_geo_score: average(rows.map((r) => r.geo_score)),
     avg_word_count: average(rows.map((r) => r.word_count)),
     generation: generationCounts,
     in_flight: generationCounts[GENERATION_STATUS.QUEUED] + generationCounts[GENERATION_STATUS.GENERATING],
@@ -148,7 +155,9 @@ async function getOverview({ months = 7 } = {}) {
 
   // --- Published over time + word-count trend ------------------------------
   const series = monthSeries(months);
-  const byMonth = new Map(series.map((key) => [key, { published: 0, wordCounts: [], scores: [] }]));
+  const byMonth = new Map(
+    series.map((key) => [key, { published: 0, wordCounts: [], scores: [], aeoScores: [], geoScores: [] }])
+  );
 
   for (const row of rows) {
     // Grouped on publish_date, which is what "published over time" means. Rows
@@ -161,6 +170,8 @@ async function getOverview({ months = 7 } = {}) {
     }
     if (Number.isFinite(row.word_count)) bucket.wordCounts.push(row.word_count);
     if (Number.isFinite(row.seo_score)) bucket.scores.push(row.seo_score);
+    if (Number.isFinite(row.aeo_score)) bucket.aeoScores.push(row.aeo_score);
+    if (Number.isFinite(row.geo_score)) bucket.geoScores.push(row.geo_score);
   }
 
   const published_over_time = series.map((key) => ({
@@ -179,14 +190,37 @@ async function getOverview({ months = 7 } = {}) {
     avg_seo_score: average(byMonth.get(key).scores),
   }));
 
-  // --- SEO score distribution ----------------------------------------------
-  const seo_score_distribution = SCORE_BUCKETS.map((bucket) => ({
-    label: bucket.label,
-    range: [bucket.min, bucket.max],
-    count: rows.filter(
-      (r) => Number.isFinite(r.seo_score) && r.seo_score >= bucket.min && r.seo_score <= bucket.max
-    ).length,
+  // Same gap-filled monthly shape as seo_score_trend, kept as separate series
+  // (rather than folded into one multi-line payload) so a frontend chart that
+  // only wants SEO does not have to know AEO/GEO exist.
+  const aeo_score_trend = series.map((key) => ({
+    month: key,
+    avg_aeo_score: average(byMonth.get(key).aeoScores),
   }));
+
+  const geo_score_trend = series.map((key) => ({
+    month: key,
+    avg_geo_score: average(byMonth.get(key).geoScores),
+  }));
+
+  // --- Score distributions (SEO / AEO / GEO) --------------------------------
+  // Same 5-bucket shape for all three, built by the same bucket definition —
+  // a distribution histogram means the same thing regardless of which score it
+  // is counting, so one function applied three times rather than three
+  // hand-written blocks keeps the buckets from drifting out of sync.
+  function distributionFor(scoreKey) {
+    return SCORE_BUCKETS.map((bucket) => ({
+      label: bucket.label,
+      range: [bucket.min, bucket.max],
+      count: rows.filter(
+        (r) => Number.isFinite(r[scoreKey]) && r[scoreKey] >= bucket.min && r[scoreKey] <= bucket.max
+      ).length,
+    }));
+  }
+
+  const seo_score_distribution = distributionFor('seo_score');
+  const aeo_score_distribution = distributionFor('aeo_score');
+  const geo_score_distribution = distributionFor('geo_score');
 
   // --- Top keywords ---------------------------------------------------------
   // Counts the primary keyword and the secondary list together, since both are
@@ -240,6 +274,8 @@ async function getOverview({ months = 7 } = {}) {
     blog_status_label: BLOG_STATUS_LABELS[row.blog_status],
     generation_status: row.generation_status,
     seo_score: row.seo_score,
+    aeo_score: row.aeo_score,
+    geo_score: row.geo_score,
     word_count: row.word_count,
     updated_at: row.updated_at,
   }));
@@ -250,7 +286,11 @@ async function getOverview({ months = 7 } = {}) {
     published_over_time,
     word_count_trend,
     seo_score_trend,
+    aeo_score_trend,
+    geo_score_trend,
     seo_score_distribution,
+    aeo_score_distribution,
+    geo_score_distribution,
     top_keywords,
     category_breakdown,
     recent,

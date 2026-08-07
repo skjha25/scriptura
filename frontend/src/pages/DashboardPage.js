@@ -34,8 +34,8 @@ import {
   ErrorBanner,
   EmptyState,
   Skeleton,
-  ScoreMeter,
 } from '../components/ui/feedback';
+import TriScoreBadge from '../components/shared/TriScoreBadge';
 
 import PublishedOverTimeChart from '../components/charts/PublishedOverTimeChart';
 import ScoreDistributionChart from '../components/charts/ScoreDistributionChart';
@@ -226,13 +226,13 @@ function RecentActivityPanel({ items = [] }) {
                     {item.word_count ? `${formatCount(item.word_count)} words` : 'No content'}
                   </span>
                 </div>
-                {/* A structured container for the meter that looks like a clean labeled row on mobile */}
-                <div className="flex items-center justify-between rounded-md bg-panel-raised sm:bg-transparent px-3 py-2 sm:p-0 sm:w-24 shrink-0 gap-3">
-                  <span className="text-[11px] font-medium text-ink-muted sm:hidden">SEO Score</span>
-                  <div className="w-24 shrink-0 sm:w-full">
-                    <ScoreMeter score={item.seo_score} size="sm" />
-                  </div>
-                </div>
+                <TriScoreBadge
+                  seo={{ score: item.seo_score }}
+                  aeo={{ score: item.aeo_score }}
+                  geo={{ score: item.geo_score }}
+                  variant="compact"
+                  className="shrink-0"
+                />
               </div>
             </li>
           ))}
@@ -338,7 +338,7 @@ export default function DashboardPage() {
           <motion.section
             {...ENTRANCE}
             aria-label="Key metrics"
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5"
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4"
           >
             <StatTile label="Total blogs" value={formatCount(totals.total)} />
             <StatTile
@@ -353,6 +353,16 @@ export default function DashboardPage() {
               // none has been scored.
               value={formatAverage(totals.avg_seo_score)}
               hint="Scored articles only"
+            />
+            <StatTile
+              label="Avg AEO score"
+              value={formatAverage(totals.avg_aeo_score)}
+              hint="Featured-snippet readiness"
+            />
+            <StatTile
+              label="Avg GEO score"
+              value={formatAverage(totals.avg_geo_score)}
+              hint="AI-citation readiness"
             />
             <StatTile label="Total views" value={formatCompact(totals.total_views)} />
             <StatTile
@@ -405,8 +415,28 @@ export default function DashboardPage() {
                 domain={[0, 100]}
                 yAxisWidth={36}
               />
+              <MonthlyAverageChart
+                title="AEO score trend"
+                seriesName="Avg AEO score"
+                data={data.aeo_score_trend}
+                valueKey="avg_aeo_score"
+                unitLabel="AEO score"
+                domain={[0, 100]}
+                yAxisWidth={36}
+              />
+              <MonthlyAverageChart
+                title="GEO score trend"
+                seriesName="Avg GEO score"
+                data={data.geo_score_trend}
+                valueKey="avg_geo_score"
+                unitLabel="GEO score"
+                domain={[0, 100]}
+                yAxisWidth={36}
+              />
 
-              <ScoreDistributionChart data={data.seo_score_distribution} />
+              <ScoreDistributionChart data={data.seo_score_distribution} scoreLabel="SEO" />
+              <ScoreDistributionChart data={data.aeo_score_distribution} scoreLabel="AEO" />
+              <ScoreDistributionChart data={data.geo_score_distribution} scoreLabel="GEO" />
 
               <RankedBarChart
                 title="Top keywords"

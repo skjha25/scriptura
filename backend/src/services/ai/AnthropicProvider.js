@@ -12,13 +12,14 @@
  * is a policy decision, so it lives in exactly one place: BaseProvider.withRetry.
  *
  * ---------------------------------------------------------------------------
- * WHY WE PREFILL THE ASSISTANT TURN
+ * JSON OUTPUT RELIABILITY
  * ---------------------------------------------------------------------------
- * Every prompt asks for bare JSON. Seeding the assistant turn with `{` makes the
- * model continue an object rather than start a sentence, which removes almost
- * all "Here is the JSON you asked for:" preambles. We stitch the brace back on
- * before parsing. extractJson still handles the messy cases — this just makes
- * them rare instead of routine.
+ * Every prompt asks for bare JSON and includes explicit instructions to output
+ * ONLY JSON with no preamble or commentary. The extractJson() function in
+ * BaseProvider handles edge cases where models still wrap output in markdown
+ * fences or add prose. This two-layer approach (prompt discipline + tolerant
+ * parsing) works without assistant message prefill, which newer Claude models
+ * do not support.
  *
  * ---------------------------------------------------------------------------
  * TEMPERATURE
@@ -55,9 +56,6 @@ const MAX_TOKENS = Object.freeze({
   brandVoice: 8192,
   outline: 8192,
 });
-
-/** The prefill token that forces an object-shaped continuation. */
-const JSON_PREFILL = '{';
 
 class AnthropicProvider extends BaseProvider {
   /**
@@ -118,8 +116,6 @@ class AnthropicProvider extends BaseProvider {
             { role: 'user', content: prompt },
           ],
         },
-        // Also set per request: a client-level timeout does not apply if a caller
-        // ever passes in its own client (as the tests do).
         { timeout: this.timeoutMs }
       );
 
@@ -128,9 +124,7 @@ class AnthropicProvider extends BaseProvider {
         .map((part) => part.text)
         .join('');
 
-      if (text.trim() === '') {
-        // A stop_reason of max_tokens with no text means the budget was spent on
-        // nothing usable — surface that rather than a generic parse failure.
+      if (!text || text.trim() === '') {
         throw ApiError.upstream('Anthropic returned no text content.', {
           code: 'UPSTREAM_EMPTY_RESPONSE',
           details: { provider: this.name, operation, stopReason: response?.stop_reason ?? null },
@@ -302,4 +296,4 @@ class AnthropicProvider extends BaseProvider {
   }
 }
 
-module.exports = { AnthropicProvider, TEMPERATURE, MAX_TOKENS, JSON_PREFILL };
+module.exports = { AnthropicProvider, TEMPERATURE, MAX_TOKENS };

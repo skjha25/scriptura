@@ -39,7 +39,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
-import { blogsApi } from '../lib/api';
+import { blogsApi, mediaApi } from '../lib/api';
 import { BLOG_STATUS, GENERATION_IN_FLIGHT } from '../lib/constants';
 import { useInterval } from '../hooks/useDebouncedValue';
 import useBlockHistory from '../hooks/useBlockHistory';
@@ -52,8 +52,8 @@ import {
   Skeleton,
   StatusBadge,
   GenerationBadge,
-  ScoreMeter,
 } from '../components/ui/feedback';
+import TriScoreBadge from '../components/shared/TriScoreBadge';
 import EditorCanvas from '../components/editor/EditorCanvas';
 import BlockSettingsPanel from '../components/editor/BlockSettingsPanel';
 import PreviewPane from '../components/editor/PreviewPane';
@@ -116,6 +116,8 @@ export default function EditorPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState(null);
   const [publishNotice, setPublishNotice] = useState(null);
+
+  const [regeneratingImage, setRegeneratingImage] = useState(false);
 
   /** Set when the backend refuses a write because generation owns the row. */
   const [generationLock, setGenerationLock] = useState(false);
@@ -291,6 +293,29 @@ export default function EditorPage() {
     return () => clearTimeout(timer);
   }, [deletedNotice]);
 
+  const handleRegenerateImage = async () => {
+    if (!blog) return;
+    setRegeneratingImage(true);
+    setPublishError(null);
+    try {
+      const generated = await mediaApi.generateImage({
+        topic: blog.blog_title || blog.topic || 'Astrology',
+        logo_overlay: true,
+        logo_position: 'top_right',
+        count: 1
+      });
+      if (generated && generated.length > 0) {
+        const newPicture = generated[0].publicUrl;
+        const updated = await blogsApi.update(blog.id, { blog_picture: newPicture });
+        setBlog(metaOf(updated));
+      }
+    } catch (err) {
+      setPublishError(err.message || 'Failed to regenerate image.');
+    } finally {
+      setRegeneratingImage(false);
+    }
+  };
+
   // -------------------------------------------------------------------------
   // Keyboard: undo / redo
   // -------------------------------------------------------------------------
@@ -414,12 +439,15 @@ export default function EditorPage() {
             </h1>
             <p className="mt-1 text-xs text-ink-muted">
               {blocks.length} {blocks.length === 1 ? 'block' : 'blocks'} · content is the
-              source of truth; the HTML and SEO score are regenerated on save
+              source of truth; the HTML and scores are regenerated on save
             </p>
           </div>
-          <div className="w-32 shrink-0">
-            <ScoreMeter score={blog.seo_score} size="sm" />
-          </div>
+          <TriScoreBadge
+            seo={{ score: blog.seo_score }}
+            aeo={{ score: blog.aeo_score, breakdown: blog.aeo_score_breakdown }}
+            geo={{ score: blog.geo_score, breakdown: blog.geo_score_breakdown }}
+            variant="compact"
+          />
         </div>
 
         {/* Wraps rather than scrolls at 375px — the reason nothing here has a fixed
@@ -473,6 +501,39 @@ export default function EditorPage() {
           </Button>
         </div>
       </header>
+
+      {blog.blog_picture_url || blog.blog_picture ? (
+        <div className="relative group w-full mb-6">
+          <img
+            src={blog.blog_picture_url || blog.blog_picture}
+            alt="Blog"
+            className="w-full rounded-xl border border-hairline"
+          />
+          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={regeneratingImage}
+              onClick={handleRegenerateImage}
+              title="Regenerate Image"
+              className="bg-white/80 hover:bg-white backdrop-blur-sm"
+            >
+              <span aria-hidden="true" className="text-lg">↻</span> Regenerate
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 flex justify-end">
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={regeneratingImage}
+            onClick={handleRegenerateImage}
+          >
+            Generate Image
+          </Button>
+        </div>
+      )}
 
       {generating ? (
         <InfoBanner tone="warning">

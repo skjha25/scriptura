@@ -33,6 +33,7 @@ const {
   IMAGE_COUNT_MIN,
   IMAGE_COUNT_MAX,
   IMAGE_STYLES,
+  OPTIMIZATION_PROFILES,
 } = require('../constants');
 
 /** Article length bounds. Below 300 nothing ranks; above 4000 is two articles. */
@@ -178,6 +179,16 @@ const generationConfigSchema = z
     include_images: z.boolean().default(true),
     image_count: z.coerce.number().int().min(IMAGE_COUNT_MIN).max(IMAGE_COUNT_MAX).default(1),
     image_style: z.enum(IMAGE_STYLES).default('photo'),
+    logo_overlay: z.boolean().default(false),
+    logo_position: z.enum(['top_left', 'top_right', 'bottom_left', 'bottom_right', 'none']).default('none'),
+
+    /**
+     * Which score this run should lean on — read by prompts.js's articlePrompt
+     * to add AEO/GEO-specific directives on top of the always-on SEO structure.
+     * Defaults to 'balanced' so a config saved before this field existed (or a
+     * hand-written one) still validates.
+     */
+    optimization_profile: z.enum(Object.values(OPTIMIZATION_PROFILES)).default('balanced'),
 
     meta_title: optionalText(255),
     meta_description: optionalText(500),

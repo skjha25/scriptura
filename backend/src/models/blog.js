@@ -142,7 +142,7 @@ module.exports = (sequelize) => {
         allowNull: true,
       },
       publish_date: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: true,
       },
       total_views: {
@@ -346,6 +346,59 @@ module.exports = (sequelize) => {
           max: { args: [100], msg: 'seo_score must be between 0 and 100.' },
         },
       },
+      /**
+       * Answer Engine Optimization score (0-100) — featured snippet / AI
+       * Overview readiness. Computed by services/aeoScore.js in the same
+       * beforeSave hook that derives seo_score, and null under the same
+       * empty-content convention.
+       */
+      aeo_score: {
+        type: DataTypes.TINYINT.UNSIGNED,
+        allowNull: true,
+        validate: {
+          min: { args: [0], msg: 'aeo_score must be between 0 and 100.' },
+          max: { args: [100], msg: 'aeo_score must be between 0 and 100.' },
+        },
+      },
+      aeo_score_breakdown: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get: jsonGetter('aeo_score_breakdown', 'array'),
+      },
+      /**
+       * Generative Engine Optimization score (0-100) — AI-chat citation
+       * readiness (ChatGPT/Perplexity/Gemini). Computed by services/geoScore.js.
+       */
+      geo_score: {
+        type: DataTypes.TINYINT.UNSIGNED,
+        allowNull: true,
+        validate: {
+          min: { args: [0], msg: 'geo_score must be between 0 and 100.' },
+          max: { args: [100], msg: 'geo_score must be between 0 and 100.' },
+        },
+      },
+      geo_score_breakdown: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        get: jsonGetter('geo_score_breakdown', 'array'),
+      },
+      /** FK to keyword_clusters — which cluster this blog's keyword belongs to, if any. */
+      cluster_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: true,
+      },
+      /** Which optimisation preset drove generation config for this blog. */
+      optimization_profile: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: 'balanced',
+        validate: {
+          isIn: {
+            args: [['seo', 'aeo', 'geo', 'balanced']],
+            msg: 'optimization_profile must be one of seo, aeo, geo, balanced.',
+          },
+        },
+      },
       word_count: { type: DataTypes.INTEGER, allowNull: true },
       serp_rank_keyword: { type: DataTypes.STRING(255), allowNull: true },
       serp_rank_position: { type: DataTypes.INTEGER, allowNull: true },
@@ -405,6 +458,8 @@ module.exports = (sequelize) => {
         { name: 'blogs_status_publish_date_idx', fields: ['blog_status', 'publish_date'] },
         // The dashboard polls for in-flight generations.
         { name: 'blogs_generation_status_idx', fields: ['generation_status'] },
+        // Backs the cluster detail view's "which blogs belong to this cluster" query.
+        { name: 'blogs_cluster_id_idx', fields: ['cluster_id'] },
       ],
       scopes: {
         published: { where: { blog_status: BLOG_STATUS.PUBLISHED } },
@@ -447,7 +502,7 @@ module.exports = (sequelize) => {
     const becamePublished =
       blog.changed('blog_status') && blog.blog_status === BLOG_STATUS.PUBLISHED;
     if (becamePublished && !blog.publish_date) {
-      blog.publish_date = new Date().toISOString().slice(0, 10);
+      blog.publish_date = new Date().toISOString();
     }
   });
 
@@ -502,6 +557,39 @@ module.exports = (sequelize) => {
       if (Number.isFinite(score)) blog.seo_score = score;
     } catch (err) {
       require('../utils/logger').warn('SEO re-scoring skipped on save', {
+        blogId: blog.id,
+        error: err.message,
+      });
+    }
+
+    // AEO (Answer Engine Optimization) — snippet/AI-Overview readiness.
+    // Same null-on-empty-blocks convention as seo_score: an unconfigured draft
+    // should not drag the dashboard average down.
+    try {
+      const { scoreArticle: scoreAeo } = require('../services/aeoScore');
+      const { score: aeoScore, breakdown: aeoBreakdown } = scoreAeo({
+        blocks,
+        metaDescription: blog.meta_description,
+        publishedBy: blog.published_by,
+        updatedAt: blog.updated_at || new Date(),
+      });
+      blog.aeo_score = Number.isFinite(aeoScore) ? aeoScore : null;
+      blog.aeo_score_breakdown = Number.isFinite(aeoScore) ? aeoBreakdown : null;
+    } catch (err) {
+      require('../utils/logger').warn('AEO re-scoring skipped on save', {
+        blogId: blog.id,
+        error: err.message,
+      });
+    }
+
+    // GEO (Generative Engine Optimization) — AI-chat citation readiness.
+    try {
+      const { scoreArticle: scoreGeo } = require('../services/geoScore');
+      const { score: geoScore, breakdown: geoBreakdown } = scoreGeo({ blocks });
+      blog.geo_score = Number.isFinite(geoScore) ? geoScore : null;
+      blog.geo_score_breakdown = Number.isFinite(geoScore) ? geoBreakdown : null;
+    } catch (err) {
+      require('../utils/logger').warn('GEO re-scoring skipped on save', {
         blogId: blog.id,
         error: err.message,
       });

@@ -120,6 +120,18 @@ export const DEFAULT_PUBLISHED_BY = 'DivineTalk Astrology';
 
 export const USER_ROLES = Object.freeze({ ADMIN: 'admin', EDITOR: 'editor' });
 
+/**
+ * Content optimisation presets (mirrors backend OPTIMIZATION_PROFILES).
+ * Drives which generation directives Claude receives and which score the
+ * wizard's summary leads with — see Step3Content.js and prompts.js.
+ */
+export const OPTIMIZATION_PROFILES = Object.freeze({
+  SEO: 'seo',
+  AEO: 'aeo',
+  GEO: 'geo',
+  BALANCED: 'balanced',
+});
+
 // ---------------------------------------------------------------------------
 // Human-readable labels
 // ---------------------------------------------------------------------------
@@ -171,6 +183,67 @@ export const LOGO_POSITION_LABELS = Object.freeze({
   none: 'No logo',
 });
 
+/**
+ * Optimisation profile display metadata, in the order Step3Content.js presents
+ * them as preset cards. `focus` names which score the preset leans on — shown
+ * next to the label so "Balanced" does not read as "does nothing special".
+ */
+export const OPTIMIZATION_PROFILE_META = Object.freeze({
+  balanced: {
+    label: 'Balanced',
+    focus: 'Even weight across SEO, AEO and GEO',
+    description: 'A sensible default: solid keyword coverage, an extractable answer, and a couple of sourced claims.',
+  },
+  seo: {
+    label: 'Traditional SEO',
+    focus: 'Maximise keyword & structure coverage',
+    description: 'Leans on heading structure, keyword density and internal links — the classic ranking factors.',
+  },
+  aeo: {
+    label: 'AI-First (Featured snippets)',
+    focus: 'Maximise AI Overview / snippet eligibility',
+    description: 'Writes a direct answer near the top, question-shaped headings, and a substantial FAQ block.',
+  },
+  geo: {
+    label: 'AI Citation (ChatGPT / Perplexity)',
+    focus: 'Maximise generative-engine citation odds',
+    description: 'Adds sourced statistics, named quotations and a confident, citation-friendly voice.',
+  },
+});
+
+/** Order the preset cards are shown in — balanced first as the safe default. */
+export const OPTIMIZATION_PROFILE_ORDER = Object.freeze(['balanced', 'seo', 'aeo', 'geo']);
+
+/**
+ * AEO criterion labels — mirrors backend/src/services/aeoScore.js's AEO_WEIGHTS
+ * keys. Falls back to humanizeEnum for any criterion not listed here, so a
+ * server-added criterion still renders sensibly instead of a raw constant name.
+ */
+export const AEO_CRITERION_LABELS = Object.freeze({
+  DIRECT_ANSWER: 'Direct answer capsule',
+  QUESTION_HEADINGS: 'Question-format headings',
+  FAQ_STRUCTURE: 'FAQ structure',
+  STRUCTURED_DATA: 'Structured data (lists/tables)',
+  EEAT_BYLINE: 'Named author byline',
+  FRESHNESS: 'Content freshness',
+  MULTI_MODAL: 'Multi-modal (images)',
+  META_DESCRIPTION_ANSWER: 'Meta description as answer',
+});
+
+/**
+ * GEO criterion labels — mirrors backend/src/services/geoScore.js's
+ * GEO_WEIGHTS keys.
+ */
+export const GEO_CRITERION_LABELS = Object.freeze({
+  INLINE_CITATIONS: 'Inline citations',
+  STATISTICS_WITH_SOURCES: 'Sourced statistics',
+  EXPERT_QUOTATIONS: 'Expert quotations',
+  AUTHORITATIVE_VOICE: 'Authoritative voice',
+  ANSWER_FRONT_LOADING: 'Answer front-loading',
+  ENTITY_RICHNESS: 'Entity richness',
+  WORD_COUNT_FLOOR: 'Word count floor',
+});
+
 /** Labels for the SEO structure toggles, in the order the wizard shows them. */
 export const SEO_STRUCTURE_FIELDS = Object.freeze([
   { key: 'h1', label: 'H1 title', hint: 'Single top-level heading' },
@@ -196,6 +269,28 @@ export const BLOCK_TYPE_META = Object.freeze({
   list: { label: 'List', icon: '•', hint: 'Bulleted or numbered' },
   embed: { label: 'Embed', icon: '⧉', hint: 'Video or external content' },
   key_takeaway: { label: 'Key takeaways', icon: '★', hint: 'Summary callout' },
+});
+
+// ==========================================================================
+// Cluster keyword enums
+// ==========================================================================
+
+/** Status of an individual keyword within a cluster. */
+export const CLUSTER_KEYWORD_STATUS = Object.freeze({
+  PENDING: 'pending',
+  SCHEDULED: 'scheduled',
+  GENERATING: 'generating',
+  GENERATED: 'generated',
+  PUBLISHED: 'published',
+});
+
+/** Display metadata for cluster keyword statuses. */
+export const CLUSTER_KEYWORD_STATUS_META = Object.freeze({
+  pending: { label: 'Pending', tone: 'neutral', icon: '⏳' },
+  scheduled: { label: 'Scheduled', tone: 'accent', icon: '📅' },
+  generating: { label: 'Generating', tone: 'warning', icon: '⚡' },
+  generated: { label: 'Generated', tone: 'good', icon: '✅' },
+  published: { label: 'Published', tone: 'good', icon: '🚀' },
 });
 
 /**

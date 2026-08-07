@@ -91,5 +91,6 @@ router.use('/serp', serpRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/keywords', require('./keywords.routes'));
+router.use('/clusters', require('./clusters.routes'));
 
 module.exports = router;

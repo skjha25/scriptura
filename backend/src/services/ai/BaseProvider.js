@@ -269,18 +269,47 @@ function extractJson(raw, { provider = 'ai', operation = 'response' } = {}) {
 
   const cleaned = stripFences(raw);
 
+  // 1. Try parsing the cleaned text as-is (fast path for well-behaved models).
   try {
     return JSON.parse(cleaned);
   } catch {
-    // Fall through to the balanced-value scan.
+    // Fall through to more tolerant extraction.
   }
 
+  // 2. Try finding a balanced JSON value ({...} or [...]) in the cleaned text.
   const candidate = findFirstJsonValue(cleaned);
   if (candidate !== null) {
     try {
       return JSON.parse(candidate);
     } catch {
-      // Fall through to the shared failure below.
+      // Fall through.
+    }
+  }
+
+  // 3. If cleaned didn't work, try the raw string too (handles cases where
+  //    stripFences removed a valid fence but the content inside had issues,
+  //    or the raw has JSON buried in prose like "Here is the JSON:\n{...}").
+  if (cleaned !== raw.trim()) {
+    const rawCandidate = findFirstJsonValue(raw);
+    if (rawCandidate !== null) {
+      try {
+        return JSON.parse(rawCandidate);
+      } catch {
+        // Fall through.
+      }
+    }
+  }
+
+  // 4. Last resort: try to find JSON after common preamble patterns.
+  const afterPreamble = raw.replace(/^[\s\S]*?(?:(?:here|below)\s+is|json[:\s]*\n)/i, '').trim();
+  if (afterPreamble !== raw.trim()) {
+    const preambleCandidate = findFirstJsonValue(afterPreamble);
+    if (preambleCandidate !== null) {
+      try {
+        return JSON.parse(preambleCandidate);
+      } catch {
+        // Fall through to final error.
+      }
     }
   }
 
@@ -289,8 +318,6 @@ function extractJson(raw, { provider = 'ai', operation = 'response' } = {}) {
     details: {
       provider,
       operation,
-      // A short excerpt is genuinely useful when diagnosing a prompt change and
-      // is not sensitive: it is our own prompt's echo, not user data.
       excerpt: cleaned.slice(0, 200),
     },
   });
@@ -336,14 +363,29 @@ function normalizeBlocks(rawBlocksInput, { seoStructure = {}, provider = 'ai', a
   let blocks = rawBlocksInput;
 
   if (!Array.isArray(blocks) && blocks && typeof blocks === 'object') {
+    // Standard keys the prompt instructs the model to use.
     if (Array.isArray(blocks.blocks)) blocks = blocks.blocks;
     else if (Array.isArray(blocks.article)) blocks = blocks.article;
     else if (Array.isArray(blocks.content)) blocks = blocks.content;
     else if (Array.isArray(blocks.data)) blocks = blocks.data;
     else if (Array.isArray(blocks.items)) blocks = blocks.items;
+    else if (Array.isArray(blocks.sections)) blocks = blocks.sections;
+    else {
+      // Last-resort: scan all top-level values for the first array of objects
+      // that contain a 'type' field — this catches cases where the model invents
+      // a key name like "article_blocks" or "content_blocks".
+      const found = Object.values(blocks).find(
+        (v) => Array.isArray(v) && v.length > 0 && v[0] && typeof v[0] === 'object' && typeof v[0].type === 'string'
+      );
+      if (found) blocks = found;
+    }
   }
 
-  if (!Array.isArray(blocks)) {
+  // If the model returned a top-level array directly (no wrapping object),
+  // check if it looks like blocks.
+  if (Array.isArray(blocks) && blocks.length > 0 && blocks[0] && typeof blocks[0] === 'object' && typeof blocks[0].type === 'string') {
+    // Already a blocks array — use as-is.
+  } else if (!Array.isArray(blocks)) {
     throw ApiError.upstream(`${provider} returned an article without a blocks array.`, {
       code: 'UPSTREAM_BAD_RESPONSE',
       details: { provider, received: typeof rawBlocksInput },

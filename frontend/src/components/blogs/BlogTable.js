@@ -25,16 +25,17 @@ const COLUMNS = [
   { key: 'actions', label: 'Actions' },
 ];
 
-/** 'YYYY-MM-DD' → '14 Jul 2026', in UTC so the date does not drift by a day. */
 function formatDate(value) {
   if (!value) return '—';
-  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  const str = String(value);
+  const date = new Date(str.includes('T') ? str : `${str.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-GB', {
+  return date.toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    timeZone: 'UTC',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }
 

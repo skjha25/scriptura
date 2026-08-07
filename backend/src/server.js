@@ -14,6 +14,8 @@ const logger = require('./utils/logger');
 const { createApp } = require('./app');
 const { sequelize, assertConnection } = require('./config/database');
 const { ensureStorageReady } = require('./services/storage');
+const { startScheduledPublisher } = require('./services/scheduledPublisher');
+const { startAutopilotScheduler } = require('./services/autopilotScheduler');
 
 /** Surfaces the config warnings collected at load time, once, on boot. */
 function reportWarnings() {
@@ -55,12 +57,26 @@ async function start() {
       `  serpapi       ${config.serp.enabled ? 'enabled' : 'disabled'}` +
         (config.serp.flagEnabled && !config.serp.hasKey ? ' (flag on, key missing)' : '')
     );
+    logger.info(
+      `  scheduler     ${config.scheduler.enabled ? `enabled (${config.scheduler.cronExpression})` : 'disabled'}`
+    );
+    logger.info(
+      `  autopilot     ${config.autopilot.enabled ? `enabled (${config.autopilot.cronExpression})` : 'disabled'}`
+    );
   });
 
   // Slightly above a typical 60s ALB idle timeout so the load balancer, not the
   // app, is the one to close idle connections.
   server.keepAliveTimeout = 65000;
   server.headersTimeout = 70000;
+
+  // Flips SCHEDULED blogs to PUBLISHED once their publish_date arrives. See
+  // services/scheduledPublisher.js. Returns null (and logs why) when disabled.
+  const scheduledPublisherTask = startScheduledPublisher();
+
+  // Triggers blog generation for cluster keywords whose scheduled_generation_date
+  // has arrived. See services/autopilotScheduler.js.
+  const autopilotTask = startAutopilotScheduler();
 
   // --- Graceful shutdown -----------------------------------------------------
   // Stop accepting connections, let in-flight requests finish, then close the
@@ -76,6 +92,9 @@ async function start() {
       process.exit(1);
     }, 15000);
     forceExit.unref();
+
+    if (scheduledPublisherTask) scheduledPublisherTask.stop();
+    if (autopilotTask) autopilotTask.stop();
 
     server.close(async (err) => {
       if (err) logger.error('Error while closing the HTTP server.', err);

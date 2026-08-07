@@ -391,15 +391,15 @@ export default function AutomatedBlogPage() {
         readability_level: '8th_grade',
         ai_content_cleaning: false,
         seo_structure_config: { ...DEFAULT_SEO_STRUCTURE },
-        internal_linking: false,
+        internal_linking: true,
         internal_link_targets: [],
         external_web_grounding: false,
         // Images
         include_images: true,
         image_count: 1,
         image_style: 'photo',
-        logo_overlay: false,
-        logo_position: 'none',
+        logo_overlay: true,
+        logo_position: 'top_right',
         // Publishing
         published_by: 'DivineTalk Astrology',
         category: 'Astrology',

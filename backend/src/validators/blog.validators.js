@@ -31,6 +31,7 @@ const {
   POINTS_OF_VIEW,
   IMAGE_COUNT_MIN,
   IMAGE_COUNT_MAX,
+  OPTIMIZATION_PROFILES,
 } = require('../constants');
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,14 @@ const dateOnly = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date in YYYY-MM-DD format.')
   .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), 'must be a real calendar date.')
+  .nullable()
+  .optional();
+
+/** Allows 'YYYY-MM-DD' or full ISO strings for DATETIME columns. */
+const dateTimeString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/, 'must be a valid date or datetime string.')
+  .refine((value) => !Number.isNaN(Date.parse(value)), 'must be a real calendar date.')
   .nullable()
   .optional();
 
@@ -198,9 +207,18 @@ const writableFields = {
   external_web_grounding: z.boolean().optional(),
   outline: outlineSchema,
 
+  /**
+   * Which preset drove (or should drive) generation config — 'seo' | 'aeo' |
+   * 'geo' | 'balanced'. User-writable because it is a choice the wizard makes,
+   * unlike aeo_score/geo_score/cluster_id, which stay server-owned: the former
+   * two are measured from content, and cluster_id is assigned through the
+   * cluster API so a cluster's membership stays consistent from one place.
+   */
+  optimization_profile: z.enum(Object.values(OPTIMIZATION_PROFILES)).nullable().optional(),
+
   blog_status: blogStatusSchema.optional(),
   published_by: optionalText(255),
-  publish_date: dateOnly,
+  publish_date: dateTimeString,
   start_date: dateOnly,
   end_date: dateOnly,
 
@@ -243,7 +261,7 @@ const updateBlogSchema = withDateOrderCheck(
  * publishing immediately.
  */
 const publishBlogSchema = z.object({
-  publish_date: dateOnly,
+  publish_date: dateTimeString,
   scheduled: z.boolean().optional(),
 });
 

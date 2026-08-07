@@ -142,6 +142,105 @@ const DEFAULT_SEO_STRUCTURE = Object.freeze({
 const IMAGE_COUNT_MIN = 1;
 const IMAGE_COUNT_MAX = 4;
 
+// ==========================================================================
+// Keyword cluster enums
+// ==========================================================================
+
+/** Lifecycle states for a keyword cluster. */
+const CLUSTER_STATUS = Object.freeze({
+  PLANNING: 'planning',
+  ACTIVE: 'active',
+  COMPLETE: 'complete',
+  PAUSED: 'paused',
+});
+
+/** Cluster structural types. */
+const CLUSTER_TYPE = Object.freeze({
+  PILLAR: 'pillar',
+  HUB: 'hub',
+});
+
+/** Status of an individual keyword within a cluster. */
+const CLUSTER_KEYWORD_STATUS = Object.freeze({
+  PENDING: 'pending',
+  SCHEDULED: 'scheduled',
+  GENERATING: 'generating',
+  GENERATED: 'generated',
+  PUBLISHED: 'published',
+});
+
+/** Search intent taxonomy (extends the existing 3 in scriptura_keywords). */
+const SEARCH_INTENT = Object.freeze({
+  INFORMATIONAL: 'informational',
+  COMMERCIAL: 'commercial',
+  TRANSACTIONAL: 'transactional',
+  NAVIGATIONAL: 'navigational',
+});
+
+// ==========================================================================
+// Optimization profiles
+// ==========================================================================
+
+/**
+ * Content optimization profiles — presets that configure generation behaviour.
+ *
+ *   seo      -> maximise traditional keyword coverage, headings, density
+ *   aeo      -> maximise featured-snippet and AI-overview eligibility
+ *   geo      -> maximise citation probability by ChatGPT / Perplexity / Gemini
+ *   balanced -> equal weighting across all three (DEFAULT)
+ */
+const OPTIMIZATION_PROFILES = Object.freeze({
+  SEO: 'seo',
+  AEO: 'aeo',
+  GEO: 'geo',
+  BALANCED: 'balanced',
+});
+
+// ==========================================================================
+// Settings scopes
+// ==========================================================================
+
+/** Scope levels for the KV settings table. */
+const SETTINGS_SCOPE = Object.freeze({
+  ORG: 'org',
+  USER: 'user',
+});
+
+// ==========================================================================
+// Activity log enums (scriptura_logs table)
+// ==========================================================================
+
+/** Event types tracked in the scriptura_logs table. */
+const LOG_EVENT_TYPES = Object.freeze({
+  GENERATION_QUEUED: 'generation_queued',
+  GENERATION_STARTED: 'generation_started',
+  GENERATION_COMPLETED: 'generation_completed',
+  GENERATION_FAILED: 'generation_failed',
+  AUTOPILOT_TRIGGERED: 'autopilot_triggered',
+  AUTOPILOT_BLOG_CREATED: 'autopilot_blog_created',
+  AUTOPILOT_SKIPPED: 'autopilot_skipped',
+  AUTOPILOT_RETRY: 'autopilot_retry',
+  SCHEDULED_PUBLISH: 'scheduled_publish',
+  PUBLISH_SKIPPED: 'publish_skipped',
+  REAP_STALE: 'reap_stale',
+});
+
+/** Log entry status (outcome indicator). */
+const LOG_STATUS = Object.freeze({
+  SUCCESS: 'success',
+  FAILURE: 'failure',
+  WARNING: 'warning',
+  INFO: 'info',
+});
+
+/** Who/what triggered the log event. */
+const LOG_TRIGGERED_BY = Object.freeze({
+  USER: 'user',
+  AUTOPILOT: 'autopilot',
+  SCHEDULER: 'scheduler',
+  SYSTEM: 'system',
+});
+
 /** The attribution string the existing production rows use. */
 const DEFAULT_PUBLISHED_BY = 'DivineTalk Astrology';
 
@@ -165,4 +264,13 @@ module.exports = {
   IMAGE_COUNT_MIN,
   IMAGE_COUNT_MAX,
   DEFAULT_PUBLISHED_BY,
+  CLUSTER_STATUS,
+  CLUSTER_TYPE,
+  CLUSTER_KEYWORD_STATUS,
+  SEARCH_INTENT,
+  OPTIMIZATION_PROFILES,
+  SETTINGS_SCOPE,
+  LOG_EVENT_TYPES,
+  LOG_STATUS,
+  LOG_TRIGGERED_BY,
 };

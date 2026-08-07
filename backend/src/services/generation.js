@@ -63,6 +63,7 @@ const { blocksToHtml, countWords } = require('./blocksToHtml');
 const { sanitizeInline, toPlainText } = require('./sanitize');
 const { scoreArticle, scoreTitle } = require('./seoScore');
 const serp = require('./serp');
+const activity = require('./activityLogger');
 const {
   generationConfigSchema,
   generateTitleBody,
@@ -180,20 +181,27 @@ function resolveBrandVoice(blog, cfg) {
 async function resolveInternalLinks(cfg) {
   if (!cfg.internal_linking) return [];
   const targets = cfg.internal_link_targets || [];
-  if (targets.length === 0) return [];
-
   const { Op } = require('sequelize');
   const { Blog } = require('../models');
 
-  const ids = targets.filter((t) => typeof t === 'number').map(Number);
-  const slugs = targets.filter((t) => typeof t === 'string');
+  let rows = [];
+  if (targets.length === 0) {
+    // Auto-discover backlinks if none were explicitly provided
+    rows = await Blog.scope('linkable').findAll({
+      order: [['created_at', 'DESC']],
+      limit: 10,
+    });
+  } else {
+    const ids = targets.filter((t) => typeof t === 'number').map(Number);
+    const slugs = targets.filter((t) => typeof t === 'string');
 
-  const rows = await Blog.scope('linkable').findAll({
-    where: {
-      [Op.or]: [...(ids.length ? [{ id: { [Op.in]: ids } }] : []), ...(slugs.length ? [{ slug: { [Op.in]: slugs } }] : [])],
-    },
-    limit: 20,
-  });
+    rows = await Blog.scope('linkable').findAll({
+      where: {
+        [Op.or]: [...(ids.length ? [{ id: { [Op.in]: ids } }] : []), ...(slugs.length ? [{ slug: { [Op.in]: slugs } }] : [])],
+      },
+      limit: 20,
+    });
+  }
 
   return rows
     .filter((row) => row.slug)
@@ -277,6 +285,10 @@ function providerOptionsFor({ cfg, blog, brandVoice, internalLinks, groundingBri
     internalLinks,
     imageCount: cfg.include_images ? cfg.image_count : 0,
     groundingFacts: groundingBrief || undefined,
+    // Which score this run should lean on — read by prompts.js's
+    // articlePrompt to add AEO/GEO-specific directives (citations, question
+    // headings, answer capsules, etc.) on top of the always-on SEO structure.
+    optimizationProfile: cfg.optimization_profile || 'balanced',
   };
 }
 
@@ -307,6 +319,14 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     blog.generation_status = GENERATION_STATUS.GENERATING;
     blog.generation_error = null;
     await blog.save();
+
+    const startTime = Date.now();
+
+    // Log generation started.
+    activity.generationStarted({
+      blogId: Number(blog.id),
+      clusterId: blog.cluster_id ? Number(blog.cluster_id) : null,
+    });
 
     const brandVoice = resolveBrandVoice(blog, cfg);
     const internalLinks = await resolveInternalLinks(cfg);
@@ -486,6 +506,20 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
       provider: textProvider.name,
     });
 
+    // Log to scriptura_logs.
+    activity.generationCompleted({
+      blogId: Number(blog.id),
+      clusterId: blog.cluster_id ? Number(blog.cluster_id) : null,
+      provider: textProvider.name,
+      durationMs: Date.now() - startTime,
+      wordCount,
+      seoScore: score,
+      aeoScore: blog.aeo_score ?? null,
+      geoScore: blog.geo_score ?? null,
+      blockCount: blocks.length,
+      metadata: { topic: cfg.topic, keyword: cfg.keyword, title: blog.blog_title },
+    });
+
     return { status: GENERATION_STATUS.GENERATED, blogId: Number(blog.id), seo_score: score, word_count: wordCount };
   } catch (err) {
     // The message is shown in the wizard, so it has to be actionable. ApiError
@@ -516,6 +550,15 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
         message: saveErr?.message,
       });
     }
+
+    // Log failure to scriptura_logs.
+    activity.generationFailed({
+      blogId: Number(blogId),
+      clusterId: blog?.cluster_id ? Number(blog.cluster_id) : null,
+      durationMs: Date.now() - startTime,
+      error: err,
+      metadata: { topic: cfg?.topic, keyword: cfg?.keyword },
+    });
 
     return { status: GENERATION_STATUS.FAILED, blogId: Number(blogId), error: message };
   }
@@ -584,6 +627,14 @@ async function startGeneration({ blogId, config: rawConfig, user } = {}, options
     },
   };
   await blog.save();
+
+  // Log the queued event.
+  activity.generationQueued({
+    blogId: Number(blog.id),
+    clusterId: blog.cluster_id ? Number(blog.cluster_id) : null,
+    userId: user?.id || null,
+    metadata: { topic: cfg.topic, keyword: cfg.keyword },
+  });
 
   // Fire and forget. `.finally` clears the registry entry so a long-lived process
   // does not accumulate resolved promises.
@@ -665,6 +716,7 @@ async function reapStaleGenerations({ olderThanMs = DEFAULT_STALE_AFTER_MS } = {
       `${Math.round(olderThanMs / 60000)} minutes). The saved configuration is unchanged — retry from the wizard.`;
     await blog.save();
     ids.push(Number(blog.id));
+    activity.reapStale({ blogId: Number(blog.id) });
   }
 
   if (ids.length > 0) {
@@ -682,23 +734,40 @@ async function reapStaleGenerations({ olderThanMs = DEFAULT_STALE_AFTER_MS } = {
  * the largest column in the table) would make that poll expensive for no benefit.
  *
  * @param {number|string} blogId
- * @returns {Promise<{blog_id: number, generation_status: string, generation_error: string|null, seo_score: number|null, word_count: number|null, updated_at: string}>}
+ * @returns {Promise<{blog_id: number, generation_status: string, generation_error: string|null, seo_score: number|null, aeo_score: number|null, geo_score: number|null, word_count: number|null, updated_at: string}>}
  * @throws {ApiError} 404 when the blog does not exist.
  */
 async function getGenerationStatus(blogId) {
   const { Blog } = require('../models');
 
   const blog = await Blog.findByPk(blogId, {
-    attributes: ['id', 'generation_status', 'generation_error', 'seo_score', 'word_count', 'updated_at'],
+    attributes: [
+      'id',
+      'generation_status',
+      'generation_error',
+      'seo_score',
+      'aeo_score',
+      'geo_score',
+      'word_count',
+      'updated_at',
+    ],
   });
   if (!blog) throw ApiError.notFound(`Blog ${blogId} was not found.`);
+
+  const numOrNull = (value) => (value === null || value === undefined ? null : Number(value));
 
   return {
     blog_id: Number(blog.id),
     generation_status: blog.generation_status || GENERATION_STATUS.DRAFT,
     generation_error: blog.generation_error || null,
-    seo_score: blog.seo_score === null || blog.seo_score === undefined ? null : Number(blog.seo_score),
-    word_count: blog.word_count === null || blog.word_count === undefined ? null : Number(blog.word_count),
+    seo_score: numOrNull(blog.seo_score),
+    // Included alongside seo_score for the same reason it is narrow rather than
+    // absent: the wizard's Step 6 and the editor both want the tri-score
+    // dashboard to update the moment generation finishes, without an extra
+    // round trip to GET /blogs/:id.
+    aeo_score: numOrNull(blog.aeo_score),
+    geo_score: numOrNull(blog.geo_score),
+    word_count: numOrNull(blog.word_count),
     updated_at: blog.updated_at instanceof Date ? blog.updated_at.toISOString() : blog.updated_at,
     is_in_flight: GENERATION_IN_FLIGHT.includes(blog.generation_status),
   };
@@ -850,8 +919,75 @@ async function generateOutline(input, { provider } = {}) {
  */
 async function generateAutoTopic({ provider } = {}) {
   const textProvider = provider || getTextProvider();
-  const { ScripturaKeyword } = require('../models');
+  const { ScripturaKeyword, KeywordCluster, ClusterKeyword } = require('../models');
+  const { CLUSTER_STATUS, CLUSTER_KEYWORD_STATUS } = require('../constants');
 
+  // -------------------------------------------------------------------------
+  // CLUSTER-AWARE PATH (Phase 2): check for active clusters first.
+  // If there is an active cluster with a pending keyword, generate for that
+  // keyword rather than picking from the flat keyword pool. This makes Autopilot
+  // work through cluster schedules in sequence_order.
+  // -------------------------------------------------------------------------
+  const clusterKeyword = await ClusterKeyword.findOne({
+    where: { status: CLUSTER_KEYWORD_STATUS.PENDING },
+    include: [{
+      association: 'cluster',
+      where: { status: CLUSTER_STATUS.ACTIVE },
+      required: true,
+    }],
+    order: [['sequence_order', 'ASC'], ['created_at', 'ASC']],
+  });
+
+  if (clusterKeyword) {
+    const primaryKeyword = clusterKeyword.keyword;
+    const cluster = clusterKeyword.cluster;
+
+    // Mark as scheduled (in progress for generation)
+    clusterKeyword.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
+    await clusterKeyword.save();
+
+    logger.info(`Autopilot: picked cluster keyword "${primaryKeyword}" from cluster "${cluster.name}" (#${cluster.id})`);
+
+    let serpData = null;
+    if (serp.isEnabled()) {
+      try {
+        serpData = await serp.fetchSerpDataForKeyword(primaryKeyword);
+      } catch (err) {
+        logger.warn('Failed to fetch SERP data for cluster keyword autopilot', { error: err.message });
+      }
+    }
+
+    const { titles, topic, suggested_secondary_keywords } = await textProvider.generateAutoTopicFromKeyword({
+      keyword: primaryKeyword,
+      secondaryKeywords: [],
+      serpData,
+    });
+
+    return {
+      provider: textProvider.name,
+      topic: topic || primaryKeyword,
+      seo_keywords: primaryKeyword,
+      secondary_keywords: suggested_secondary_keywords || [],
+      titles: titles.map((entry) => {
+        const safe = sanitizeInline(entry.title) || entry.title;
+        const plain = toPlainText(safe) || safe;
+        return {
+          title: plain,
+          char_count: plain.length,
+          seo: scoreTitle(plain, { keyword: primaryKeyword }),
+        };
+      }),
+      // Frontend can use this to link the generated blog back to the cluster.
+      _cluster: {
+        cluster_id: Number(cluster.id),
+        cluster_keyword_id: Number(clusterKeyword.id),
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // FALLBACK: original keyword-pool path (unchanged)
+  // -------------------------------------------------------------------------
   let keywordRow = await ScripturaKeyword.findOne({
     where: { status: 'not_used' },
     order: [['created_at', 'ASC']],
