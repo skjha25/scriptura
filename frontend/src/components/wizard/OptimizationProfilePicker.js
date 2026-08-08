@@ -35,8 +35,8 @@ export default function OptimizationProfilePicker({ value, onChange, disabled = 
               className={clsx(
                 'min-w-0 cursor-pointer rounded-lg border p-3 transition-colors',
                 selected
-                  ? 'border-accent/60 bg-accent/10'
-                  : 'border-hairline bg-panel-sunken hover:border-white/20'
+                  ? 'border-brand/60 bg-brand/10'
+                  : 'border-hairline bg-panel-sunken hover:border-hairline-strong'
               )}
             >
               <span className="flex items-start gap-2.5">
@@ -50,7 +50,7 @@ export default function OptimizationProfilePicker({ value, onChange, disabled = 
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-ink">{meta.label}</span>
-                  <span className="mt-0.5 block text-[11px] font-medium text-accent-bright">
+                  <span className="mt-0.5 block text-[11px] font-medium text-brand-light">
                     {meta.focus}
                   </span>
                   <span className="mt-1 block text-[11px] leading-relaxed text-ink-muted">

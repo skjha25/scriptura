@@ -145,7 +145,7 @@ export default function Step2BrandVoice({ config, onChange }) {
                   className={clsx(
                     'flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 transition-colors',
                     mode === entry.value
-                      ? 'border-accent/50 bg-glow-subtle'
+                      ? 'border-brand/50 bg-brand-subtle dark:bg-brand-darkSubtle'
                       : 'border-hairline bg-panel-sunken hover:border-hairline-strong'
                   )}
                 >

@@ -8,6 +8,8 @@ import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
+import { DRAWER_ENTER, OVERLAY_ENTER } from '../../lib/motion';
+
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -83,7 +85,7 @@ const NAV_ITEMS = [
 
 function BrandLogo() {
   return (
-    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#3B82F6] text-white shadow-sm">
+    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand text-void shadow-sm">
       <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
       </svg>
@@ -103,20 +105,24 @@ function NavItems({ onNavigate, collapsed = false }) {
           title={item.label}
           className={({ isActive }) =>
             clsx(
-              'group relative flex items-center rounded-xl transition-all duration-150',
-              collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5 text-sm',
+              'group relative flex items-center rounded-lg transition-all duration-150 font-medium',
+              collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2 text-sm',
               isActive
-                ? 'bg-glow-subtle text-ink border border-accent/25'
-                : 'text-ink-secondary border border-transparent hover:bg-panel-raised hover:text-ink'
+                ? 'bg-panel-sunken text-ink shadow-sm'
+                : 'text-ink-secondary hover:bg-panel-sunken/60 hover:text-ink'
             )
           }
         >
-          <span aria-hidden="true" className="shrink-0 text-accent">
-            {item.icon}
-          </span>
-          <span className={clsx('truncate', collapsed && 'hidden lg:hidden')}>
-            {item.label}
-          </span>
+          {({ isActive }) => (
+            <>
+              <span aria-hidden="true" className={clsx("shrink-0", isActive ? "text-brand" : "text-ink-faint group-hover:text-ink-secondary")}>
+                {item.icon}
+              </span>
+              <span className={clsx('truncate', collapsed && 'hidden lg:hidden')}>
+                {item.label}
+              </span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
@@ -188,7 +194,7 @@ function SidebarContent({ onNavigate, onClose, collapsed = false }) {
             <>
               <p className="truncate text-sm text-ink">{user?.name}</p>
               <p className="truncate text-[11px] text-ink-muted">{user?.email}</p>
-              <p className="mt-1 text-[11px] uppercase tracking-wide text-accent/80">{user?.role}</p>
+              <p className="mt-1 text-[11px] uppercase tracking-wide text-brand/80">{user?.role}</p>
               <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={logout}>
                 Sign out
               </Button>
@@ -248,7 +254,7 @@ export default function AppLayout() {
       )}
     >
       {/* Permanent sidebar from lg up. */}
-      <aside className="hidden border-r border-hairline bg-panel/60 transition-all duration-300 ease-in-out lg:block">
+      <aside className="hidden border-r border-hairline lg:block transition-all duration-300 ease-in-out">
         <div className="sticky top-0 h-screen overflow-y-auto">
           <SidebarContent collapsed={sidebarCollapsed} />
         </div>
@@ -260,10 +266,10 @@ export default function AppLayout() {
           <motion.button
             type="button"
             key="drawer-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            initial={OVERLAY_ENTER.initial}
+            animate={OVERLAY_ENTER.animate}
+            exit={OVERLAY_ENTER.exit}
+            transition={OVERLAY_ENTER.transition}
             onClick={() => setDrawerOpen(false)}
             onPointerDown={() => setDrawerOpen(false)}
             onTouchStart={() => setDrawerOpen(false)}
@@ -274,10 +280,10 @@ export default function AppLayout() {
         {drawerOpen && (
           <motion.aside
             key="drawer-aside"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            initial={DRAWER_ENTER.initial}
+            animate={DRAWER_ENTER.animate}
+            exit={DRAWER_ENTER.exit}
+            transition={DRAWER_ENTER.transition}
             className="fixed inset-y-0 left-0 z-50 w-[min(280px,85vw)] border-r border-hairline bg-panel shadow-2xl lg:hidden"
             role="dialog"
             aria-modal="true"
@@ -294,7 +300,7 @@ export default function AppLayout() {
 
       <div className="flex min-w-0 flex-col">
         {/* Desktop top header bar with fold toggle and theme toggle. */}
-        <header className="hidden border-b border-hairline bg-panel/30 px-4 py-3 lg:flex lg:items-center lg:justify-between">
+        <header className="hidden border-b border-hairline bg-void px-4 py-3 lg:flex lg:items-center lg:justify-between z-10">
           <button
             type="button"
             onClick={() => setSidebarCollapsed((prev) => !prev)}
@@ -314,7 +320,7 @@ export default function AppLayout() {
         </header>
 
         {/* Mobile top bar. */}
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-hairline bg-void/90 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-hairline bg-void px-4 py-3 lg:hidden">
           <div className="flex items-center gap-3">
             <button
               type="button"

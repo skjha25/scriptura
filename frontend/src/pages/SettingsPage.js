@@ -1,27 +1,30 @@
+/**
+ * frontend/src/pages/SettingsPage.js
+ *
+ * Trending Topics — manage the topic pool used by Automated AI Blog engine.
+ * Fully migrated to the Scriptura design system.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { settingsApi } from '../lib/api';
+import Button from '../components/ui/Button';
+import { Input } from '../components/ui/form';
+import { Card, CardHeader, ErrorBanner, EmptyState, Skeleton } from '../components/ui/feedback';
+import { PAGE_ENTER, STAGGER_CONTAINER, STAGGER_CHILD, LIST_CHILD } from '../lib/motion';
 
-/**
- * SettingsPage (Trending Topics)
- *
- * Allows SEO executives and admins to manage the dynamic topics used
- * by the Automated AI Blog generation tool. Includes AI-powered real-time
- * trend suggestions.
- */
 export default function SettingsPage() {
   const [topics, setTopics] = useState([]);
   const [newTopic, setNewTopic] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const [suggestedTopics, setSuggestedTopics] = useState([]);
   const [suggesting, setSuggesting] = useState(false);
 
-  useEffect(() => {
-    fetchTopics();
-  }, []);
+  useEffect(() => { fetchTopics(); }, []);
 
   const fetchTopics = async () => {
     try {
@@ -29,7 +32,7 @@ export default function SettingsPage() {
       const data = await settingsApi.getTopics();
       setTopics(data);
     } catch (err) {
-      setError(err.message || 'Failed to load topics.');
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -38,20 +41,15 @@ export default function SettingsPage() {
   const handleAddTopic = async (topicText, e) => {
     if (e) e.preventDefault();
     if (!topicText.trim()) return;
-
     try {
       setSubmitting(true);
-      setError('');
+      setActionError(null);
       const added = await settingsApi.addTopic({ topic: topicText.trim() });
       setTopics([added, ...topics]);
-      if (topicText === newTopic) {
-        setNewTopic('');
-      }
-      
-      // Remove from suggested if it was there
+      if (topicText === newTopic) setNewTopic('');
       setSuggestedTopics(suggestedTopics.filter(t => t !== topicText.trim()));
     } catch (err) {
-      setError(err.message || 'Failed to add topic. It might already exist.');
+      setActionError(err);
     } finally {
       setSubmitting(false);
     }
@@ -59,157 +57,173 @@ export default function SettingsPage() {
 
   const handleDelete = async (id) => {
     try {
-      setError('');
+      setActionError(null);
       await settingsApi.deleteTopic(id);
       setTopics(topics.filter((t) => t.id !== id));
     } catch (err) {
-      setError(err.message || 'Failed to delete topic.');
+      setActionError(err);
     }
   };
 
   const handleSuggestTopics = async () => {
     try {
       setSuggesting(true);
-      setError('');
+      setActionError(null);
       const data = await settingsApi.suggestTopics();
       setSuggestedTopics(data);
     } catch (err) {
-      setError(err.message || 'Failed to suggest topics.');
+      setActionError(err);
     } finally {
       setSuggesting(false);
     }
   };
 
   return (
-    <motion.div
-      className="page-container"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <header className="page-header">
+    <motion.div {...PAGE_ENTER} className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
+          <h1 className="text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>
             Trending Topics
           </h1>
-          <p className="text-gray-400">
-            Manage the trending astrology topics for the Automated AI Blog engine.
+          <p className="mt-1 text-sm text-ink-muted">
+            Manage the astrology topics used by the Automated AI Blog engine.
           </p>
         </div>
       </header>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6">
-          {error}
-        </div>
-      )}
+      {error ? <ErrorBanner error={error} onRetry={fetchTopics} /> : null}
+      {actionError ? <ErrorBanner error={actionError} onDismiss={() => setActionError(null)} /> : null}
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        <div className="card">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Auto Suggest (AI)</h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Real-time analysis to suggest trending astrology topics based on current astrological events and search volume.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSuggestTopics}
-              disabled={suggesting}
-              className="btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white whitespace-nowrap"
-            >
-              {suggesting ? 'Analyzing...' : 'Suggest Topics'}
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {suggesting && <div className="text-center py-8 text-gray-400">Asking AI to analyze trends...</div>}
-            {!suggesting && suggestedTopics.length === 0 && (
-              <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
-                Click suggest to see real-time trends.
-              </div>
-            )}
-            <AnimatePresence>
-              {!suggesting && suggestedTopics.map((topic, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl"
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* AI Suggestions panel */}
+        <Card className="flex flex-col">
+          <CardHeader
+            title="AI Auto-Suggest"
+            subtitle="Real-time analysis of trending astrology topics based on current events and search volume."
+            action={
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleSuggestTopics}
+                disabled={suggesting}
+                loading={suggesting}
+              >
+                {suggesting ? 'Analyzing…' : 'Suggest Topics'}
+              </Button>
+            }
+          />
+          <div className="flex-1 px-5 pb-5 pt-4">
+            <div className="space-y-2 max-h-[420px] overflow-y-auto">
+              {suggesting ? (
+                <div className="space-y-2 py-4">
+                  {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                </div>
+              ) : suggestedTopics.length === 0 ? (
+                <div className="rounded-lg border border-hairline bg-panel-sunken px-4 py-8 text-center">
+                  <p className="text-sm text-ink-muted">
+                    Click "Suggest Topics" to see real-time trends.
+                  </p>
+                </div>
+              ) : (
+                <motion.ul
+                  variants={STAGGER_CONTAINER}
+                  initial="initial"
+                  animate="animate"
+                  className="space-y-2"
                 >
-                  <span className="text-white font-medium">{topic}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleAddTopic(topic)}
-                    disabled={submitting}
-                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10 p-2 rounded-lg transition-colors text-sm font-semibold"
-                  >
-                    Add
-                  </button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                  <AnimatePresence>
+                    {suggestedTopics.map((topic, i) => (
+                      <motion.li
+                        key={topic}
+                        variants={STAGGER_CHILD}
+                        exit={{ opacity: 0, x: 8, transition: { duration: 0.2 } }}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-brand/20 bg-brand-subtle px-4 py-2.5"
+                      >
+                        <span className="text-sm font-medium text-ink">{topic}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAddTopic(topic)}
+                          disabled={submitting}
+                        >
+                          Add
+                        </Button>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </motion.ul>
+              )}
+            </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4 text-white">Active Database Topics</h2>
-          <p className="text-sm text-gray-400 mb-6">
-            When an author clicks "Start Generating", the system randomly selects one of these as the primary keyword.
-          </p>
+        {/* Active topics panel */}
+        <Card className="flex flex-col">
+          <CardHeader
+            title="Active Topic Database"
+            subtitle='When "Start Generating" is clicked, the system randomly picks one of these as the primary keyword.'
+          />
+          <div className="flex-1 px-5 pb-5 pt-4 space-y-4">
+            <form onSubmit={(e) => handleAddTopic(newTopic, e)} className="flex gap-3">
+              <Input
+                value={newTopic}
+                onChange={(e) => setNewTopic(e.target.value)}
+                placeholder="e.g., Diwali Puja Astrology…"
+                disabled={submitting}
+                containerClassName="flex-1"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!newTopic.trim() || submitting}
+                loading={submitting}
+                className="shrink-0"
+              >
+                Add
+              </Button>
+            </form>
 
-          <form onSubmit={(e) => handleAddTopic(newTopic, e)} className="flex gap-3 mb-8">
-            <input
-              type="text"
-              className="input flex-1"
-              placeholder="e.g., Diwali Puja Astrology..."
-              value={newTopic}
-              onChange={(e) => setNewTopic(e.target.value)}
-              disabled={submitting}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary whitespace-nowrap"
-              disabled={!newTopic.trim() || submitting}
-            >
-              {submitting ? 'Adding...' : 'Add Topic'}
-            </button>
-          </form>
-
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-            {loading ? (
-              <div className="text-center py-8 text-gray-400">Loading topics...</div>
-            ) : topics.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 bg-white/5 rounded-xl border border-white/10">
-                No topics found. Add some!
-              </div>
-            ) : (
-              <AnimatePresence>
-                {topics.map((t) => (
-                  <motion.div
-                    key={t.id}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-                  >
-                    <span className="text-white font-medium">{t.topic}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors text-sm font-medium"
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+              {loading ? (
+                <div className="space-y-2 py-4">
+                  {[1,2,3,4].map(i => <Skeleton key={i} className="h-11 w-full" />)}
+                </div>
+              ) : topics.length === 0 ? (
+                <EmptyState
+                  icon="✧"
+                  title="No topics yet"
+                  message="Add topics manually or use AI Auto-Suggest to populate the list."
+                />
+              ) : (
+                <AnimatePresence initial={false}>
+                  {topics.map((t) => (
+                    <motion.div
+                      key={t.id}
+                      variants={LIST_CHILD}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-panel-raised px-4 py-2.5 transition-colors hover:border-hairline-strong"
                     >
-                      Remove
-                    </button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
+                      <span className="text-sm font-medium text-ink truncate">{t.topic}</span>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDelete(t.id)}
+                        className="shrink-0"
+                      >
+                        Remove
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
           </div>
-        </div>
+        </Card>
       </div>
     </motion.div>
   );

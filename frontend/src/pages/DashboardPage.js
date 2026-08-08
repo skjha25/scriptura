@@ -45,6 +45,7 @@ import RankedBarChart from '../components/charts/RankedBarChart';
 import SerpRankChart from '../components/charts/SerpRankChart';
 import { useInterval } from '../hooks/useDebouncedValue';
 import { formatCount, formatCompact, formatAverage } from '../components/charts/chartTheme';
+import { PAGE_ENTER, STAGGER_CONTAINER, STAGGER_CHILD } from '../lib/motion';
 
 /**
  * Window options for the time-series charts.
@@ -90,12 +91,6 @@ const CATEGORY_COLUMNS = [
   { key: 'count', label: 'Articles', align: 'right', format: (value) => formatCount(value) },
 ];
 
-/** Card entrance. Framer honours prefers-reduced-motion via MotionConfig in index.js. */
-const ENTRANCE = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.25 },
-};
 
 // ---------------------------------------------------------------------------
 // In-flight generations
@@ -164,7 +159,7 @@ function InFlightPanel() {
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     to={`/blogs/${item.id}/wizard`}
-                    className="min-w-0 flex-1 truncate text-sm text-ink hover:text-accent-bright"
+                    className="min-w-0 flex-1 truncate text-sm text-ink hover:text-brand-light"
                   >
                     {item.blog_title}
                   </Link>
@@ -177,7 +172,7 @@ function InFlightPanel() {
                   aria-hidden="true"
                   className="mt-2 h-1 overflow-hidden rounded-full bg-panel-sunken"
                 >
-                  <div className="h-full w-1/3 animate-pulse-glow rounded-full bg-accent" />
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-brand" />
                 </div>
               </li>
             ))}
@@ -214,7 +209,7 @@ function RecentActivityPanel({ items = [] }) {
             <li key={item.id} className="py-3">
               <Link
                 to={`/blogs/${item.id}`}
-                className="block truncate text-sm text-ink hover:text-accent-bright"
+                className="block truncate text-sm text-ink hover:text-brand-light"
               >
                 {item.blog_title}
               </Link>
@@ -307,12 +302,12 @@ export default function DashboardPage() {
   const categories = (data?.category_breakdown || []).slice(0, MAX_RANKED_ROWS);
 
   return (
-    <div className="space-y-8">
+    <motion.div {...PAGE_ENTER} className="space-y-8">
       {/* The header stays mounted through loading and errors, so the window
           selector never disappears out from under the user. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Dashboard</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Publishing volume, content quality and what is generating right now.
           </p>
@@ -336,40 +331,19 @@ export default function DashboardPage() {
               summary of the page, and giving them a name lets a screen-reader user
               jump to them instead of walking five unrelated cards. */}
           <motion.section
-            {...ENTRANCE}
+            variants={STAGGER_CONTAINER}
+            initial="initial"
+            animate="animate"
             aria-label="Key metrics"
             className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4"
           >
-            <StatTile label="Total blogs" value={formatCount(totals.total)} />
-            <StatTile
-              label="Published"
-              value={formatCount(totals.published)}
-              hint={`${formatCount(totals.draft)} still in draft`}
-            />
-            <StatTile
-              label="Avg SEO score"
-              // formatAverage keeps null as null so StatTile renders its em dash.
-              // A 0 here would claim every article scored zero rather than that
-              // none has been scored.
-              value={formatAverage(totals.avg_seo_score)}
-              hint="Scored articles only"
-            />
-            <StatTile
-              label="Avg AEO score"
-              value={formatAverage(totals.avg_aeo_score)}
-              hint="Featured-snippet readiness"
-            />
-            <StatTile
-              label="Avg GEO score"
-              value={formatAverage(totals.avg_geo_score)}
-              hint="AI-citation readiness"
-            />
-            <StatTile label="Total views" value={formatCompact(totals.total_views)} />
-            <StatTile
-              label="In-flight"
-              value={formatCount(totals.in_flight)}
-              hint="Queued or generating"
-            />
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Total blogs" value={formatCount(totals.total)} /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Published" value={formatCount(totals.published)} hint={`${formatCount(totals.draft)} still in draft`} /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Avg SEO score" value={formatAverage(totals.avg_seo_score)} hint="Scored articles only" /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Avg AEO score" value={formatAverage(totals.avg_aeo_score)} hint="Featured-snippet readiness" /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Avg GEO score" value={formatAverage(totals.avg_geo_score)} hint="AI-citation readiness" /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="Total views" value={formatCompact(totals.total_views)} /></motion.div>
+            <motion.div variants={STAGGER_CHILD}><StatTile label="In-flight" value={formatCount(totals.in_flight)} hint="Queued or generating" /></motion.div>
           </motion.section>
 
           <InFlightPanel />
@@ -472,6 +446,6 @@ export default function DashboardPage() {
 
         </>
       ) : null}
-    </div>
+    </motion.div>
   );
 }

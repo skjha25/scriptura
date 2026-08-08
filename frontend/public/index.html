@@ -17,6 +17,21 @@
     <!-- Internal tool: keep it out of search results entirely. -->
     <meta name="robots" content="noindex, nofollow" />
     <title>Scriptura — Divinetalk Content Engine</title>
+    <!--
+      Inter — the single typeface for all UI text.
+      Preconnect hints eliminate the DNS + TLS roundtrip before the stylesheet
+      fires. font-display:swap is set by Google Fonts by default so there is no
+      FOIT: text renders in the system fallback immediately and swaps when Inter
+      is ready.
+      Weights loaded: 400 (body), 500 (medium labels), 600 (headings/semibold).
+      Variable font range covers all three in a single file.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body class="bg-void text-ink antialiased">
     <noscript>Scriptura requires JavaScript to run.</noscript>

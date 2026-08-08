@@ -12,10 +12,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 import { clustersApi } from '../lib/api';
 import { humanizeEnum, CLUSTER_KEYWORD_STATUS_META } from '../lib/constants';
 import Button from '../components/ui/Button';
+import { Input, Select } from '../components/ui/form';
 import {
   Badge,
   Card,
@@ -24,6 +26,7 @@ import {
   Skeleton,
   StatusBadge,
 } from '../components/ui/feedback';
+import { PAGE_ENTER } from '../lib/motion';
 
 // ---------------------------------------------------------------------------
 // Date formatting helpers — IST, 12-hour, human-friendly
@@ -170,42 +173,36 @@ export default function ClusterDetailPage() {
     .sort((a, b) => new Date(a.scheduled_generation_date) - new Date(b.scheduled_generation_date))[0];
 
   return (
-    <div className="space-y-8 animate-fade-in-up relative z-0 pb-10">
-      {/* Aurora Ambient Mesh Background */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-cosmic-wash opacity-40 blur-3xl mix-blend-screen" />
+    <motion.div {...PAGE_ENTER} className="space-y-8 pb-10">
 
       {/* Header */}
       <header className="space-y-4">
-        <Link to="/clusters" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-accent transition-colors">
+        <Link to="/clusters" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-brand transition-colors">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
           Back to Clusters
         </Link>
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative">
-          <div className="space-y-2 relative pl-5">
-            <div className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-glow-accent opacity-75" />
-            <h1 className="text-4xl font-bold tracking-tight text-ink drop-shadow-md">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="space-y-2 pl-4 border-l-2 border-brand">
+            <h1 className="text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>
               {cluster.name}
             </h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-ink-secondary">
               <span className="flex items-center gap-1.5">
-                <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
                 </svg>
                 Head keyword: <span className="font-semibold text-ink">{cluster.head_keyword}</span>
               </span>
               {cluster.is_seasonal && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2 py-0.5 text-xs text-accent-violet border border-accent-violet/20">
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
+                <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/30 bg-status-warning/10 px-2 py-0.5 text-xs text-status-warning">
                   Seasonal (peak: {cluster.seasonal_peak_date})
                 </span>
               )}
             </div>
           </div>
-          <Badge tone={CLUSTER_KEYWORD_STATUS_META[cluster.status]?.tone || 'neutral'} className="text-base px-3 py-1 shadow-glow-sm">
+          <Badge tone={CLUSTER_KEYWORD_STATUS_META[cluster.status]?.tone || 'neutral'} className="text-sm px-3 py-1">
             {humanizeEnum(cluster.status)}
           </Badge>
         </div>
@@ -215,19 +212,19 @@ export default function ClusterDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Autopilot status bar */}
         <div className="lg:col-span-2 rounded-2xl border border-hairline bg-panel-raised/50 p-6 shadow-panel backdrop-blur-md relative overflow-hidden">
-          <div className="absolute inset-0 bg-glow-subtle opacity-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-brand-subtle dark:bg-brand-darkSubtle opacity-10 pointer-events-none" />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
             <div className="space-y-1">
               <h3 className="text-sm font-medium text-ink-muted">Cluster Progress</h3>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                 <span className="font-numeric text-ink font-medium">{keywords.length} <span className="text-ink-muted font-sans font-normal">keywords</span></span>
                 <span className="text-ink-faint hidden sm:inline">•</span>
-                <span className="font-numeric text-accent-bright font-medium">{scheduledCount} <span className="text-ink-muted font-sans font-normal">scheduled</span></span>
+                <span className="font-numeric text-brand-light font-medium">{scheduledCount} <span className="text-ink-muted font-sans font-normal">scheduled</span></span>
                 <span className="text-ink-faint hidden sm:inline">•</span>
                 <span className="font-numeric text-status-good font-medium">{generatedCount} <span className="text-ink-muted font-sans font-normal">published</span></span>
               </div>
               {nextScheduled && (
-                <div className="mt-2 text-xs font-medium text-accent-bright flex items-center gap-1.5">
+                <div className="mt-2 text-xs font-medium text-brand-light flex items-center gap-1.5">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -259,7 +256,7 @@ export default function ClusterDetailPage() {
         <div className="rounded-2xl border border-hairline bg-panel-raised/50 p-6 shadow-panel backdrop-blur-md flex flex-col justify-center gap-3">
           <Button
             variant="primary"
-            className="w-full shadow-glow-sm hover:shadow-glow transition-shadow"
+            className="w-full shadow-sm hover:shadow-md transition-shadow"
             onClick={handleExpand}
             loading={expanding}
           >
@@ -268,7 +265,7 @@ export default function ClusterDetailPage() {
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="secondary"
-              className="w-full hover:text-accent-bright transition-colors"
+              className="w-full hover:text-brand-light transition-colors"
               onClick={() => setShowScheduleModal(true)}
               disabled={keywords.filter((k) => k.status === 'pending').length === 0}
             >
@@ -308,7 +305,7 @@ export default function ClusterDetailPage() {
             {keywords.length === 0 ? (
               <div className="px-6 py-12">
                 <EmptyState
-                  icon={<span className="text-4xl text-accent drop-shadow-glow">✨</span>}
+                  icon={<span className="text-4xl text-brand">✨</span>}
                   title="No keywords yet"
                   message="Click 'Expand cluster (AI)' to magically generate related sub-keywords for this topic."
                 />
@@ -339,8 +336,8 @@ export default function ClusterDetailPage() {
               </div>
               <ul className="divide-y divide-hairline max-h-[600px] overflow-y-auto custom-scrollbar">
                 {blogs.map((blog) => (
-                  <li key={blog.id} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-white/[0.02] transition-colors group">
-                    <Link to={`/blogs/${blog.id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink group-hover:text-accent-bright transition-colors">
+                  <li key={blog.id} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-panel-sunken transition-colors group">
+                    <Link to={`/blogs/${blog.id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink group-hover:text-brand-light transition-colors">
                       {blog.blog_title}
                     </Link>
                     <StatusBadge status={blog.blog_status} />
@@ -371,7 +368,7 @@ export default function ClusterDetailPage() {
           onApplied={load}
         />
       ) : null}
-    </div>
+    </motion.div>
   );
 }
 
@@ -448,12 +445,12 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
   const hasConflict = slotStatus && typeof slotStatus === 'object' && slotStatus.keyword;
 
   return (
-    <li className="px-6 py-4 hover:bg-white/[0.02] transition-colors group">
+    <li className="px-6 py-4 hover:bg-panel-sunken transition-colors group">
       <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         {/* Left: keyword + schedule info */}
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-base font-semibold text-ink group-hover:text-accent-bright transition-colors">{kw.keyword}</span>
+            <span className="text-base font-semibold text-ink group-hover:text-brand-light transition-colors">{kw.keyword}</span>
             <Badge tone={meta.tone} className="shadow-sm">
               {meta.icon} {meta.label}
             </Badge>
@@ -466,7 +463,7 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
           {!isEditing ? (
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
               <span className="inline-flex items-center gap-1.5 text-ink-secondary">
-                <span className="text-accent/80">🤖 Generate:</span>
+                <span className="text-brand/80">🤖 Generate:</span>
                 {kw.scheduled_generation_date ? (
                   <span className="font-numeric font-medium text-ink">{formatDateIST(kw.scheduled_generation_date)}</span>
                 ) : (
@@ -484,7 +481,7 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
               {!isLocked && (
                 <button
                   onClick={handleExpand}
-                  className="text-xs font-medium text-accent hover:text-accent-bright transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  className="text-xs font-medium text-brand hover:text-brand-light transition-colors inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100"
                 >
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -498,64 +495,64 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
             <div className="space-y-4 rounded-xl border border-hairline bg-void/60 p-4 shadow-inner mt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Generation date */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-ink-secondary flex items-center gap-1">
-                    <span className="text-accent">🤖</span> Generate Schedule
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="datetime-local"
-                      className="w-full text-sm px-3 py-2 border border-hairline rounded-lg bg-panel-raised text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                      value={genDate}
-                      onChange={handleGenDateChange}
-                    />
-                    <div className="absolute right-0 top-full mt-1 flex justify-end w-full">
-                      {slotStatus === 'checking' && (
-                        <span className="text-[10px] text-ink-muted animate-pulse">Checking availability...</span>
-                      )}
-                      {slotStatus === 'available' && (
-                        <span className="text-[10px] text-status-good font-medium">✅ Slot available</span>
-                      )}
-                      {hasConflict && (
-                        <span className="text-[10px] text-status-critical font-medium bg-status-critical/10 px-1.5 py-0.5 rounded border border-status-critical/20">
-                          ⚠️ Taken by: {slotStatus.keyword}
-                        </span>
-                      )}
-                    </div>
+                <div className="relative">
+                  <Input
+                    type="datetime-local"
+                    label={
+                      <span className="flex items-center gap-1">
+                        <span>🤖</span> Generate Schedule
+                      </span>
+                    }
+                    value={genDate}
+                    onChange={handleGenDateChange}
+                  />
+                  <div className="absolute right-0 top-full mt-1 flex justify-end w-full">
+                    {slotStatus === 'checking' && (
+                      <span className="text-[10px] text-ink-muted animate-pulse">Checking availability...</span>
+                    )}
+                    {slotStatus === 'available' && (
+                      <span className="text-[10px] text-status-good font-medium">✅ Slot available</span>
+                    )}
+                    {hasConflict && (
+                      <span className="text-[10px] text-status-critical font-medium bg-status-critical/10 px-1.5 py-0.5 rounded border border-status-critical/20">
+                        ⚠️ Taken by: {slotStatus.keyword}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Publish date */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-ink-secondary flex items-center justify-between">
-                    <span className="flex items-center gap-1"><span className="text-status-good">📤</span> Publish Schedule</span>
-                    <span className="text-[10px] font-normal text-ink-faint">(Optional)</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className="w-full text-sm px-3 py-2 border border-hairline rounded-lg bg-panel-raised text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                    value={pubDate}
-                    onChange={(e) => setPubDate(e.target.value)}
-                  />
-                </div>
+                <Input
+                  type="datetime-local"
+                  label={
+                    <span className="flex items-center justify-between">
+                      <span className="flex items-center gap-1"><span>📤</span> Publish Schedule</span>
+                      <span className="text-[10px] font-normal text-ink-faint">(Optional)</span>
+                    </span>
+                  }
+                  value={pubDate}
+                  onChange={(e) => setPubDate(e.target.value)}
+                />
               </div>
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
+                <Button
                   disabled={loading}
                   onClick={() => { setIsEditing(false); setSlotStatus(null); }}
-                  className="text-xs px-4 py-1.5 rounded-lg border border-hairline bg-panel-raised text-ink-muted hover:text-ink hover:bg-white/5 transition-colors disabled:opacity-50"
+                  variant="secondary"
+                  size="sm"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   disabled={loading || hasConflict}
                   onClick={handleSave}
-                  className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent text-white shadow-glow-sm hover:shadow-glow hover:bg-accent-bright transition-all disabled:opacity-50 disabled:shadow-none"
+                  variant="primary"
+                  size="sm"
                 >
                   {loading ? 'Saving...' : 'Confirm Schedule'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -566,7 +563,7 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
           {kw.assignedBlog ? (
             <Link
               to={`/blogs/${kw.assignedBlog.id}`}
-              className="group/link flex items-center gap-2 rounded-lg bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent-bright border border-accent/20 hover:bg-accent/20 transition-colors max-w-[200px]"
+              className="group/link flex items-center gap-2 rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand-light border border-brand/20 hover:bg-brand/20 transition-colors max-w-[200px]"
             >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -657,12 +654,12 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
         
         {/* Modal Panel */}
         <div className="relative w-full max-w-2xl transform text-left rounded-2xl bg-panel-raised border border-hairline shadow-panel overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
-          <div className="absolute inset-0 bg-glow-subtle opacity-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-brand-subtle dark:bg-brand-darkSubtle opacity-10 pointer-events-none" />
           
           {/* Header */}
           <div className="border-b border-hairline px-6 py-5 bg-void/50 relative z-10 shrink-0">
-            <h2 className="text-xl font-bold text-ink drop-shadow-md flex items-center gap-2">
-              <span className="text-accent-bright">⚡</span> Auto-Schedule Keywords
+            <h2 className="text-xl font-semibold text-ink flex items-center gap-2" style={{ letterSpacing: '-0.015em' }}>
+              <span className="text-brand">⚡</span> Auto-Schedule Keywords
             </h2>
             <p className="text-sm text-ink-muted mt-1.5">
               Automatically space out generation and publishing dates for all pending keywords across the cluster.
@@ -672,48 +669,30 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
           {/* Form Content (Scrollable if needed) */}
           <div className="space-y-6 px-6 py-6 relative z-10 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-ink-secondary">Start from</label>
-              <input
-                type="datetime-local"
-                className="w-full text-sm px-3 py-2.5 border border-hairline rounded-lg bg-void/50 text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all shadow-inner"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-ink-secondary">Posts per week</label>
-              <select
-                className="w-full text-sm px-3 py-2.5 border border-hairline rounded-lg bg-void/50 text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all shadow-inner"
-                value={postsPerWeek}
-                onChange={(e) => setPostsPerWeek(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 7].map((n) => (
-                  <option key={n} value={n}>{n} post{n > 1 ? 's' : ''} / week</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-ink-secondary">Preferred time (IST)</label>
-              <input
-                type="time"
-                className="w-full text-sm px-3 py-2.5 border border-hairline rounded-lg bg-void/50 text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all shadow-inner"
-                value={preferredTime}
-                onChange={(e) => setPreferredTime(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-ink-secondary">Publish buffer</label>
-              <select
-                className="w-full text-sm px-3 py-2.5 border border-hairline rounded-lg bg-void/50 text-ink focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all shadow-inner"
-                value={bufferDays}
-                onChange={(e) => setBufferDays(Number(e.target.value))}
-              >
-                {[1, 2, 3, 5, 7].map((n) => (
-                  <option key={n} value={n}>{n} day{n > 1 ? 's' : ''} after generation</option>
-                ))}
-              </select>
-            </div>
+            <Input
+              type="datetime-local"
+              label="Start from"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <Select
+              label="Posts per week"
+              value={postsPerWeek}
+              onChange={(e) => setPostsPerWeek(Number(e.target.value))}
+              options={[1, 2, 3, 4, 5, 7].map((n) => ({ value: n, label: `${n} post${n > 1 ? 's' : ''} / week` }))}
+            />
+            <Input
+              type="time"
+              label="Preferred time (IST)"
+              value={preferredTime}
+              onChange={(e) => setPreferredTime(e.target.value)}
+            />
+            <Select
+              label="Publish buffer"
+              value={bufferDays}
+              onChange={(e) => setBufferDays(Number(e.target.value))}
+              options={[1, 2, 3, 5, 7].map((n) => ({ value: n, label: `${n} day${n > 1 ? 's' : ''} after generation` }))}
+            />
           </div>
 
           <div className="pt-2 border-t border-hairline/50">
@@ -743,7 +722,7 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
                 </thead>
                 <tbody className="divide-y divide-hairline">
                   {preview.map((item, i) => (
-                    <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={item.id} className="hover:bg-panel-sunken transition-colors">
                       <td className="px-4 py-3 text-ink-faint font-numeric">{i + 1}</td>
                       <td className="px-4 py-3 text-ink font-medium max-w-[180px] truncate" title={item.keyword}>{item.keyword}</td>
                       <td className="px-4 py-3 text-ink-secondary font-numeric">{formatDateShort(item.scheduled_generation_date)}</td>
@@ -758,13 +737,13 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-4 border-t border-hairline px-6 py-4 bg-void/50 relative z-10 shrink-0">
-          <Button variant="ghost" onClick={onClose} className="hover:bg-white/5">Cancel</Button>
+          <Button variant="ghost" onClick={onClose} className="hover:bg-panel-sunken">Cancel</Button>
           <Button
             variant="primary"
             onClick={handleApply}
             loading={applying}
             disabled={!preview || preview.length === 0}
-            className="shadow-glow-sm hover:shadow-glow transition-shadow"
+            className="shadow-sm hover:shadow-md transition-shadow"
           >
             {applying ? 'Applying...' : `Confirm & Apply (${preview?.length || 0})`}
           </Button>

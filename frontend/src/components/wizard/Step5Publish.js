@@ -52,7 +52,7 @@ export default function Step5Publish({ config, onChange }) {
                   key={entry.value}
                   className={
                     mode === entry.value
-                      ? 'flex cursor-pointer items-start gap-3 rounded-lg border border-accent/50 bg-glow-subtle px-3 py-2.5'
+                      ? 'flex cursor-pointer items-start gap-3 rounded-lg border border-brand/50 bg-brand-subtle dark:bg-brand-darkSubtle px-3 py-2.5'
                       : 'flex cursor-pointer items-start gap-3 rounded-lg border border-hairline bg-panel-sunken px-3 py-2.5 hover:border-hairline-strong'
                   }
                 >

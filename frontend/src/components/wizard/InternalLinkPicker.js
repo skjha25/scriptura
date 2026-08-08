@@ -91,7 +91,7 @@ export default function InternalLinkPicker({ selected = [], onChange, excludeId 
                 type="button"
                 onClick={() => toggle(entry.id, false)}
                 aria-label={`Remove ${entry.blog_title} from link targets`}
-                className="text-accent-bright/70 hover:text-white"
+                className="text-brand/70 hover:text-ink"
               >
                 ×
               </button>

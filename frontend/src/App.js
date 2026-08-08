@@ -33,7 +33,7 @@ function FullScreenLoader({ label = 'Loading' }) {
   return (
     <div className="flex min-h-screen items-center justify-center" aria-busy="true">
       <div className="flex flex-col items-center gap-3">
-        <Spinner size={28} className="text-accent" label={label} />
+        <Spinner size={28} className="text-brand" label={label} />
         <p className="text-sm text-ink-muted">{label}…</p>
       </div>
     </div>

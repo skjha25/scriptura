@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/form';
 import { ErrorBanner } from '../components/ui/feedback';
+import { PAGE_ENTER } from '../lib/motion';
 
 export default function LoginPage() {
   const { login, error, clearError } = useAuth();
@@ -46,14 +47,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        initial={PAGE_ENTER.initial}
+        animate={PAGE_ENTER.animate}
+        transition={PAGE_ENTER.transition}
         className="w-full max-w-sm"
       >
         <div className="mb-8 text-center">
           
-          <h1 className="text-2xl font-semibold text-ink">Scriptura</h1>
+          <h1 className="text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Scriptura</h1>
           <p className="mt-1.5 text-sm text-ink-muted">
             Divinetalk's internal content engine
           </p>

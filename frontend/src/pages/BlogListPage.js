@@ -37,6 +37,7 @@ import BlogFilters, { SORT_OPTIONS } from '../components/blogs/BlogFilters';
 import BlogGrid from '../components/blogs/BlogGrid';
 import BlogTable from '../components/blogs/BlogTable';
 import BlogPagination from '../components/blogs/BlogPagination';
+import { PAGE_ENTER } from '../lib/motion';
 
 const VIEW_STORAGE_KEY = 'scriptura.blogs.view';
 const PAGE_SIZE = 20;
@@ -293,11 +294,11 @@ export default function BlogListPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <motion.div {...PAGE_ENTER} className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">All blogs</h1>
+            <h1 className="text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>All blogs</h1>
             <p className="mt-1 text-sm text-ink-muted">
               {result?.pagination
                 ? `${formatCount(result.pagination.total)} matching ${
@@ -308,7 +309,7 @@ export default function BlogListPage() {
           </div>
           {/* A quiet spinner for a refetch that already has results on screen —
               swapping back to the skeleton would throw the reader's place away. */}
-          {loading && result ? <Spinner className="text-accent" label="Updating list" /> : null}
+          {loading && result ? <Spinner className="text-brand" label="Updating list" /> : null}
         </div>
         <Button as={Link} to="/blogs/new" variant="primary">
           New article
@@ -402,6 +403,6 @@ export default function BlogListPage() {
           onPageChange={(page) => handleChange({ page })}
         />
       </section>
-    </div>
+    </motion.div>
   );
 }

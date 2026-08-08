@@ -81,12 +81,12 @@ export default function AddBlockMenu({
           'flex items-center justify-center gap-1.5 rounded-lg border text-xs transition-all',
           'disabled:cursor-not-allowed disabled:opacity-40',
           variant === 'primary'
-            ? 'border-accent/40 bg-accent/15 px-3 py-2 text-accent-bright hover:bg-accent/25'
+            ? 'border-brand/40 bg-brand/15 px-3 py-2 text-brand-light hover:bg-brand/25'
             : clsx(
                 'w-full border-dashed border-transparent py-1 text-ink-faint',
-                'hover:border-accent/40 hover:bg-accent/10 hover:text-accent-bright',
-                'focus-visible:border-accent/40 focus-visible:text-accent-bright',
-                open && 'border-accent/40 text-accent-bright'
+                'hover:border-brand/40 hover:bg-brand/10 hover:text-brand-light',
+                'focus-visible:border-brand/40 focus-visible:text-brand-light',
+                open && 'border-brand/40 text-brand-light'
               )
         )}
       >
@@ -122,11 +122,11 @@ export default function AddBlockMenu({
                       setOpen(false);
                       onInsert(type, position);
                     }}
-                    className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent/15"
+                    className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-brand/15"
                   >
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 w-4 shrink-0 text-center text-accent"
+                      className="mt-0.5 w-4 shrink-0 text-center text-brand"
                     >
                       {meta.icon}
                     </span>

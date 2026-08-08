@@ -20,6 +20,7 @@ import { blogsApi, generateApi } from '../lib/api';
 import { buildGenerationConfig } from '../components/wizard/Step6Generate';
 import { INITIAL_CONFIG } from '../components/wizard/steps';
 import { DEFAULT_SEO_STRUCTURE } from '../lib/constants';
+import Button from '../components/ui/Button';
 
 // ─── Stage definitions ──────────────────────────────────────────────────────
 const STAGES = [
@@ -40,21 +41,21 @@ function stageIndex(key) {
 function FloatingParticles() {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-      {Array.from({ length: 20 }).map((_, i) => (
+      {Array.from({ length: 16 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full"
+          className="absolute rounded-full bg-brand"
           style={{
             width: Math.random() * 4 + 2,
             height: Math.random() * 4 + 2,
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
-            background: `hsla(${220 + Math.random() * 40}, 80%, 70%, ${0.15 + Math.random() * 0.2})`,
+            opacity: 0.08 + Math.random() * 0.1,
           }}
           animate={{
             y: [0, -30 - Math.random() * 40, 0],
             x: [0, (Math.random() - 0.5) * 20, 0],
-            opacity: [0.2, 0.6, 0.2],
+            opacity: [0.08, 0.2, 0.08],
           }}
           transition={{
             duration: 4 + Math.random() * 4,
@@ -80,38 +81,40 @@ function PromoWorkflow() {
   return (
     <div className="w-full max-w-4xl mx-auto my-8 relative z-10">
       <div className="text-center mb-10">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-          Your content creates itself. <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">You stay in control.</span>
+        <h2 className="text-2xl md:text-3xl font-semibold text-ink mb-4" style={{ letterSpacing: '-0.02em' }}>
+          Your content creates itself.{' '}
+          <span className="text-brand">You stay in control.</span>
         </h2>
-        <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
-          Define your niche and standards just once. From there, our AI engine dreams up fresh topics, drafts full articles, verifies facts, and optimizes for search. You just drop in whenever you're ready to review and publish.
+        <p className="text-ink-muted max-w-2xl mx-auto text-base leading-relaxed">
+          Define your niche and standards just once. From there, our AI engine dreams up fresh topics,
+          drafts full articles, verifies facts, and optimizes for search. You just drop in whenever
+          you're ready to review and publish.
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative">
         {/* Connection line */}
-        <div className="hidden md:block absolute top-[40%] left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-blue-500/20 via-purple-500/50 to-pink-500/20 -translate-y-1/2 z-0" />
-        
+        <div className="hidden md:block absolute top-[38%] left-[12%] right-[12%] h-px bg-hairline -translate-y-1/2 z-0" />
+
         {steps.map((step, i) => (
           <motion.div
             key={step.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.1 }}
-            className="relative z-10 flex flex-col items-center p-5 bg-panel/40 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl hover:bg-panel/80 hover:border-white/20 transition-all"
+            transition={{ delay: 0.1 + i * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 flex flex-col items-center p-5 bg-panel border border-hairline rounded-2xl shadow-panel hover:shadow-panel-raised hover:border-hairline-strong hover:-translate-y-1 transition-all duration-200"
           >
-            <div className="text-3xl mb-3 p-4 bg-white/5 rounded-full shadow-inner border border-white/5">
+            <div className="text-3xl mb-3 p-4 bg-panel-sunken rounded-xl border border-hairline">
               {step.icon}
             </div>
-            <h3 className="text-white font-bold text-lg mb-1">{step.id}</h3>
-            <p className="text-gray-400 text-xs md:text-sm text-center">{step.desc}</p>
+            <h3 className="text-ink font-semibold text-base mb-1">{step.id}</h3>
+            <p className="text-ink-muted text-xs md:text-sm text-center">{step.desc}</p>
           </motion.div>
         ))}
       </div>
     </div>
   );
 }
-
 // ─── Animated stage card ────────────────────────────────────────────────────
 function StageCard({ stage, elapsed, details, error }) {
   const def = STAGES.find((s) => s.key === stage) || STAGES[0];
@@ -121,20 +124,20 @@ function StageCard({ stage, elapsed, details, error }) {
   return (
     <motion.div
       layout
-      className="relative w-full max-w-lg mx-auto overflow-hidden rounded-2xl border border-white/10 bg-panel/60 backdrop-blur-xl shadow-2xl"
-      initial={{ opacity: 0, y: 30 }}
+      className="relative w-full max-w-lg mx-auto overflow-hidden rounded-2xl border border-hairline bg-panel shadow-panel-raised"
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 150, damping: 20 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* Progress bar */}
       {stage !== 'idle' && stage !== 'error' && (
         <motion.div
-          className="absolute top-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+          className="absolute top-0 left-0 h-0.5 bg-brand"
           initial={{ width: '0%' }}
           animate={{
             width: stage === 'done' ? '100%' : `${(Math.max(0, idx - 1) / (total - 1)) * 100}%`,
           }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         />
       )}
 
@@ -154,7 +157,8 @@ function StageCard({ stage, elapsed, details, error }) {
         <AnimatePresence mode="wait">
           <motion.h2
             key={`label-${stage}`}
-            className="text-xl font-bold text-ink mb-2"
+            className="text-xl font-semibold text-ink mb-2"
+            style={{ letterSpacing: '-0.015em' }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -181,13 +185,13 @@ function StageCard({ stage, elapsed, details, error }) {
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="relative w-8 h-8">
               <motion.div
-                className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-purple-500 border-b-pink-500 border-l-transparent"
+                className="absolute inset-0 rounded-full border-2 border-brand border-t-transparent"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
             </div>
             {elapsed > 0 && (
-              <span className="text-xs text-ink-muted font-mono tabular-nums">
+              <span className="text-xs text-ink-muted tabular">
                 {formatElapsed(elapsed)}
               </span>
             )}
@@ -199,7 +203,7 @@ function StageCard({ stage, elapsed, details, error }) {
           <AnimatePresence mode="wait">
             <motion.div
               key={`details-${stage}`}
-              className="mt-4 rounded-xl bg-surface/50 border border-white/5 p-4 text-left text-sm text-ink-secondary"
+              className="mt-4 rounded-xl border border-hairline bg-panel-sunken p-4 text-left text-sm text-ink-secondary"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -228,22 +232,22 @@ function StepTimeline({ stage }) {
         return (
           <div key={s.key} className="flex items-center gap-2">
             <motion.div
-              className={`
-                flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                ${isDone
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              className={[
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                isDone
+                  ? 'bg-status-good/10 text-status-good border-status-good/30'
                   : isActive
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-lg shadow-blue-500/10'
-                    : 'bg-surface/30 text-ink-muted border border-white/5'}
-              `}
-              animate={isActive ? { scale: [1, 1.05, 1] } : {}}
+                    ? 'bg-brand/10 text-brand border-brand/30 shadow-sm'
+                    : 'bg-panel-sunken text-ink-muted border-hairline',
+              ].join(' ')}
+              animate={isActive ? { scale: [1, 1.04, 1] } : {}}
               transition={isActive ? { duration: 1.5, repeat: Infinity } : {}}
             >
               <span>{isDone ? '✓' : s.icon}</span>
               <span className="hidden sm:inline">{s.label}</span>
             </motion.div>
             {i < activeSteps.length - 1 && (
-              <div className={`w-4 h-px ${isDone ? 'bg-green-500/40' : 'bg-white/10'}`} />
+              <div className={`w-4 h-px ${isDone ? 'bg-status-good/40' : 'bg-hairline'}`} />
             )}
           </div>
         );
@@ -302,8 +306,8 @@ export default function AutomatedBlogPage() {
         if (status.generation_status === 'generated') {
           setDetails(
             <div className="space-y-2">
-              <div className="flex justify-between"><span>SEO Score</span><span className="font-bold text-green-400">{status.seo_score ?? '—'}/100</span></div>
-              <div className="flex justify-between"><span>Word Count</span><span className="font-bold text-blue-400">{status.word_count?.toLocaleString() ?? '—'}</span></div>
+              <div className="flex justify-between"><span>SEO Score</span><span className="font-bold text-status-good">{status.seo_score ?? '—'}/100</span></div>
+              <div className="flex justify-between"><span>Word Count</span><span className="font-bold text-brand">{status.word_count?.toLocaleString() ?? '—'}</span></div>
             </div>
           );
           setStage('done');
@@ -414,7 +418,7 @@ export default function AutomatedBlogPage() {
         <div className="space-y-1">
           <div><span className="text-ink-muted">Blog ID:</span> <span className="font-medium text-ink">#{newBlogId}</span></div>
           <div><span className="text-ink-muted">Title:</span> <span className="font-medium text-ink">{chosenTitle}</span></div>
-          <div><span className="text-ink-muted">Status:</span> <span className="text-yellow-400">Draft</span></div>
+          <div><span className="text-ink-muted">Status:</span> <span className="text-status-warning">Draft</span></div>
         </div>
       );
 
@@ -464,13 +468,12 @@ export default function AutomatedBlogPage() {
       {/* Header */}
       <motion.div
         className="text-center mb-8 relative z-10"
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2">
-          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Autopilot Mode
-          </span>
+        <h1 className="text-3xl sm:text-4xl font-semibold text-ink mb-2" style={{ letterSpacing: '-0.025em' }}>
+          Autopilot Mode
         </h1>
         <p className="text-ink-muted text-sm sm:text-base max-w-md mx-auto">
           One click. AI picks the topic, writes the article, generates images, and scores for SEO — all automatically.
@@ -500,79 +503,62 @@ export default function AutomatedBlogPage() {
       {/* Action buttons */}
       <motion.div
         className="relative z-10 mt-8 flex flex-col sm:flex-row gap-3"
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
         {stage === 'idle' && (
-          <button
+          <Button
             onClick={startAutomation}
-            className="
-              group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl
-              bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600
-              text-white font-semibold text-base shadow-xl
-              hover:shadow-2xl hover:shadow-purple-500/25
-              active:scale-[0.97] transition-all duration-200
-              overflow-hidden
-            "
+            variant="primary"
+            size="lg"
+            className="w-full sm:w-auto relative group overflow-hidden"
           >
-            {/* Shimmer effect */}
+            {/* Shimmer */}
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-            <svg className="w-5 h-5 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 relative z-10 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span className="relative z-10">Start Generating</span>
-          </button>
+          </Button>
         )}
 
         {stage === 'done' && (
           <>
-            <button
+            <Button
               onClick={() => navigate(`/blogs/${blogId}/edit`)}
-              className="
-                inline-flex items-center gap-2 px-6 py-3 rounded-xl
-                bg-gradient-to-r from-green-600 to-emerald-600
-                text-white font-semibold shadow-lg
-                hover:shadow-xl hover:shadow-green-500/25
-                active:scale-[0.97] transition-all duration-200
-              "
+              variant="success"
+              size="lg"
+              className="w-full sm:w-auto"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
               </svg>
-              Review & Edit Article
-            </button>
-            <button
+              Review &amp; Edit Article
+            </Button>
+            <Button
               onClick={handleRetry}
-              className="
-                inline-flex items-center gap-2 px-6 py-3 rounded-xl
-                border border-white/10 bg-surface/50 backdrop-blur
-                text-ink-secondary font-medium
-                hover:bg-surface hover:text-ink
-                active:scale-[0.97] transition-all duration-200
-              "
+              variant="secondary"
+              size="lg"
+              className="w-full sm:w-auto"
             >
               Generate Another
-            </button>
+            </Button>
           </>
         )}
 
         {stage === 'error' && (
-          <button
+          <Button
             onClick={handleRetry}
-            className="
-              inline-flex items-center gap-2 px-6 py-3 rounded-xl
-              border border-red-500/30 bg-red-500/10
-              text-red-400 font-medium
-              hover:bg-red-500/20
-              active:scale-[0.97] transition-all duration-200
-            "
+            variant="danger"
+            size="lg"
+            className="w-full sm:w-auto"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
             </svg>
             Try Again
-          </button>
+          </Button>
         )}
       </motion.div>
 
@@ -587,7 +573,7 @@ export default function AutomatedBlogPage() {
           Blog #{blogId} created in {formatElapsed(elapsed)} •{' '}
           <button
             onClick={() => navigate(`/blogs/${blogId}`)}
-            className="text-accent hover:underline"
+            className="text-brand hover:underline"
           >
             View
           </button>

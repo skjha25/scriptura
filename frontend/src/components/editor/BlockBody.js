@@ -39,7 +39,7 @@ const HEADING_CLASS = {
 /** Shared chrome for the small single-line inputs used by tables and FAQ items. */
 const CELL_CLASS =
   'w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm ' +
-  'text-ink placeholder:text-ink-faint hover:border-hairline focus:border-accent/60 focus:outline-none';
+  'text-ink placeholder:text-ink-faint hover:border-hairline focus:border-brand/60 focus:outline-none';
 
 /** Small ghost button used for the add/remove affordances inside a body. */
 function MiniButton({ onClick, children, label, tone = 'neutral' }) {
@@ -160,7 +160,7 @@ function ImageBody({ block, readOnly, onChange }) {
 function QuoteBody({ block, readOnly, onChange }) {
   const { data } = block;
   return (
-    <div className="border-l-2 border-accent/60 pl-4">
+    <div className="border-l-2 border-brand/60 pl-4">
       {isRichText(data) ? <RichTextNotice /> : null}
       <InlineEditable
         value={plainTextOf(data)}
@@ -325,7 +325,7 @@ function CtaBody({ block, readOnly, onChange }) {
   const { data } = block;
   return (
     <div className="space-y-1.5 text-center">
-      <div className="inline-block rounded-lg bg-glow-accent px-4 py-2 shadow-glow-sm">
+      <div className="inline-block rounded-lg bg-brand px-4 py-2 shadow-sm">
         <InlineEditable
           value={typeof data.text === 'string' ? data.text : ''}
           onChange={(text) => onChange({ ...data, text }, `${block.id}:text`)}
@@ -333,7 +333,7 @@ function CtaBody({ block, readOnly, onChange }) {
           placeholder="Button label"
           singleLine
           readOnly={readOnly}
-          className="text-center text-sm font-semibold text-white placeholder:text-white/60"
+          className="text-center text-sm font-semibold text-ink placeholder:text-ink-faint"
         />
       </div>
       <p className="truncate text-[11px] text-ink-muted">
@@ -363,7 +363,7 @@ function ItemsBody({ block, readOnly, onChange, ariaPrefix, placeholder, marker 
       {items.map((item, index) => (
         // eslint-disable-next-line react/no-array-index-key -- list position is the identity
         <div key={index} className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-1 w-4 shrink-0 text-center text-xs text-accent">
+          <span aria-hidden="true" className="mt-1 w-4 shrink-0 text-center text-xs text-brand">
             {marker(index)}
           </span>
           <InlineEditable
@@ -415,7 +415,7 @@ function ListBody(props) {
 function KeyTakeawayBody({ block, readOnly, onChange }) {
   const { data } = block;
   return (
-    <div className="rounded-lg border border-accent/25 bg-glow-subtle p-3">
+    <div className="rounded-lg border border-brand/25 bg-brand-subtle dark:bg-brand-darkSubtle p-3">
       <InlineEditable
         value={typeof data.title === 'string' ? data.title : ''}
         onChange={(title) => onChange({ ...data, title }, `${block.id}:title`)}
@@ -423,7 +423,7 @@ function KeyTakeawayBody({ block, readOnly, onChange }) {
         placeholder="Key takeaways"
         singleLine
         readOnly={readOnly}
-        className="text-sm font-semibold uppercase tracking-wide text-accent-bright"
+        className="text-sm font-semibold uppercase tracking-wide text-brand-light"
       />
       <ItemsBody
         block={block}

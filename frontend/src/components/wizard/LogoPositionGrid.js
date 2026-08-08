@@ -58,7 +58,7 @@ export default function LogoPositionGrid({ value, onChange, disabled = false }) 
                 'relative grid place-items-center rounded border text-center transition-colors',
                 disabled ? 'cursor-not-allowed' : 'cursor-pointer',
                 value === position
-                  ? 'border-accent/60 bg-glow-subtle'
+                  ? 'border-brand/60 bg-brand-subtle dark:bg-brand-darkSubtle'
                   : 'border-hairline bg-panel hover:border-hairline-strong'
               )}
             >
@@ -77,7 +77,7 @@ export default function LogoPositionGrid({ value, onChange, disabled = false }) 
                 aria-hidden="true"
                 className={clsx(
                   'h-3 w-6 rounded-sm transition-colors',
-                  value === position ? 'bg-glow-accent' : 'bg-ink-faint/30'
+                  value === position ? 'bg-brand' : 'bg-ink-faint/30'
                 )}
               />
               <span className="sr-only">{LOGO_POSITION_LABELS[position]}</span>

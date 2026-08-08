@@ -122,7 +122,7 @@ export default function OutlineBuilder({ outline = [], onChange, disabled = fals
                 className={clsx(
                   'min-w-0 flex-1 rounded-lg border border-hairline bg-panel-sunken px-3 py-1.5',
                   'text-sm text-ink placeholder:text-ink-faint transition-colors',
-                  'hover:border-hairline-strong focus:border-accent focus:outline-none',
+                  'hover:border-hairline-strong focus:border-brand focus:outline-none',
                   'disabled:opacity-50'
                 )}
               />

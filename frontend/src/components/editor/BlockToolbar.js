@@ -70,7 +70,7 @@ export default function BlockToolbar({
         onClick={onOpenSettings}
         aria-expanded={selected}
         aria-label={`Settings for ${label} block`}
-        className={clsx(ACTION_CLASS, selected && 'border-accent/40 bg-accent/15 text-accent-bright')}
+        className={clsx(ACTION_CLASS, selected && 'border-brand/40 bg-brand/15 text-brand-light')}
       >
         <span aria-hidden="true" className="text-xs">
           ⚙

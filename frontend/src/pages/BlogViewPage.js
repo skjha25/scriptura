@@ -18,6 +18,7 @@ import { resolveImageUrl } from '../lib/media';
 import BlockRenderer from '../components/BlockRenderer';
 import Button from '../components/ui/Button';
 import { StatusBadge, ErrorBanner, Skeleton, EmptyState, ScoreMeter } from '../components/ui/feedback';
+import { PAGE_ENTER } from '../lib/motion';
 
 export default function BlogViewPage() {
   const { id } = useParams();
@@ -126,9 +127,7 @@ export default function BlogViewPage() {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+      {...PAGE_ENTER}
       className="mx-auto max-w-3xl"
     >
       {/* Editor chrome, not part of the article. */}

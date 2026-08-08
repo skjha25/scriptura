@@ -113,7 +113,7 @@ function CompactLane({ lane, result }) {
       <ScoreOrNA score={result?.score} />
       {hasBreakdown ? (
         <details className="mt-1.5">
-          <summary className="cursor-pointer text-[10px] text-accent-bright">Why?</summary>
+          <summary className="cursor-pointer text-[10px] text-brand-light">Why?</summary>
           <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-hairline bg-panel p-3 shadow-panel">
             <ScoreBreakdown result={result} labels={lane.labels} showMeter={false} />
           </div>

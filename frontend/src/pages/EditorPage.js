@@ -64,6 +64,7 @@ import {
   withBlockIds,
   blockTypeLabel,
 } from '../components/editor/blockModel';
+import { PAGE_ENTER } from '../lib/motion';
 
 /**
  * Stable empty array.
@@ -408,9 +409,7 @@ export default function EditorPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+      {...PAGE_ENTER}
       className="min-w-0 space-y-4"
     >
       <header className="min-w-0 space-y-3 border-b border-hairline pb-4">
@@ -434,7 +433,7 @@ export default function EditorPage() {
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold leading-tight text-ink sm:text-2xl">
+            <h1 className="truncate text-xl font-semibold leading-tight text-ink sm:text-2xl" style={{ letterSpacing: '-0.015em' }}>
               {blog.blog_title}
             </h1>
             <p className="mt-1 text-xs text-ink-muted">
@@ -516,7 +515,7 @@ export default function EditorPage() {
               loading={regeneratingImage}
               onClick={handleRegenerateImage}
               title="Regenerate Image"
-              className="bg-white/80 hover:bg-white backdrop-blur-sm"
+              className="bg-panel/90 hover:bg-panel backdrop-blur-sm"
             >
               <span aria-hidden="true" className="text-lg">↻</span> Regenerate
             </Button>
@@ -581,7 +580,7 @@ export default function EditorPage() {
             // generic Undo, and two controls answering to the same name is ambiguous for
             // anyone navigating by accessible name.
             aria-label={`Undo deleting the ${deletedNotice.label} block`}
-            className="text-xs font-medium text-accent-bright hover:underline"
+            className="text-xs font-medium text-brand-light hover:underline"
           >
             Undo
           </button>

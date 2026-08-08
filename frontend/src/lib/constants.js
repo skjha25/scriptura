@@ -34,7 +34,7 @@ export const BLOG_STATUS_LABELS = Object.freeze({
 export const BLOG_STATUS_META = Object.freeze({
   0: { label: 'Draft', chip: 'bg-ink-faint/20 text-ink-secondary border-hairline' },
   1: { label: 'Published', chip: 'bg-status-good/15 text-status-good border-status-good/30' },
-  2: { label: 'Scheduled', chip: 'bg-accent/15 text-accent-bright border-accent/30' },
+  2: { label: 'Scheduled', chip: 'bg-brand/15 text-brand-light border-brand/30' },
   3: { label: 'Archived', chip: 'bg-status-serious/15 text-status-serious border-status-serious/30' },
 });
 

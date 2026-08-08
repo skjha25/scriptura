@@ -317,7 +317,7 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
           {inFlight ? (
             <>
               <div className="flex items-center gap-3">
-                <Spinner size={18} className="text-accent" label="Generating" />
+                <Spinner size={18} className="text-brand" label="Generating" />
                 <p className="text-sm text-ink">
                   {STAGES[stageIndex]?.label || 'Working'}
                   <span className="ml-2 tabular text-ink-muted">{formatElapsed(elapsed)}</span>
@@ -339,7 +339,7 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
                     key={stage.status}
                     className={
                       index <= stageIndex
-                        ? 'h-1.5 flex-1 rounded-full bg-glow-accent'
+                        ? 'h-1.5 flex-1 rounded-full bg-brand'
                         : 'h-1.5 flex-1 rounded-full bg-panel-sunken'
                     }
                   >

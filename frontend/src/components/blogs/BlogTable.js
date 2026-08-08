@@ -77,11 +77,11 @@ export default function BlogTable({ blogs, filters, busyId, isAdmin, onPublish, 
               {/* The article cell is the row header: it identifies the row. */}
               <th scope="row" className="px-4 py-3.5 text-left font-normal">
                 <div className="flex items-center gap-3">
-                  <BlogThumbnail blog={blog} className="h-10 w-16 transition-border group-hover:border-accent/40" />
+                  <BlogThumbnail blog={blog} className="h-10 w-16 transition-border group-hover:border-brand/40" />
                   <span className="min-w-0">
                     <Link
                       to={`/blogs/${blog.id}`}
-                      className="block max-w-[22rem] truncate font-medium text-ink transition-colors hover:text-accent-bright"
+                      className="block max-w-[22rem] truncate font-medium text-ink transition-colors hover:text-brand-light"
                     >
                       {blog.blog_title}
                     </Link>
@@ -102,10 +102,10 @@ export default function BlogTable({ blogs, filters, busyId, isAdmin, onPublish, 
                   <ScoreMeter score={blog.seo_score} size="sm" />
                 </div>
               </td>
-              <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-ink-secondary">
+              <td className="whitespace-nowrap px-4 py-3.5 text-right tabular text-xs text-ink-secondary">
                 {formatCount(blog.word_count)}
               </td>
-              <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-ink-secondary">
+              <td className="whitespace-nowrap px-4 py-3.5 text-right tabular text-xs text-ink-secondary">
                 {formatCount(blog.total_views)}
               </td>
               <td className="whitespace-nowrap px-4 py-3.5 text-xs text-ink-secondary">

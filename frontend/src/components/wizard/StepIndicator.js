@@ -48,8 +48,8 @@ export default function StepIndicator({ current, furthest, onSelect, completed }
                 aria-current={isActive ? 'step' : undefined}
                 className={clsx(
                   'group flex w-full min-w-0 flex-col gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
-                  reachable ? 'hover:bg-panel-raised' : 'cursor-not-allowed',
-                  isActive && 'bg-glow-subtle'
+                  reachable ? 'hover:bg-panel-sunken' : 'cursor-not-allowed',
+                  isActive && 'bg-brand-subtle dark:bg-brand-darkSubtle'
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -58,9 +58,9 @@ export default function StepIndicator({ current, furthest, onSelect, completed }
                     className={clsx(
                       'grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-semibold',
                       isActive
-                        ? 'bg-accent text-white'
+                        ? 'bg-brand text-void'
                         : isDone
-                          ? 'bg-accent/20 text-accent-bright'
+                          ? 'bg-brand/20 text-brand-light'
                           : 'bg-panel-sunken text-ink-faint'
                     )}
                   >

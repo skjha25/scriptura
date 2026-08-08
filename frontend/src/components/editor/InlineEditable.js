@@ -108,7 +108,7 @@ const InlineEditable = forwardRef(function InlineEditable(
         'block w-full resize-none overflow-hidden bg-transparent',
         'rounded-md border border-transparent px-1.5 py-0.5',
         'text-ink placeholder:text-ink-faint',
-        'hover:border-hairline focus:border-accent/60 focus:outline-none',
+        'hover:border-hairline focus:border-brand/60 focus:outline-none',
         readOnly && 'cursor-default text-ink-secondary hover:border-transparent',
         className
       )}

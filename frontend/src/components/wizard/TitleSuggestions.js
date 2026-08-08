@@ -29,7 +29,7 @@ export default function TitleSuggestions({ suggestions, selected, onSelect }) {
           return (
             <li
               key={suggestion.title}
-              className="rounded-lg border border-hairline bg-panel-sunken p-3 transition-colors focus-within:border-accent"
+              className="rounded-lg border border-hairline bg-panel-sunken p-3 transition-colors focus-within:border-brand"
             >
               <label className="flex min-w-0 cursor-pointer items-start gap-3">
                 <input
@@ -57,7 +57,7 @@ export default function TitleSuggestions({ suggestions, selected, onSelect }) {
               {/* The score is useless without the reasoning, so the reasoning is
                   one keystroke away from every row rather than only the chosen one. */}
               <details className="mt-2 pl-7">
-                <summary className="cursor-pointer text-[11px] text-accent-bright">
+                <summary className="cursor-pointer text-[11px] text-brand-light">
                   Why {suggestion.seo?.score ?? 0}/100
                 </summary>
                 <SeoScoreBreakdown seo={suggestion.seo} showMeter={false} className="mt-2" />

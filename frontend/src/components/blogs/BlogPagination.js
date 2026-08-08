@@ -31,7 +31,7 @@ export default function BlogPagination({ pagination, onPageChange, limit = 20, o
               aria-label="Items per page"
               value={limit}
               onChange={(e) => onLimitChange(Number(e.target.value))}
-              className="bg-panel-sunken text-ink border border-hairline rounded px-2 py-1 text-xs focus:outline-none focus:border-accent cursor-pointer"
+              className="bg-panel-sunken text-ink border border-hairline rounded px-2 py-1 text-xs focus:outline-none focus:border-brand cursor-pointer"
             >
               <option value={10}>10</option>
               <option value={20}>20 (Default)</option>

@@ -101,7 +101,7 @@ export default function Step4Images({ config, onChange }) {
                       key={count}
                       className={
                         Number(config.image_count) === count
-                          ? 'cursor-pointer rounded-lg border border-accent/60 bg-glow-subtle px-4 py-2 text-sm text-ink'
+                          ? 'cursor-pointer rounded-lg border border-brand/60 bg-brand-subtle dark:bg-brand-darkSubtle px-4 py-2 text-sm text-ink'
                           : 'cursor-pointer rounded-lg border border-hairline bg-panel-sunken px-4 py-2 text-sm text-ink-secondary hover:border-hairline-strong'
                       }
                     >

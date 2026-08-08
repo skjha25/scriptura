@@ -67,13 +67,13 @@ export default function BlogRowActions({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={`More actions for ${blog.blog_title}`}
         aria-expanded={isOpen}
-        className="px-2.5 py-1 text-lg font-bold leading-none text-ink-secondary hover:text-white hover:bg-white/[0.08] rounded-xl border border-white/10"
       >
         ⋮
       </Button>
 
+      {/* Dropdown panel — uses design system surface tokens */}
       <div
-        className={`absolute right-0 z-50 mt-1.5 w-44 origin-top-right rounded-2xl border border-white/[0.12] bg-[#141419]/95 p-1.5 shadow-2xl backdrop-blur-2xl space-y-1 transition-all duration-150 ${
+        className={`absolute right-0 z-50 mt-1.5 w-44 origin-top-right rounded-xl border border-hairline bg-panel shadow-panel-raised p-1.5 space-y-0.5 transition-all duration-150 ${
           isOpen
             ? 'opacity-100 scale-100 pointer-events-auto visible'
             : 'opacity-0 scale-95 pointer-events-none'
@@ -86,7 +86,7 @@ export default function BlogRowActions({
           variant="ghost"
           onClick={() => setIsOpen(false)}
           aria-label={`Edit ${blog.blog_title}`}
-          className="w-full justify-start text-xs text-white hover:bg-white/[0.08] rounded-xl"
+          className="w-full justify-start text-xs"
         >
           ✏ Edit
         </Button>
@@ -98,7 +98,7 @@ export default function BlogRowActions({
           variant="ghost"
           onClick={() => setIsOpen(false)}
           aria-label={`View ${blog.blog_title}`}
-          className="w-full justify-start text-xs text-white hover:bg-white/[0.08] rounded-xl"
+          className="w-full justify-start text-xs"
         >
           👁 View
         </Button>
@@ -113,14 +113,14 @@ export default function BlogRowActions({
               onPublish(blog);
             }}
             aria-label={`Publish ${blog.blog_title}`}
-            className="w-full justify-start text-xs rounded-xl"
+            className="w-full justify-start text-xs"
           >
             ✦ Publish
           </Button>
         ) : null}
 
         {confirmingDelete ? (
-          <div className="flex items-center gap-1 pt-1 border-t border-white/10">
+          <div className="flex items-center gap-1 pt-1 border-t border-hairline">
             <Button
               size="sm"
               variant="danger"
@@ -131,7 +131,7 @@ export default function BlogRowActions({
                 onDelete(blog);
               }}
               aria-label={`Confirm deleting ${blog.blog_title}`}
-              className="w-full justify-start text-xs rounded-xl"
+              className="w-full justify-start text-xs"
             >
               Confirm
             </Button>
@@ -139,7 +139,7 @@ export default function BlogRowActions({
               size="sm"
               variant="ghost"
               onClick={() => setConfirmingDelete(false)}
-              className="text-xs px-2 rounded-xl"
+              className="text-xs px-2"
             >
               Cancel
             </Button>
@@ -150,7 +150,7 @@ export default function BlogRowActions({
             variant="danger"
             onClick={() => setConfirmingDelete(true)}
             aria-label={`Delete ${blog.blog_title}`}
-            className="w-full justify-start text-xs rounded-xl"
+            className="w-full justify-start text-xs"
           >
             🗑 Delete
           </Button>

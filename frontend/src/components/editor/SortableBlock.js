@@ -78,7 +78,7 @@ function SortableBlock({
         onPointerDownCapture={() => onSelect(block.id)}
         className={clsx(
           'rounded-xl border bg-panel transition-colors',
-          selected ? 'border-accent/50 shadow-glow-sm' : 'border-hairline hover:border-hairline-strong',
+          selected ? 'border-brand/50 shadow-sm' : 'border-hairline hover:border-hairline-strong',
           // Lifted out of the page while dragging, and translucent so the gap it will
           // land in stays visible underneath.
           isDragging && 'relative z-10 opacity-80 shadow-panel'

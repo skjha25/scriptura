@@ -59,7 +59,7 @@ export default function BlogGrid({ blogs, busyId, isAdmin, onPublish, onDelete, 
                   <div className="min-w-0">
                     <Link
                       to={`/blogs/${blog.id}`}
-                      className="line-clamp-2 text-sm font-semibold leading-snug text-ink hover:text-accent-bright"
+                      className="line-clamp-2 text-sm font-semibold leading-snug text-ink hover:text-brand-light"
                     >
                       {blog.blog_title}
                     </Link>

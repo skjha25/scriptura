@@ -17,10 +17,10 @@ import clsx from 'clsx';
 
 /** Shared input chrome, so every control looks identical. */
 const CONTROL_BASE =
-  'w-full bg-panel-sunken text-ink placeholder:text-ink-faint border border-hairline rounded-lg ' +
+  'w-full bg-panel text-ink placeholder:text-ink-faint border border-hairline rounded-lg ' +
   'px-3 py-2.5 text-sm transition-colors duration-150 ' +
-  'hover:border-hairline-strong focus:border-accent focus:outline-none ' +
-  'disabled:opacity-50 disabled:cursor-not-allowed';
+  'hover:border-hairline-strong focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
 
 const CONTROL_ERROR = 'border-status-critical/60 focus:border-status-critical';
 
@@ -224,7 +224,7 @@ export function Toggle({ label, hint, checked, onChange, disabled, id, className
           aria-hidden="true"
           className={clsx(
             'block h-5 w-9 rounded-full border border-hairline bg-panel-sunken transition-colors',
-            'peer-checked:border-accent/60 peer-checked:bg-accent/70',
+            'peer-checked:border-brand peer-checked:bg-brand',
             'peer-focus-visible:shadow-focus-ring'
           )}
         />
@@ -264,7 +264,7 @@ export function Checkbox({ label, checked, onChange, disabled, id, className = '
         checked={Boolean(checked)}
         onChange={(event) => onChange?.(event.target.checked)}
         disabled={disabled}
-        className="h-4 w-4 shrink-0 cursor-pointer rounded border-hairline bg-panel-sunken accent-accent"
+        className="h-4 w-4 shrink-0 cursor-pointer rounded border-hairline bg-panel-sunken text-brand focus:ring-brand"
       />
       <span>{label}</span>
     </label>
@@ -307,19 +307,19 @@ export function TagInput({ label, hint, value = [], onChange, placeholder, max =
         className={clsx(
           CONTROL_BASE,
           'flex min-h-[42px] flex-wrap items-center gap-1.5 py-1.5',
-          'focus-within:border-accent'
+          'focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20'
         )}
       >
         {value.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-md border border-accent/30 bg-accent/15 px-2 py-0.5 text-xs text-accent-bright"
+            className="inline-flex items-center gap-1 rounded-md border border-brand/20 bg-brand-subtle px-2 py-0.5 text-xs text-brand-light dark:bg-brand-darkSubtle dark:border-brand-dark/20 dark:text-brand"
           >
             {tag}
             <button
               type="button"
               onClick={() => onChange?.(value.filter((t) => t !== tag))}
-              className="text-accent-bright/70 hover:text-white"
+              className="text-brand-light/70 hover:text-brand"
               aria-label={`Remove ${tag}`}
             >
               ×

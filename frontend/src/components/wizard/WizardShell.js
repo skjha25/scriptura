@@ -40,7 +40,7 @@ export default function WizardShell({
       <header className="rounded-2xl border border-hairline bg-panel p-5 shadow-panel sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-0.5 text-[11px] font-medium text-accent">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-3 py-0.5 text-[11px] font-medium text-brand">
               <span aria-hidden="true">✦</span>
               <span>Agentic AI Article Generator</span>
             </div>

@@ -5,14 +5,19 @@
 import clsx from 'clsx';
 import { BLOG_STATUS_META, GENERATION_STATUS_META } from '../../lib/constants';
 
-export function Card({ children, className = '', glow = false, interactive = true, as: Component = 'div', ...rest }) {
+export function Card({ children, className = '', glow = false, interactive = false, as: Component = 'div', ...rest }) {
   return (
     <Component
       className={clsx(
-        'rounded-xl border border-white/5 bg-panel/60 backdrop-blur-2xl shadow-panel',
-        'transition-all duration-500 ease-out',
-        interactive && 'hover:-translate-y-1 hover:border-white/10 hover:shadow-glow-sm',
-        glow && 'shadow-glow-sm border-accent/25',
+        'rounded-xl border bg-panel transition-all duration-300 ease-out',
+        glow
+          ? 'border-brand/35 shadow-glow'
+          : 'border-hairline shadow-panel',
+        interactive && (
+          glow
+            ? 'hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-glow'
+            : 'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-glow'
+        ),
         className
       )}
       {...rest}
@@ -50,7 +55,7 @@ export function StatTile({ label, value, delta, deltaLabel, hint, icon, classNam
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p>
         {icon ? (
-          <span aria-hidden="true" className="text-accent/70">
+          <span aria-hidden="true" className="text-brand/70">
             {icon}
           </span>
         ) : null}
@@ -89,12 +94,12 @@ export function StatTile({ label, value, delta, deltaLabel, hint, icon, classNam
 /** Generic pill. */
 export function Badge({ children, className = '', tone = 'neutral' }) {
   const tones = {
-    neutral: 'bg-ink-faint/15 text-ink-secondary border-hairline',
-    accent: 'bg-accent/15 text-accent-bright border-accent/30',
-    good: 'bg-status-good/15 text-status-good border-status-good/30',
-    warning: 'bg-status-warning/15 text-status-warning border-status-warning/30',
-    serious: 'bg-status-serious/15 text-status-serious border-status-serious/30',
-    critical: 'bg-status-critical/15 text-status-critical border-status-critical/30',
+    neutral: 'bg-panel-sunken text-ink-secondary border-hairline',
+    accent: 'bg-brand-subtle text-brand-light border-brand-light/30 dark:bg-brand-darkSubtle',
+    good: 'bg-status-good/10 text-status-good border-status-good/20',
+    warning: 'bg-status-warning/10 text-status-warning border-status-warning/20',
+    serious: 'bg-status-serious/10 text-status-serious border-status-serious/20',
+    critical: 'bg-status-critical/10 text-status-critical border-status-critical/20',
   };
   return (
     <span
@@ -148,7 +153,7 @@ export function GenerationBadge({ status, className = '' }) {
       {inFlight ? (
         <span
           aria-hidden="true"
-          className="h-1.5 w-1.5 animate-pulse-glow rounded-full bg-current"
+          className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
         />
       ) : null}
       {meta.label}
@@ -204,7 +209,7 @@ export function ErrorBanner({ error, onRetry, onDismiss, className = '' }) {
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="text-xs font-medium text-accent-bright hover:underline"
+                  className="text-xs font-medium text-brand-light hover:underline"
                 >
                   Try again
                 </button>
@@ -229,7 +234,7 @@ export function ErrorBanner({ error, onRetry, onDismiss, className = '' }) {
 /** Non-error informational note. */
 export function InfoBanner({ children, tone = 'accent', className = '' }) {
   const tones = {
-    accent: 'border-accent/30 bg-accent/10',
+    accent: 'border-brand/30 bg-brand/10',
     warning: 'border-status-warning/40 bg-status-warning/10',
     neutral: 'border-hairline bg-panel-raised',
   };
@@ -245,7 +250,7 @@ export function EmptyState({ title, message, action, icon, className = '' }) {
   return (
     <div className={clsx('flex flex-col items-center justify-center px-6 py-16 text-center', className)}>
       {icon ? (
-        <div aria-hidden="true" className="mb-4 text-4xl text-accent/40">
+        <div aria-hidden="true" className="mb-4 text-4xl text-brand/40">
           {icon}
         </div>
       ) : null}

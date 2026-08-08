@@ -92,7 +92,7 @@ export default function BlockSettingsPanel({
               <div className="mb-4 flex items-start justify-between gap-3 lg:border-b lg:border-hairline lg:p-4">
                 <div className="min-w-0">
                   <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                    <span aria-hidden="true" className="text-accent">
+                    <span aria-hidden="true" className="text-brand">
                       {blockTypeIcon(block.type)}
                     </span>
                     {label}
