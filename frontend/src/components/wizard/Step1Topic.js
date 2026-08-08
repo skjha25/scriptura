@@ -12,15 +12,15 @@
  * locally; see titleScore.js for why, and for the endpoint that should replace it.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
-import { generateApi } from '../../lib/api';
+import { generateApi, clustersApi } from '../../lib/api';
 import { ARTICLE_TYPE_LABELS } from '../../lib/constants';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import Button from '../ui/Button';
 import { Input, TagInput } from '../ui/form';
 import { Card, CardHeader, ErrorBanner, InfoBanner } from '../ui/feedback';
-import SeoScoreBreakdown from './SeoScoreBreakdown';
+import TriScoreBadge from '../shared/TriScoreBadge';
 import TitleSuggestions from './TitleSuggestions';
 import { scoreTitle } from './titleScore';
 
@@ -31,6 +31,7 @@ export default function Step1Topic({ config, onChange }) {
   const [suggestions, setSuggestions] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [cannibalization, setCannibalization] = useState(null);
 
   const topic = config.topic || '';
   const title = config.blog_title || '';
@@ -49,6 +50,29 @@ export default function Step1Topic({ config, onChange }) {
     // seo_keywords in practice, so it is safe as a plain dependency.
     [debouncedTitle, debouncedKeyword, topic]
   );
+
+  // Cannibalization check: fire on debounced keyword (same 400ms), advisory only.
+  const debouncedCannKeyword = useDebouncedValue(topic, 800);
+  useEffect(() => {
+    if (!debouncedCannKeyword || debouncedCannKeyword.trim().length < 3) {
+      setCannibalization(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await clustersApi.checkCannibalization({
+          keyword: debouncedCannKeyword.trim(),
+          secondary_keywords: config.secondary_keywords || [],
+        });
+        if (!cancelled) setCannibalization(result);
+      } catch {
+        // Advisory: a failed check should not block the wizard.
+        if (!cancelled) setCannibalization(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedCannKeyword, config.secondary_keywords]);
 
   async function handleGenerate() {
     if (generating || topic.trim() === '') return;
@@ -114,6 +138,26 @@ export default function Step1Topic({ config, onChange }) {
             hint="Optional long-tail terms. Press Enter to add. Up to 20."
           />
 
+          {cannibalization?.hasConflict ? (
+            <InfoBanner tone="warning">
+              <p className="font-medium">Keyword overlap detected</p>
+              <p className="mt-1">
+                You already have {cannibalization.matches.length} published article(s) targeting
+                similar keywords:
+              </p>
+              <ul className="mt-1 list-disc pl-4 text-xs">
+                {cannibalization.matches.slice(0, 3).map((m) => (
+                  <li key={m.blog_id}>
+                    "{m.blog_title}" ({Math.round(m.overlap * 100)}% overlap)
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs">
+                Consider updating the existing article instead, or targeting a different angle to avoid cannibalization.
+              </p>
+            </InfoBanner>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="secondary"
@@ -158,16 +202,28 @@ export default function Step1Topic({ config, onChange }) {
             // A named region, not a bare div: it is the one part of this step that
             // changes on its own as the author types, so it has to be findable and
             // announceable as a unit rather than as loose text after the input.
+            //
+            // AEO and GEO are deliberately shown as "Not yet available" here, not
+            // computed: both services score the ARTICLE BODY (citations, FAQ
+            // structure, answer capsules — see aeoScore.js/geoScore.js), and at
+            // this step there is no body yet, only a title. Scoring an empty
+            // article would either be a hard-coded 0 (reads as "this is bad" when
+            // really "this has not started") or a fabricated number with no
+            // content behind it — TriScoreBadge's null-score path is the honest
+            // rendering of "ask again once there is an article". Real AEO/GEO
+            // scores appear once generation completes (Step 6) or the editor
+            // recomputes them (EditorPage).
             <section aria-labelledby="live-title-score">
               <p id="live-title-score" className="mb-2 text-xs font-medium text-ink-secondary">
-                Live SEO score for this title
+                Live score for this title
               </p>
-              <SeoScoreBreakdown seo={liveScore} />
+              <TriScoreBadge seo={liveScore} aeo={null} geo={null} variant="full" />
             </section>
           ) : (
             <InfoBanner tone="neutral">
               Pick a suggestion above or type a title, and its score appears here with the
-              reasoning behind every point.
+              reasoning behind every point. AEO and GEO scores need article content, so they
+              appear once the article is generated or written.
             </InfoBanner>
           )}
         </div>

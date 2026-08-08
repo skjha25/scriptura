@@ -115,7 +115,7 @@ function createApp() {
   // STORAGE_DRIVER=s3 this is unused and the CDN serves these paths instead.
   if (config.storage.driver === 'local') {
     app.use(
-      config.storage.publicPath,
+      '/uploads',
       express.static(config.storage.uploadsDir, {
         maxAge: config.isProduction ? '30d' : 0,
         // Uploads are images, never executable content; refuse to guess.

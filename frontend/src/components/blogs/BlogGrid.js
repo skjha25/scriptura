@@ -21,16 +21,17 @@ import { formatCount } from '../charts/chartTheme';
 import BlogThumbnail from './BlogThumbnail';
 import BlogRowActions from './BlogRowActions';
 
-/** 'YYYY-MM-DD' → '14 Jul 2026', in UTC so the date cannot drift by a day. */
 function formatDate(value) {
   if (!value) return null;
-  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  const str = String(value);
+  const date = new Date(str.includes('T') ? str : `${str.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('en-GB', {
+  return date.toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    timeZone: 'UTC',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }
 

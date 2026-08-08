@@ -12,7 +12,7 @@
 import { BLOG_STATUS } from '../../lib/constants';
 import { Input, Select, TagInput } from '../ui/form';
 import { Card, CardHeader, InfoBanner } from '../ui/feedback';
-import { PUBLISH_MODE, PUBLISH_MODES, patchForPublishMode, publishModeOf, todayIsoDate } from './steps';
+import { PUBLISH_MODE, PUBLISH_MODES, patchForPublishMode, publishModeOf, todayIsoDatetime } from './steps';
 
 /**
  * Categories offered in the picker.
@@ -78,11 +78,11 @@ export default function Step5Publish({ config, onChange }) {
           {mode === PUBLISH_MODE.SCHEDULE ? (
             <Input
               label="Publish date"
-              type="date"
+              type="datetime-local"
               required
               // A schedule in the past is a publish, and the two choices above
               // already distinguish them.
-              min={todayIsoDate()}
+              min={todayIsoDatetime()}
               value={config.publish_date || ''}
               onChange={(event) =>
                 onChange({
@@ -96,7 +96,7 @@ export default function Step5Publish({ config, onChange }) {
 
           {mode === PUBLISH_MODE.NOW ? (
             <InfoBanner>
-              Dated {config.publish_date || todayIsoDate()}. You still press publish in the editor —
+              Dated {config.publish_date || todayIsoDatetime()}. You still press publish in the editor —
               nothing goes live off the back of a generation run.
             </InfoBanner>
           ) : null}

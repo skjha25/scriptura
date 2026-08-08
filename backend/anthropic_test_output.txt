@@ -1,0 +1,56 @@
+{"blocks":[
+{"type":"paragraph","data":{"text":"A person with Saturn sitting quietly in their tenth house can spend a decade building slow, durable success, while a friend born the same week, with Saturn in a different house, feels every deadline as a struggle. This is the heart of the effects of planets on zodiac signs in Vedic astrology: no graha (planet) acts alone. Each one works through the rashi (zodiac sign) it rules, the sign it currently occupies, and the specific birth chart it falls into. Once you see which planet governs which sign, and how transits, dashas and doshas modify that relationship, the sky stops feeling random and starts reading like a map of tendencies rather than a verdict.","is_lead":true}},
+
+{"type":"heading","data":{"level":2,"text":"What determines how a planet affects a zodiac sign?"}},
+{"type":"paragraph","data":{"html":"A planet's effect on a rashi depends on three things: which sign it rules, which sign it is currently placed in, and its relationship with that sign's own ruler — friendly, neutral or hostile. Vedic astrology, or Jyotisha, treats the <strong>effects of planets in astrology</strong> as a layered reading rather than a fixed script for everyone born under one sign, a point <a href=\"https://www.britannica.com/topic/astrology\">Britannica's overview of astrological traditions</a> makes when comparing sidereal and tropical zodiac systems."}},
+
+{"type":"heading","data":{"level":2,"text":"Which planet affects which zodiac sign?"}},
+{"type":"paragraph","data":{"html":"Each of the twelve rashis has one or two ruling planets, and understanding <strong>which planet affects which zodiac sign</strong> is the starting point for reading any chart. The <strong>ruling planets of zodiac signs and their effects</strong> are traditionally read as follows, keeping in mind that a birth chart's ascendant changes how strongly each rule applies to an individual."}},
+{"type":"list","data":{"style":"bullet","items":[
+"Aries — ruled by Mars, associated with initiative, competitiveness and quick decisions.",
+"Taurus — ruled by Venus, associated with comfort, patience and attachment to material stability.",
+"Gemini — ruled by Mercury, associated with curiosity, communication and adaptability.",
+"Cancer — ruled by the Moon, associated with emotional sensitivity and strong family bonds.",
+"Leo — ruled by the Sun, associated with confidence, authority and a need for recognition.",
+"Virgo — ruled by Mercury, associated with precision, service-mindedness and analytical habits.",
+"Libra — ruled by Venus, associated with balance, diplomacy and relationship focus.",
+"Scorpio — traditionally ruled by Mars, associated with intensity, resilience and transformation.",
+"Sagittarius — ruled by Jupiter, associated with optimism, philosophy and love of freedom.",
+"Capricorn — ruled by Saturn, associated with discipline, ambition and long-term thinking.",
+"Aquarius — ruled by Saturn, associated with independence, unconventional thinking and community focus.",
+"Pisces — ruled by Jupiter, associated with imagination, compassion and spiritual inclination."
+]}},
+
+{"type":"heading","data":{"level":2,"text":"How do planets influence zodiac signs through dasha and transit?"}},
+{"type":"paragraph","data":{"html":"Planets influence zodiac signs through two moving systems layered on the fixed birth chart. A dasha is a planetary period — a stretch of months or years ruled by one planet's energy — while a transit is that planet's real-time movement through the twelve signs today. Reading <strong>how do planets influence zodiac signs</strong> means combining both: the <strong>planet dasha effects on zodiac sign</strong> set the background theme of a life stage, and the <strong>planet transit effects on zodiac signs</strong> add short-term texture, triggering or softening that theme as the planet passes through a particular house."}},
+
+{"type":"heading","data":{"level":3,"text":"How does Saturn affect zodiac signs?"}},
+{"type":"paragraph","data":{"html":"Saturn, or Shani, is the planet of structure, delay and accountability, and it affects every rashi by demanding patience before reward. Astrologers watch its roughly two-and-a-half-year stay in each sign, and its longer Sade Sati cycle around the Moon sign, as a period of consolidation rather than punishment. The astronomical Saturn — a real gas giant with rings, described in detail by <a href=\"https://solarsystem.nasa.gov/planets/saturn/overview/\">NASA's planetary overview</a> — is distinct from Shani the symbolic teacher of discipline in Jyotisha, and the two should not be confused."}},
+
+{"type":"heading","data":{"level":3,"text":"What are the effects of retrograde planets on zodiac signs?"}},
+{"type":"paragraph","data":{"html":"A retrograde planet, or vakri graha, appears to move backward from Earth's viewpoint, though it never actually reverses direction. The <strong>effects of retrograde planets on zodiac signs</strong> are traditionally read as a turning inward: decisions slow down, past patterns resurface, and the sign the planet occupies is asked to review rather than expand. Mercury retrograde, the most commonly tracked, is associated with communication mix-ups and revised plans rather than any fixed misfortune."}},
+
+{"type":"heading","data":{"level":2,"text":"What is the difference between benefic and malefic planets for each zodiac sign?"}},
+{"type":"paragraph","data":{"html":"Jupiter, Venus, a waxing Moon and a well-placed Mercury are generally read as benefic, offering growth, comfort and clarity, while Saturn, Mars, Rahu and Ketu are read as malefic, bringing friction, delay or sudden change. But the <strong>benefic and malefic planets for each zodiac sign</strong> are not universal — a planet's functional nature shifts depending on which houses it rules for a given ascendant. This is why the <strong>effects of planets on rashi</strong> must always be read against the individual chart, not the sun sign alone, and why a <strong>malefic planets effects on zodiac sign</strong> reading for one person can look like a strength for another."}},
+
+{"type":"heading","data":{"level":2,"text":"How do planets affect personality by zodiac sign?"}},
+{"type":"paragraph","data":{"html":"Personality traits linked to a rashi trace back to its ruling planet's core themes: Mars gives Aries its directness, Venus gives Libra its instinct for fairness, Mercury gives Gemini its restlessness of mind. Understanding <strong>how do planets affect personality by zodiac sign</strong> helps explain why two people under the same sign still differ — the ruling planet sets a tendency, but its house placement, aspects and the dasha currently running shape how loudly that tendency speaks in daily life."}},
+
+{"type":"key_takeaway","data":{"title":"Key takeaways","items":[
+"A planet's effect on your rashi depends on rulership, current placement and its relationship with your chart's ascendant — not on the sign alone.",
+"Dashas set the long background theme of a life stage, while transits like Saturn's or Mercury's create shorter, situational shifts within that theme.",
+"Benefic and malefic labels are relative to each individual chart, so the same planet can support one person's sign and challenge another's."
+]}},
+
+{"type":"faq_accordion","data":{"items":[
+{"question":"Which planet affects which zodiac sign the most strongly?","answer":"Each rashi is most strongly shaped by its own ruling planet — for example, Mars for Aries and Scorpio, Venus for Taurus and Libra, Saturn for Capricorn and Aquarius. Other planets add temporary effects through transits and dashas, but the ruling planet sets the sign's core temperament."},
+{"question":"How does Saturn affect zodiac signs during Sade Sati?","answer":"Sade Sati refers to Saturn's roughly seven-and-a-half-year transit through the signs before, over, and after a person's Moon sign. It is traditionally read as a period requiring patience, responsibility and steady effort, not as a guaranteed run of misfortune."},
+{"question":"What are the effects of retrograde planets on zodiac signs in daily life?","answer":"Retrograde periods are read as phases for review rather than fresh starts — revisiting old contracts, relationships or decisions connected to the sign the planet occupies. Mercury retrograde in particular is linked with delayed communication and travel disruptions rather than any fixed outcome."},
+{"question":"Do planet dasha effects on zodiac sign change over a lifetime?","answer":"Yes. A birth chart runs through a sequence of planetary dashas over a lifetime, and each dasha brings that planet's themes to the foreground for its ruled sign and houses. This is why the same rashi can feel very different in its twenties compared with its forties."},
+{"question":"Are malefic planets always harmful for a zodiac sign?","answer":"No. A planet's malefic or benefic nature depends on the houses it rules in a specific chart, not on a universal label. Saturn, often called malefic, can support discipline and long-term success for signs where it occupies a favourable house."}
+]}},
+
+{"type":"cta_button","data":{"text":"Get a Personalised Planetary Reading","url":"https://divinetalk.in/astrology"}}
+],
+"meta_title":"Effects of Planets on Zodiac Signs: Vedic Guide",
+"meta_description":"Discover how each graha shapes your rashi — ruling planets, transits, dashas and retrogrades explained clearly, with benefic and malefic effects for every sign."}

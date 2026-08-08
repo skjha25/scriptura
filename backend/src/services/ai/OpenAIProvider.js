@@ -295,21 +295,29 @@ class OpenAIProvider extends BaseProvider {
     const requestedSize = ALLOWED_IMAGE_SIZES.includes(size) ? size : DEFAULT_IMAGE_SIZE;
 
     return this.run('generateImage', async () => {
-      const response = await this.client.images.generate(
-        {
-          model: this.imageModel,
-          prompt: prompt.trim(),
-          n: 1,
-          size: requestedSize,
-        },
-        { timeout: this.timeoutMs }
-      );
+      const isGptImage = /^gpt-image/i.test(this.imageModel);
+
+      const params = {
+        model: this.imageModel,
+        prompt: prompt.trim(),
+        n: 1,
+        size: requestedSize,
+      };
+
+      // GPT image models use `output_format` instead of `response_format` and
+      // always return b64_json. Explicitly requesting png ensures we get
+      // predictable binary output regardless of SDK version.
+      if (isGptImage) {
+        params.output_format = 'png';
+      }
+
+      const response = await this.client.images.generate(params, { timeout: this.timeoutMs });
 
       const item = response?.data?.[0];
       if (!item) {
         throw ApiError.upstream('OpenAI returned no image data.', {
           code: 'UPSTREAM_EMPTY_RESPONSE',
-          details: { provider: this.name, operation: 'generateImage' },
+          details: { provider: this.name, operation: 'generateImage', model: this.imageModel },
         });
       }
 

@@ -115,7 +115,7 @@ const BLOGS = [
         { question: 'Is Shravan a good month for a wedding?', answer: 'Traditionally no — most communities avoid weddings during Shravan and resume after the month closes. It is, however, considered excellent for engagements and for beginning a vow.' },
       ] } },
       { type: 'paragraph', data: { text: 'If you are unsure which calendar your family follows, or which vrat suits your chart, a short consultation is usually more useful than a generic almanac.' } },
-      { type: 'cta_button', data: { text: 'Talk to a DivineTalk astrologer', url: 'https://divinetalk.com/consult' } },
+      { type: 'cta_button', data: { text: 'Talk to a DivineTalk astrologer', url: 'https://divinetalk.in/astrology' } },
     ],
   },
 
@@ -159,7 +159,7 @@ const BLOGS = [
         { question: 'Should I avoid signing a contract entirely?', answer: 'Not necessarily. Where a deadline is fixed, read the document properly and get a second pair of eyes on it. The caution is about care, not prohibition.' },
         { question: 'Does the shadow period matter?', answer: 'Many astrologers track the pre- and post-retrograde shadow, roughly two weeks either side, when Mercury covers the same degrees. Effects there are usually milder.' },
       ] } },
-      { type: 'cta_button', data: { text: 'Check your chart for this transit', url: 'https://divinetalk.com/consult' } },
+      { type: 'cta_button', data: { text: 'Check your chart for this transit', url: 'https://divinetalk.in/astrology' } },
     ],
   },
 
@@ -252,7 +252,7 @@ const BLOGS = [
       { type: 'paragraph', data: { text: 'For unconventional career paths and sudden change. Genuinely unpredictable; prescribe and wear with caution.' } },
       { type: 'table', data: { caption: 'Quick reference', headers: ['Stone', 'Planet', 'Metal', 'Finger'], rows: [['Blue Sapphire', 'Saturn', 'Silver or panchdhatu', 'Middle'], ['Emerald', 'Mercury', 'Gold', 'Little'], ['Yellow Sapphire', 'Jupiter', 'Gold', 'Index'], ['Ruby', 'Sun', 'Gold or copper', 'Ring'], ['Red Coral', 'Mars', 'Copper or gold', 'Ring'], ['Pearl', 'Moon', 'Silver', 'Little'], ['Hessonite', 'Rahu', 'Silver', 'Middle']] } },
       { type: 'key_takeaway', data: { title: 'Before you buy anything', items: ['Get the chart read first; the stone follows the diagnosis.', 'Trial period before permanent wear, for any strong stone.', 'Certification matters — an untreated stone of modest size beats a treated large one.'] } },
-      { type: 'cta_button', data: { text: 'Get a remedy consultation', url: 'https://divinetalk.com/consult' } },
+      { type: 'cta_button', data: { text: 'Get a remedy consultation', url: 'https://divinetalk.in/astrology' } },
     ],
   },
 

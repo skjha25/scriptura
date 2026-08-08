@@ -161,6 +161,12 @@ function serializeBlog(blog, { includeContent = true } = {}) {
     outline: blog.outline,
 
     seo_score: blog.seo_score,
+    aeo_score: blog.aeo_score,
+    aeo_score_breakdown: blog.aeo_score_breakdown,
+    geo_score: blog.geo_score,
+    geo_score_breakdown: blog.geo_score_breakdown,
+    cluster_id: blog.cluster_id === null || blog.cluster_id === undefined ? null : Number(blog.cluster_id),
+    optimization_profile: blog.optimization_profile,
     word_count: blog.word_count,
     total_views: blog.total_views,
 

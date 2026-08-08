@@ -88,6 +88,21 @@ const create = asyncHandler(async (req, res) => {
   payload.blog_status = BLOG_STATUS.DRAFT;
   payload.generation_status = GENERATION_STATUS.DRAFT;
 
+  // Link keyword if present in keyword pool
+  if (payload.seo_keywords) {
+    const { ScripturaKeyword } = require('../models');
+    const keyword = await ScripturaKeyword.findOne({
+      where: {
+        primary_keyword: payload.seo_keywords,
+        status: 'in_progress',
+      },
+      order: [['created_at', 'DESC']],
+    });
+    if (keyword) {
+      payload.keyword_pool_id = keyword.id;
+    }
+  }
+
   const blog = await Blog.create(payload);
 
   logger.info('Blog created', {
@@ -160,15 +175,22 @@ const publish = asyncHandler(async (req, res) => {
     // Depending on it here left both dates null on any immediate publish of a
     // blog that had no date yet. The hook stays as the safety net for other
     // write paths; this handler no longer relies on it.
-    blog.publish_date = publishDate || blog.publish_date || new Date().toISOString().slice(0, 10);
+    blog.publish_date = publishDate || blog.publish_date || new Date().toISOString();
   }
 
   // Mirrors the existing production convention of a one-year content window.
   if (blog.publish_date && !blog.start_date) blog.start_date = blog.publish_date;
   if (blog.publish_date && !blog.end_date) {
-    const end = new Date(`${blog.publish_date}T00:00:00Z`);
-    end.setUTCFullYear(end.getUTCFullYear() + 1);
-    blog.end_date = end.toISOString().slice(0, 10);
+    // blog.publish_date can be a Date object, a full ISO datetime, or a date-only string.
+    // Normalize to a Date instance before computing the end date.
+    const pubDate = blog.publish_date instanceof Date
+      ? blog.publish_date
+      : new Date(blog.publish_date);
+    if (!isNaN(pubDate.getTime())) {
+      const end = new Date(pubDate);
+      end.setUTCFullYear(end.getUTCFullYear() + 1);
+      blog.end_date = end.toISOString().slice(0, 10);
+    }
   }
 
   await blog.save();

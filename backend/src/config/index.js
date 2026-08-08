@@ -173,7 +173,7 @@ const ai = {
   anthropic: {
     apiKey: anthropicApiKey,
     model: str(process.env.ANTHROPIC_MODEL, 'claude-sonnet-5'),
-    maxTokens: int(process.env.ANTHROPIC_MAX_TOKENS, 8192),
+    maxTokens: int(process.env.ANTHROPIC_MAX_TOKENS, 16384),
   },
   openai: {
     apiKey: openaiApiKey,
@@ -233,7 +233,7 @@ if (!['local', 's3'].includes(storage.driver)) {
 }
 
 // --- Brand logo --------------------------------------------------------------
-const logoPath = path.resolve(backendRoot, str(process.env.LOGO_PATH, './assets/logo.png'));
+const logoPath = path.resolve(backendRoot, str(process.env.LOGO_PATH, './src/assets/logo.png'));
 if (!isTest && !fs.existsSync(logoPath)) {
   warnings.push(
     `Logo file not found at ${logoPath} — the logo-overlay feature will fall back ` +
@@ -312,6 +312,36 @@ const config = Object.freeze({
   pagination: Object.freeze({
     defaultLimit: int(process.env.PAGINATION_DEFAULT_LIMIT, 10),
     maxLimit: int(process.env.PAGINATION_MAX_LIMIT, 100),
+  }),
+
+  /**
+   * Scheduled-publish cron job (Section 17.3 of the roadmap).
+   *
+   * Runs in-process via `node-cron` — consistent with the rest of the app's
+   * "no queue, single instance" model (see generation.js). `cronExpression`
+   * defaults to once a minute, which is frequent enough that a blog scheduled
+   * for a specific minute publishes within 60s of it, without hammering the
+   * DB. Disabled entirely in tests so the suite never has a background timer
+   * outliving a test file.
+   */
+  scheduler: Object.freeze({
+    enabled: bool(process.env.SCHEDULER_ENABLED, !isTest),
+    cronExpression: str(process.env.SCHEDULER_CRON, '* * * * *'),
+    timezone: str(process.env.SCHEDULER_TIMEZONE, 'Asia/Kolkata'),
+  }),
+
+  /**
+   * Autopilot generation scheduler.
+   *
+   * Checks every minute for cluster keywords whose scheduled_generation_date
+   * has arrived and triggers blog generation automatically. Processes one
+   * keyword per tick to avoid overwhelming the AI provider. Disabled in tests.
+   */
+  autopilot: Object.freeze({
+    enabled: bool(process.env.AUTOPILOT_ENABLED, !isTest),
+    cronExpression: str(process.env.AUTOPILOT_CRON, '* * * * *'),
+    timezone: str(process.env.AUTOPILOT_TIMEZONE, 'Asia/Kolkata'),
+    maxRetries: int(process.env.AUTOPILOT_MAX_RETRIES, 3),
   }),
 
   warnings: Object.freeze(warnings),

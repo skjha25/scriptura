@@ -93,6 +93,10 @@ describe('enum values match the backend exactly', () => {
   it('USER_ROLES', () => {
     expect(frontend.USER_ROLES).toEqual(backend.USER_ROLES);
   });
+
+  it('OPTIMIZATION_PROFILES', () => {
+    expect(frontend.OPTIMIZATION_PROFILES).toEqual(backend.OPTIMIZATION_PROFILES);
+  });
 });
 
 describe('label maps cover every enum value', () => {
@@ -127,6 +131,27 @@ describe('label maps cover every enum value', () => {
     const missing = Object.values(frontend.GENERATION_STATUS).filter(
       (status) => !frontend.GENERATION_STATUS_META[status]
     );
+    expect(missing).toEqual([]);
+  });
+
+  it('OPTIMIZATION_PROFILE_META covers every profile, and ORDER contains exactly them', () => {
+    const profiles = Object.values(frontend.OPTIMIZATION_PROFILES);
+    const missingMeta = profiles.filter((p) => !frontend.OPTIMIZATION_PROFILE_META[p]);
+    expect(missingMeta).toEqual([]);
+    expect([...frontend.OPTIMIZATION_PROFILE_ORDER].sort()).toEqual([...profiles].sort());
+  });
+
+  it('AEO_CRITERION_LABELS covers every backend AEO_WEIGHTS key', () => {
+    // eslint-disable-next-line import/no-extraneous-dependencies -- test-only reach into the backend
+    const { AEO_WEIGHTS } = require('../../../../backend/src/services/aeoScore');
+    const missing = Object.keys(AEO_WEIGHTS).filter((key) => !frontend.AEO_CRITERION_LABELS[key]);
+    expect(missing).toEqual([]);
+  });
+
+  it('GEO_CRITERION_LABELS covers every backend GEO_WEIGHTS key', () => {
+    // eslint-disable-next-line import/no-extraneous-dependencies -- test-only reach into the backend
+    const { GEO_WEIGHTS } = require('../../../../backend/src/services/geoScore');
+    const missing = Object.keys(GEO_WEIGHTS).filter((key) => !frontend.GEO_CRITERION_LABELS[key]);
     expect(missing).toEqual([]);
   });
 });

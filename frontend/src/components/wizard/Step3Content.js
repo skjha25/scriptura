@@ -32,6 +32,7 @@ import Button from '../ui/Button';
 import { Input, Select, Toggle } from '../ui/form';
 import { Card, CardHeader, ErrorBanner, InfoBanner } from '../ui/feedback';
 import InternalLinkPicker from './InternalLinkPicker';
+import OptimizationProfilePicker from './OptimizationProfilePicker';
 import OutlineBuilder from './OutlineBuilder';
 import { optionsFrom } from './steps';
 
@@ -84,6 +85,19 @@ export default function Step3Content({ config, onChange, blogId }) {
 
   return (
     <div className="space-y-5">
+      <Card glow>
+        <CardHeader
+          title="Optimisation profile"
+          subtitle="Which score this article should lean on. Shapes the generation directives sent to the model."
+        />
+        <div className="p-5">
+          <OptimizationProfilePicker
+            value={config.optimization_profile}
+            onChange={(profile) => onChange({ optimization_profile: profile })}
+          />
+        </div>
+      </Card>
+
       <Card>
         <CardHeader title="Voice and reading level" subtitle="What the generator is aiming for." />
         <div className="grid gap-4 p-5 sm:grid-cols-2">

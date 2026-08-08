@@ -12,21 +12,30 @@
  * is a policy decision, so it lives in exactly one place: BaseProvider.withRetry.
  *
  * ---------------------------------------------------------------------------
- * WHY WE PREFILL THE ASSISTANT TURN
+ * JSON OUTPUT RELIABILITY
  * ---------------------------------------------------------------------------
- * Every prompt asks for bare JSON. Seeding the assistant turn with `{` makes the
- * model continue an object rather than start a sentence, which removes almost
- * all "Here is the JSON you asked for:" preambles. We stitch the brace back on
- * before parsing. extractJson still handles the messy cases — this just makes
- * them rare instead of routine.
+ * Every prompt asks for bare JSON and includes explicit instructions to output
+ * ONLY JSON with no preamble or commentary. The extractJson() function in
+ * BaseProvider handles edge cases where models still wrap output in markdown
+ * fences or add prose. This two-layer approach (prompt discipline + tolerant
+ * parsing) works without assistant message prefill, which newer Claude models
+ * do not support.
  *
  * ---------------------------------------------------------------------------
- * TEMPERATURE
+ * THINKING AND SAMPLING (Claude Sonnet 5+)
  * ---------------------------------------------------------------------------
- * Titles want variety (0.9); brand-voice analysis is a measurement and wants
- * repeatability (0.1); outlines and articles sit in between (0.6/0.7). Set per
- * task rather than globally, because "creative" and "accurate" are different
- * jobs and one number cannot serve both.
+ * Claude Sonnet 5 introduced breaking changes:
+ *   - Adaptive thinking is ON by default. When thinking is on, `max_tokens` is
+ *     a hard limit on TOTAL output (thinking + response text). Without disabling
+ *     it, the model can spend most of the token budget thinking and return an
+ *     empty text response — producing the "Anthropic returned no text content"
+ *     error that caused all blog generations to fail.
+ *   - `temperature`, `top_p`, and `top_k` set to non-default values now return
+ *     a 400 error. These parameters are silently ignored via OpenRouter but
+ *     rejected by the direct Anthropic API.
+ *
+ * The fix: explicitly disable thinking (this app needs JSON output, not
+ * chain-of-thought) and omit sampling parameters entirely.
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -37,13 +46,23 @@ const config = require('../../config');
 const ApiError = require('../../utils/ApiError');
 const { BLOCK_TYPES, DEFAULT_SEO_STRUCTURE } = require('../../constants');
 
-/** Per-task sampling temperature. See the file header for the reasoning. */
+/**
+ * Per-task sampling temperature. Retained for use with models that support it
+ * (pre-Sonnet 5). Claude Sonnet 5+ rejects non-default values with a 400, so
+ * the `complete()` method only sends temperature when the model supports it.
+ */
 const TEMPERATURE = Object.freeze({
   titles: 0.9,
   brandVoice: 0.1,
   outline: 0.6,
   article: 0.7,
 });
+
+/**
+ * Models that reject sampling parameters (temperature, top_p, top_k).
+ * Claude Sonnet 5 and above use adaptive thinking and no longer accept these.
+ */
+const MODELS_WITHOUT_SAMPLING = ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-mythos-5'];
 
 /**
  * Token budgets per task. Titles and a brand-voice summary are tiny; an article
@@ -55,9 +74,6 @@ const MAX_TOKENS = Object.freeze({
   brandVoice: 8192,
   outline: 8192,
 });
-
-/** The prefill token that forces an object-shaped continuation. */
-const JSON_PREFILL = '{';
 
 class AnthropicProvider extends BaseProvider {
   /**
@@ -109,17 +125,31 @@ class AnthropicProvider extends BaseProvider {
    */
   async complete({ operation, prompt, temperature, maxTokens }) {
     return this.run(operation, async () => {
+      const requestBody = {
+        model: this.model,
+        max_tokens: maxTokens,
+        system: prompts.SYSTEM_PROMPT,
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+      };
+
+      // Claude Sonnet 5+ has adaptive thinking ON by default. When thinking is
+      // on, max_tokens is shared between thinking tokens and response text,
+      // which causes empty text responses when the model spends its entire
+      // budget thinking. Explicitly disable thinking for structured JSON output.
+      const modelRequiresThinkingDisable = MODELS_WITHOUT_SAMPLING.some(
+        (m) => this.model.startsWith(m)
+      );
+      if (modelRequiresThinkingDisable) {
+        requestBody.thinking = { type: 'disabled' };
+      } else if (temperature !== undefined) {
+        // Only send temperature for models that support it.
+        requestBody.temperature = temperature;
+      }
+
       const response = await this.client.messages.create(
-        {
-          model: this.model,
-          max_tokens: maxTokens,
-          system: prompts.SYSTEM_PROMPT,
-          messages: [
-            { role: 'user', content: prompt },
-          ],
-        },
-        // Also set per request: a client-level timeout does not apply if a caller
-        // ever passes in its own client (as the tests do).
+        requestBody,
         { timeout: this.timeoutMs }
       );
 
@@ -128,12 +158,15 @@ class AnthropicProvider extends BaseProvider {
         .map((part) => part.text)
         .join('');
 
-      if (text.trim() === '') {
-        // A stop_reason of max_tokens with no text means the budget was spent on
-        // nothing usable — surface that rather than a generic parse failure.
+      if (!text || text.trim() === '') {
         throw ApiError.upstream('Anthropic returned no text content.', {
           code: 'UPSTREAM_EMPTY_RESPONSE',
-          details: { provider: this.name, operation, stopReason: response?.stop_reason ?? null },
+          details: {
+            provider: this.name,
+            operation,
+            stopReason: response?.stop_reason ?? null,
+            contentTypes: (response?.content || []).map((p) => p?.type).filter(Boolean),
+          },
         });
       }
 
@@ -279,6 +312,27 @@ class AnthropicProvider extends BaseProvider {
         typeof parsed?.meta_description === 'string' ? parsed.meta_description.trim() : null,
     };
   }
+
+  async generateAutoTopicFromKeyword(opts = {}) {
+    const raw = await this.complete({
+      operation: 'generateAutoTopicFromKeyword',
+      prompt: prompts.suggestTopicsFromKeywordPrompt(opts),
+      temperature: 0.7,
+      maxTokens: 1024,
+    });
+    
+    const parsed = this.parse(raw, 'auto topic from keyword response');
+    
+    const titles = Array.isArray(parsed?.titles) ? parsed.titles : [];
+    const suggested_secondary_keywords = Array.isArray(parsed?.secondary_keywords) ? parsed.secondary_keywords : [];
+    const topic = typeof parsed?.topic === 'string' ? parsed.topic : opts.keyword;
+
+    return {
+      topic,
+      suggested_secondary_keywords,
+      titles,
+    };
+  }
 }
 
-module.exports = { AnthropicProvider, TEMPERATURE, MAX_TOKENS, JSON_PREFILL };
+module.exports = { AnthropicProvider, TEMPERATURE, MAX_TOKENS };

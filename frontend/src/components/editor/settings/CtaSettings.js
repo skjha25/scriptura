@@ -35,7 +35,7 @@ export default function CtaSettings({ block, readOnly, onChange }) {
         required
         value={data.url || ''}
         readOnly={readOnly}
-        placeholder="https://divinetalk.com/consult"
+        placeholder="https://divinetalk.in/astrology"
         hint="External links open in a new tab with noopener."
         onChange={(event) =>
           onChange({ ...data, url: event.target.value }, `${block.id}:settings:url`)

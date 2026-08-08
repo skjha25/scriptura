@@ -30,6 +30,7 @@ import {
   GENERATION_STATUS,
   IMAGE_STYLE_LABELS,
   LOGO_POSITION_LABELS,
+  OPTIMIZATION_PROFILE_META,
   READABILITY_LABELS,
 } from '../../lib/constants';
 import { useInterval } from '../../hooks/useDebouncedValue';
@@ -42,6 +43,7 @@ import {
   GenerationBadge,
   InfoBanner,
 } from '../ui/feedback';
+import TriScoreBadge from '../shared/TriScoreBadge';
 import { publishModeOf, PUBLISH_MODES } from './steps';
 
 /** Two seconds. Fast enough to feel live, slow enough to be a rounding error. */
@@ -111,6 +113,14 @@ export function buildGenerationConfig(config) {
     include_images: config.include_images !== false,
     image_count: Number(config.image_count) || 1,
     image_style: config.image_style || 'photo',
+    logo_overlay: Boolean(config.logo_overlay),
+    logo_position: config.logo_position || 'none',
+
+    // Which score this run should lean on — read by prompts.js to add
+    // AEO/GEO-specific generation directives. Omitted-as-'balanced' rather than
+    // required: a config saved before this field existed should not fail to
+    // generate.
+    optimization_profile: config.optimization_profile || 'balanced',
   };
 
   if (config.tone_of_voice) built.tone_of_voice = config.tone_of_voice;
@@ -136,6 +146,7 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
     GENERATION_IN_FLIGHT.includes(initialStatus) ? Date.now() : null
   );
   const [elapsed, setElapsed] = useState(0);
+  const [lastResult, setLastResult] = useState(null);
 
   const inFlight = GENERATION_IN_FLIGHT.includes(status);
   const failed = status === GENERATION_STATUS.FAILED;
@@ -150,6 +161,7 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
       setGenerationError(next.generation_error || null);
       setError(null);
       if (next.generation_status === GENERATION_STATUS.GENERATED) {
+        setLastResult(next);
         onGenerated(next);
       }
     } catch (err) {
@@ -214,6 +226,10 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
         <dl className="grid gap-x-6 gap-y-3 p-5 sm:grid-cols-2">
           <Summary label="Title" value={config.blog_title} />
           <Summary label="Primary keyword" value={config.seo_keywords || config.topic} />
+          <Summary
+            label="Optimisation profile"
+            value={OPTIMIZATION_PROFILE_META[config.optimization_profile || 'balanced']?.label}
+          />
           <Summary label="Article type" value={ARTICLE_TYPE_LABELS[config.article_type]} />
           <Summary label="Readability" value={READABILITY_LABELS[config.readability_level]} />
           <Summary
@@ -341,9 +357,19 @@ export default function Step6Generate({ config, blogId, initialStatus, onGenerat
           ) : null}
 
           {done ? (
-            <p className="text-sm text-ink">
-              Generated in {formatElapsed(elapsed)}. Opening the editor for review…
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-ink">
+                Generated in {formatElapsed(elapsed)}. Opening the editor for review…
+              </p>
+              {lastResult ? (
+                <TriScoreBadge
+                  seo={{ score: lastResult.seo_score }}
+                  aeo={{ score: lastResult.aeo_score }}
+                  geo={{ score: lastResult.geo_score }}
+                  variant="compact"
+                />
+              ) : null}
+            </div>
           ) : null}
 
           {failed ? (
