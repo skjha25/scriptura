@@ -173,7 +173,7 @@ const ai = {
   anthropic: {
     apiKey: anthropicApiKey,
     model: str(process.env.ANTHROPIC_MODEL, 'claude-sonnet-5'),
-    maxTokens: int(process.env.ANTHROPIC_MAX_TOKENS, 8192),
+    maxTokens: int(process.env.ANTHROPIC_MAX_TOKENS, 16384),
   },
   openai: {
     apiKey: openaiApiKey,
@@ -233,7 +233,7 @@ if (!['local', 's3'].includes(storage.driver)) {
 }
 
 // --- Brand logo --------------------------------------------------------------
-const logoPath = path.resolve(backendRoot, str(process.env.LOGO_PATH, './assets/logo.png'));
+const logoPath = path.resolve(backendRoot, str(process.env.LOGO_PATH, './src/assets/logo.png'));
 if (!isTest && !fs.existsSync(logoPath)) {
   warnings.push(
     `Logo file not found at ${logoPath} — the logo-overlay feature will fall back ` +

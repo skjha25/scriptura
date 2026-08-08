@@ -196,7 +196,8 @@ const expand = asyncHandler(async (req, res) => {
       search_intent: ['informational', 'commercial', 'transactional', 'navigational'].includes(s.search_intent)
         ? s.search_intent
         : 'informational',
-      suggested_publish_date: s.suggested_publish_date || null,
+      suggested_publish_date: null,
+      scheduled_generation_date: null,
       sequence_order: existingCount + i + 1,
       status: CLUSTER_KEYWORD_STATUS.PENDING,
     });
@@ -248,7 +249,23 @@ const updateKeyword = asyncHandler(async (req, res) => {
   const keyword = await ClusterKeyword.findOne({ where: { id: keywordId, cluster_id: id } });
   if (!keyword) throw ApiError.notFound('Cluster keyword not found.');
 
-  await keyword.update(req.body);
+  // Auto-transition status to SCHEDULED when a generation date is set on a pending keyword.
+  const payload = { ...req.body };
+  if (
+    payload.scheduled_generation_date &&
+    keyword.status === CLUSTER_KEYWORD_STATUS.PENDING
+  ) {
+    payload.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
+  }
+  // If generation date is removed, revert to pending (unless already generated/published).
+  if (
+    payload.scheduled_generation_date === null &&
+    keyword.status === CLUSTER_KEYWORD_STATUS.SCHEDULED
+  ) {
+    payload.status = CLUSTER_KEYWORD_STATUS.PENDING;
+  }
+
+  await keyword.update(payload);
   res.json({ data: keyword });
 });
 

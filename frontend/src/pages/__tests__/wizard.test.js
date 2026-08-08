@@ -76,7 +76,7 @@ function makeBlog(overrides = {}) {
       {
         id: 'b4',
         type: 'cta_button',
-        data: { text: 'Talk to an astrologer', url: 'https://divinetalk.com/consult' },
+        data: { text: 'Talk to an astrologer', url: 'https://divinetalk.in/astrology' },
       },
     ],
     ...overrides,

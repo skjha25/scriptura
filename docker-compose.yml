@@ -102,7 +102,7 @@ services:
       args:
         # Baked in at build time: Create React App inlines REACT_APP_* into the
         # bundle, so this cannot be changed at runtime.
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000}
+        REACT_APP_API_URL: ${REACT_APP_API_URL-}
     container_name: scriptura-web
     restart: unless-stopped
     depends_on:

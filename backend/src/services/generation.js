@@ -384,6 +384,9 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
         logger.error('Failed to generate images during article generation', {
           blogId: blog.id,
           error: imgErr.message,
+          stack: imgErr.stack,
+          code: imgErr.code,
+          status: imgErr.status || imgErr.statusCode,
         });
       }
     }
@@ -506,6 +509,28 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
       provider: textProvider.name,
     });
 
+    // Update cluster keyword status to GENERATED if this blog belongs to a cluster.
+    if (blog.cluster_id) {
+      try {
+        const { ClusterKeyword } = require('../models');
+        const { CLUSTER_KEYWORD_STATUS } = require('../constants');
+        const clusterKw = await ClusterKeyword.findOne({
+          where: { assigned_blog_id: blog.id, cluster_id: blog.cluster_id },
+        });
+        if (clusterKw && clusterKw.status === CLUSTER_KEYWORD_STATUS.GENERATING) {
+          clusterKw.status = CLUSTER_KEYWORD_STATUS.GENERATED;
+          await clusterKw.save();
+          logger.info(`Cluster keyword #${clusterKw.id} marked as generated.`, { blogId: blog.id });
+        }
+      } catch (kwErr) {
+        logger.error('Failed to update cluster keyword status after generation', {
+          blogId: blog.id,
+          clusterId: blog.cluster_id,
+          error: kwErr.message,
+        });
+      }
+    }
+
     // Log to scriptura_logs.
     activity.generationCompleted({
       blogId: Number(blog.id),
@@ -559,6 +584,29 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
       error: err,
       metadata: { topic: cfg?.topic, keyword: cfg?.keyword },
     });
+
+    // Revert cluster keyword back to SCHEDULED so autopilot can retry (it will
+    // reuse the existing blog via assigned_blog_id, not create a new one).
+    if (blog?.cluster_id) {
+      try {
+        const { ClusterKeyword } = require('../models');
+        const { CLUSTER_KEYWORD_STATUS } = require('../constants');
+        const clusterKw = await ClusterKeyword.findOne({
+          where: { assigned_blog_id: blogId, cluster_id: blog.cluster_id },
+        });
+        if (clusterKw && clusterKw.status === CLUSTER_KEYWORD_STATUS.GENERATING) {
+          clusterKw.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
+          await clusterKw.save();
+          logger.info(`Cluster keyword #${clusterKw.id} reverted to scheduled after generation failure.`, { blogId });
+        }
+      } catch (kwErr) {
+        logger.error('Failed to revert cluster keyword status after generation failure', {
+          blogId,
+          clusterId: blog.cluster_id,
+          error: kwErr.message,
+        });
+      }
+    }
 
     return { status: GENERATION_STATUS.FAILED, blogId: Number(blogId), error: message };
   }

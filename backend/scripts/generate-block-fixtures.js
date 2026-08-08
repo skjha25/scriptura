@@ -42,7 +42,7 @@ const cases = [
       { id: 'b9', type: 'table', data: { caption: 'Auspicious days', headers: ['Day', 'Ritual'], rows: [['Monday', 'Rudrabhishek'], ['Saturday', 'Deep daan']] } },
       { id: 'b10', type: 'faq_accordion', data: { items: [{ question: 'When does Shravana begin?', answer: 'It begins in late July and runs for a lunar month.' }, { question: 'Who should fast?', answer: 'Anyone in good health may observe Monday fasts.' }] } },
       { id: 'b11', type: 'key_takeaway', data: { title: 'Key takeaways', items: ['Shravana favours new beginnings', 'Mondays carry the strongest charge'] } },
-      { id: 'b12', type: 'cta_button', data: { text: 'Talk to an astrologer', url: 'https://divinetalk.com/consult' } },
+      { id: 'b12', type: 'cta_button', data: { text: 'Talk to an astrologer', url: 'https://divinetalk.in/astrology' } },
       { id: 'b13', type: 'embed', data: { url: 'https://www.youtube.com/embed/abc123', title: 'Shravana aarti' } },
     ],
   },

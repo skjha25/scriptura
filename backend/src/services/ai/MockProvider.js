@@ -642,7 +642,7 @@ class MockProvider extends BaseProvider {
     // --- CTA ----------------------------------------------------------------
     blocks.push({
       type: 'cta_button',
-      data: { text: 'Talk to a DivineTalk astrologer', url: 'https://divinetalk.com/consult' },
+      data: { text: 'Talk to a DivineTalk astrologer', url: 'https://divinetalk.in/astrology' },
     });
 
     const metaTitle = (title || fill(TITLE_TEMPLATES[0], vars)).slice(0, 60);

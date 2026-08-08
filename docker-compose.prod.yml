@@ -2,9 +2,9 @@
 #
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Pulls prebuilt containers directly from Docker Hub (skjha25):
-#   - skjha25/scriptura-backend:latest
-#   - skjha25/scriptura-frontend:latest
+# Pulls prebuilt containers directly from Docker Hub (divinetalk):
+#   - divinetalk/scriptura-backend:latest
+#   - divinetalk/scriptura-frontend:latest
 
 services:
   mysql:
@@ -33,7 +33,7 @@ services:
     networks: [scriptura]
 
   api:
-    image: skjha25/scriptura-backend:latest
+    image: divinetalk/scriptura-backend:latest
     container_name: scriptura-api
     restart: unless-stopped
     depends_on:
@@ -66,7 +66,7 @@ services:
     networks: [scriptura]
 
   web:
-    image: skjha25/scriptura-frontend:latest
+    image: divinetalk/scriptura-frontend:latest
     container_name: scriptura-web
     restart: unless-stopped
     depends_on:

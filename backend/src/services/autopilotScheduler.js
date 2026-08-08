@@ -46,11 +46,14 @@ async function processNextDueKeyword() {
 
   // -------------------------------------------------------------------------
   // 1. Find the next keyword whose scheduled time has arrived
+  //    ONLY pick keywords in SCHEDULED or PENDING status (not GENERATING).
+  //    Keywords that already have an assigned blog but failed generation will
+  //    retry against the existing blog, not create a new one.
   // -------------------------------------------------------------------------
   const now = new Date();
   const keyword = await ClusterKeyword.findOne({
     where: {
-      status: CLUSTER_KEYWORD_STATUS.PENDING,
+      status: { [Op.in]: [CLUSTER_KEYWORD_STATUS.SCHEDULED, CLUSTER_KEYWORD_STATUS.PENDING] },
       scheduled_generation_date: { [Op.lte]: now, [Op.ne]: null },
     },
     include: [{
@@ -78,105 +81,118 @@ async function processNextDueKeyword() {
   });
 
   // -------------------------------------------------------------------------
-  // 2. Mark as generating
+  // 2. Mark as generating IMMEDIATELY so subsequent ticks skip this keyword.
+  //    This is the critical guard against duplicates.
   // -------------------------------------------------------------------------
   keyword.status = CLUSTER_KEYWORD_STATUS.GENERATING;
   await keyword.save();
 
   try {
     // -----------------------------------------------------------------------
-    // 3. AI topic + title generation
+    // 3. Check if a blog already exists for this keyword (from a prior failed
+    //    attempt). If so, retry generation on that blog instead of creating
+    //    a new one.
     // -----------------------------------------------------------------------
-    const textProvider = getTextProvider();
-
-    let serpData = null;
-    if (serp.isEnabled()) {
-      try {
-        serpData = await serp.fetchSerpDataForKeyword(primaryKeyword);
-      } catch (err) {
-        logger.warn('Autopilot: SERP fetch failed, continuing without grounding.', { error: err.message });
+    let blog = null;
+    if (keyword.assigned_blog_id) {
+      blog = await Blog.findByPk(keyword.assigned_blog_id);
+      if (blog) {
+        logger.info(`Autopilot: retrying generation on existing blog #${blog.id} for keyword "${primaryKeyword}"`);
       }
     }
 
-    const { titles, topic, suggested_secondary_keywords } =
-      await textProvider.generateAutoTopicFromKeyword({
-        keyword: primaryKeyword,
-        secondaryKeywords: [],
-        serpData,
+    // -----------------------------------------------------------------------
+    // 4. If no existing blog, create one: AI generates topic + title first
+    // -----------------------------------------------------------------------
+    if (!blog) {
+      const textProvider = getTextProvider();
+
+      let serpData = null;
+      if (serp.isEnabled()) {
+        try {
+          serpData = await serp.fetchSerpDataForKeyword(primaryKeyword);
+        } catch (err) {
+          logger.warn('Autopilot: SERP fetch failed, continuing without grounding.', { error: err.message });
+        }
+      }
+
+      const { titles, topic, suggested_secondary_keywords } =
+        await textProvider.generateAutoTopicFromKeyword({
+          keyword: primaryKeyword,
+          secondaryKeywords: [],
+          serpData,
+        });
+
+      // Pick the highest-scoring title
+      const scoredTitles = titles.map((entry) => {
+        const safe = sanitizeInline(entry.title) || entry.title;
+        const plain = toPlainText(safe) || safe;
+        return {
+          title: plain,
+          seo: scoreTitle(plain, { keyword: primaryKeyword }),
+        };
       });
 
-    // Pick the highest-scoring title
-    const scoredTitles = titles.map((entry) => {
-      const safe = sanitizeInline(entry.title) || entry.title;
-      const plain = toPlainText(safe) || safe;
-      return {
-        title: plain,
-        seo: scoreTitle(plain, { keyword: primaryKeyword }),
+      scoredTitles.sort((a, b) => (b.seo?.score || 0) - (a.seo?.score || 0));
+      const bestTitle = scoredTitles[0]?.title || `${primaryKeyword} — Complete Guide`;
+
+      const blogData = {
+        blog_title: bestTitle,
+        topic: topic || primaryKeyword,
+        seo_keywords: primaryKeyword,
+        secondary_keywords: suggested_secondary_keywords || [],
+        blog_status: keyword.suggested_publish_date
+          ? BLOG_STATUS.SCHEDULED
+          : BLOG_STATUS.DRAFT,
+        publish_date: keyword.suggested_publish_date || null,
+        generation_status: GENERATION_STATUS.DRAFT,
+        cluster_id: Number(cluster.id),
+        article_type: 'general',
+        language: 'en',
+        target_country: 'India',
+        readability_level: '8th_grade',
+        include_images: true,
+        image_count: 2,
+        image_style: 'illustration',
+        logo_overlay: true,
+        logo_position: 'top_right',
+        internal_linking: true,
+        external_web_grounding: serp.isEnabled(),
+        ai_content_cleaning: true,
+        optimization_profile: 'balanced',
+        seo_structure_config: {
+          h1: true, h2: true, h3: true,
+          faq: true, tables: false,
+          key_takeaways: true, quotes: false,
+          lists: true, emphasis: true,
+        },
       };
-    });
 
-    scoredTitles.sort((a, b) => (b.seo?.score || 0) - (a.seo?.score || 0));
-    const bestTitle = scoredTitles[0]?.title || `${primaryKeyword} — Complete Guide`;
+      blog = await Blog.create(blogData);
 
-    // -----------------------------------------------------------------------
-    // 4. Create blog row
-    // -----------------------------------------------------------------------
-    const blogData = {
-      blog_title: bestTitle,
-      topic: topic || primaryKeyword,
-      seo_keywords: primaryKeyword,
-      secondary_keywords: suggested_secondary_keywords || [],
-      blog_status: keyword.suggested_publish_date
-        ? BLOG_STATUS.SCHEDULED
-        : BLOG_STATUS.DRAFT,
-      publish_date: keyword.suggested_publish_date || null,
-      generation_status: GENERATION_STATUS.DRAFT,
-      cluster_id: Number(cluster.id),
-      article_type: 'general',
-      language: 'en',
-      target_country: 'India',
-      readability_level: '8th_grade',
-      include_images: true,
-      image_count: 2,
-      image_style: 'illustration',
-      logo_overlay: true,
-      logo_position: 'top_right',
-      internal_linking: true,
-      external_web_grounding: serp.isEnabled(),
-      ai_content_cleaning: true,
-      optimization_profile: 'balanced',
-      seo_structure_config: {
-        h1: true, h2: true, h3: true,
-        faq: true, tables: false,
-        key_takeaways: true, quotes: false,
-        lists: true, emphasis: true,
-      },
-    };
+      // Link keyword to blog
+      keyword.assigned_blog_id = blog.id;
+      await keyword.save();
 
-    const blog = await Blog.create(blogData);
+      logger.info(`Autopilot: created blog #${blog.id} ("${blog.blog_title}") for keyword "${primaryKeyword}"`);
 
-    // Link keyword to blog
-    keyword.assigned_blog_id = blog.id;
-    await keyword.save();
-
-    logger.info(`Autopilot: created blog #${blog.id} ("${bestTitle}") for keyword "${primaryKeyword}"`);
-
-    await activity.autopilotBlogCreated({
-      blogId: blog.id,
-      clusterId: cluster.id,
-      keywordId: keyword.id,
-      keyword: primaryKeyword,
-      title: bestTitle,
-    });
+      await activity.autopilotBlogCreated({
+        blogId: blog.id,
+        clusterId: cluster.id,
+        keywordId: keyword.id,
+        keyword: primaryKeyword,
+        title: blog.blog_title,
+      });
+    }
 
     // -----------------------------------------------------------------------
     // 5. Trigger full article generation (fire-and-forget)
     // -----------------------------------------------------------------------
     const generationConfig = {
-      topic: topic || primaryKeyword,
-      title: bestTitle,
+      topic: blog.topic || primaryKeyword,
+      title: blog.blog_title,
       keyword: primaryKeyword,
-      secondary_keywords: suggested_secondary_keywords || [],
+      secondary_keywords: blog.secondary_keywords || [],
       article_type: 'general',
       target_word_count: 2000,
       language: 'en',
@@ -211,10 +227,10 @@ async function processNextDueKeyword() {
 
     logger.info(`Autopilot: generation queued for blog #${blog.id}`, result);
 
-    // Mark keyword as scheduled (generation in progress, will become
-    // 'generated' once the async generation completes — tracked separately)
-    keyword.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
-    await keyword.save();
+    // Keep keyword in GENERATING status. It will NOT be picked up again because
+    // the query only matches PENDING/SCHEDULED. The keyword will transition to
+    // GENERATED when the generation completes (handled by the generation
+    // completion callback or a separate reconciliation process).
 
     return { processed: true, keyword_id: Number(keyword.id), blog_id: Number(blog.id) };
   } catch (err) {
@@ -222,6 +238,14 @@ async function processNextDueKeyword() {
     // 6. Error handling with retry logic
     // -----------------------------------------------------------------------
     logger.error(`Autopilot: failed to process keyword "${primaryKeyword}"`, err);
+
+    // If generation is already in progress (409), leave keyword in GENERATING.
+    // The generation completion/failure hooks in generation.js will handle
+    // transitioning the keyword status back.
+    if (err?.details?.code === 'GENERATION_IN_PROGRESS' || err?.code === 'GENERATION_IN_PROGRESS') {
+      logger.info(`Autopilot: keyword "${primaryKeyword}" — generation already in progress, keeping in GENERATING state.`);
+      return { processed: true, keyword_id: Number(keyword.id), error: 'Generation already in progress.' };
+    }
 
     const retryCount = (keyword.metadata?.retry_count || 0) + 1;
 
@@ -241,8 +265,9 @@ async function processNextDueKeyword() {
         metadata: { error: err.message, retry_count: retryCount },
       });
     } else {
-      // Put back to pending for retry on next tick
-      keyword.status = CLUSTER_KEYWORD_STATUS.PENDING;
+      // Put back to SCHEDULED (not PENDING) for retry on next tick.
+      // The assigned_blog_id is preserved so the retry reuses the existing blog.
+      keyword.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
       await keyword.save();
 
       await activity.autopilotRetry({

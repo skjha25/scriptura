@@ -22,12 +22,20 @@
  * do not support.
  *
  * ---------------------------------------------------------------------------
- * TEMPERATURE
+ * THINKING AND SAMPLING (Claude Sonnet 5+)
  * ---------------------------------------------------------------------------
- * Titles want variety (0.9); brand-voice analysis is a measurement and wants
- * repeatability (0.1); outlines and articles sit in between (0.6/0.7). Set per
- * task rather than globally, because "creative" and "accurate" are different
- * jobs and one number cannot serve both.
+ * Claude Sonnet 5 introduced breaking changes:
+ *   - Adaptive thinking is ON by default. When thinking is on, `max_tokens` is
+ *     a hard limit on TOTAL output (thinking + response text). Without disabling
+ *     it, the model can spend most of the token budget thinking and return an
+ *     empty text response — producing the "Anthropic returned no text content"
+ *     error that caused all blog generations to fail.
+ *   - `temperature`, `top_p`, and `top_k` set to non-default values now return
+ *     a 400 error. These parameters are silently ignored via OpenRouter but
+ *     rejected by the direct Anthropic API.
+ *
+ * The fix: explicitly disable thinking (this app needs JSON output, not
+ * chain-of-thought) and omit sampling parameters entirely.
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -38,13 +46,23 @@ const config = require('../../config');
 const ApiError = require('../../utils/ApiError');
 const { BLOCK_TYPES, DEFAULT_SEO_STRUCTURE } = require('../../constants');
 
-/** Per-task sampling temperature. See the file header for the reasoning. */
+/**
+ * Per-task sampling temperature. Retained for use with models that support it
+ * (pre-Sonnet 5). Claude Sonnet 5+ rejects non-default values with a 400, so
+ * the `complete()` method only sends temperature when the model supports it.
+ */
 const TEMPERATURE = Object.freeze({
   titles: 0.9,
   brandVoice: 0.1,
   outline: 0.6,
   article: 0.7,
 });
+
+/**
+ * Models that reject sampling parameters (temperature, top_p, top_k).
+ * Claude Sonnet 5 and above use adaptive thinking and no longer accept these.
+ */
+const MODELS_WITHOUT_SAMPLING = ['claude-sonnet-5', 'claude-opus-5', 'claude-fable-5', 'claude-mythos-5'];
 
 /**
  * Token budgets per task. Titles and a brand-voice summary are tiny; an article
@@ -107,15 +125,31 @@ class AnthropicProvider extends BaseProvider {
    */
   async complete({ operation, prompt, temperature, maxTokens }) {
     return this.run(operation, async () => {
+      const requestBody = {
+        model: this.model,
+        max_tokens: maxTokens,
+        system: prompts.SYSTEM_PROMPT,
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+      };
+
+      // Claude Sonnet 5+ has adaptive thinking ON by default. When thinking is
+      // on, max_tokens is shared between thinking tokens and response text,
+      // which causes empty text responses when the model spends its entire
+      // budget thinking. Explicitly disable thinking for structured JSON output.
+      const modelRequiresThinkingDisable = MODELS_WITHOUT_SAMPLING.some(
+        (m) => this.model.startsWith(m)
+      );
+      if (modelRequiresThinkingDisable) {
+        requestBody.thinking = { type: 'disabled' };
+      } else if (temperature !== undefined) {
+        // Only send temperature for models that support it.
+        requestBody.temperature = temperature;
+      }
+
       const response = await this.client.messages.create(
-        {
-          model: this.model,
-          max_tokens: maxTokens,
-          system: prompts.SYSTEM_PROMPT,
-          messages: [
-            { role: 'user', content: prompt },
-          ],
-        },
+        requestBody,
         { timeout: this.timeoutMs }
       );
 
@@ -127,7 +161,12 @@ class AnthropicProvider extends BaseProvider {
       if (!text || text.trim() === '') {
         throw ApiError.upstream('Anthropic returned no text content.', {
           code: 'UPSTREAM_EMPTY_RESPONSE',
-          details: { provider: this.name, operation, stopReason: response?.stop_reason ?? null },
+          details: {
+            provider: this.name,
+            operation,
+            stopReason: response?.stop_reason ?? null,
+            contentTypes: (response?.content || []).map((p) => p?.type).filter(Boolean),
+          },
         });
       }
 

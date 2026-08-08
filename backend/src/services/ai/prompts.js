@@ -409,7 +409,7 @@ function blockSchemaFor(structure) {
   if (structure.faq) {
     parts.push('  {"type":"faq_accordion","data":{"items":[{"question":"...","answer":"..."}]}}');
   }
-  parts.push('  {"type":"cta_button","data":{"text":"...","url":"https://divinetalk.com/consult"}}');
+  parts.push('  {"type":"cta_button","data":{"text":"...","url":"https://divinetalk.in/astrology"}}');
 
   return parts.join('\n');
 }
@@ -498,7 +498,7 @@ function articlePrompt({
     linkText
       ? '- Integrate the provided internal links naturally where contextually relevant. Use a paragraph html block and the /blog/<slug> path.'
       : '',
-    '- End with one cta_button block pointing at https://divinetalk.com/consult.',
+    '- End with one cta_button block pointing at https://divinetalk.in/astrology.',
     aiContentCleaning
       ? '- Write the way a human editor would: vary sentence length, avoid the "moreover / furthermore / in conclusion" register, and cut every sentence that only restates the previous one.'
       : '',
