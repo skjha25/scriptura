@@ -362,30 +362,57 @@ const EMPHASIS_TAG_RE = /<\/?(?:strong|b|em|i|u)\b[^>]*>/gi;
 function normalizeBlocks(rawBlocksInput, { seoStructure = {}, provider = 'ai', allowedTypes } = {}) {
   let blocks = rawBlocksInput;
 
-  if (!Array.isArray(blocks) && blocks && typeof blocks === 'object') {
-    // Standard keys the prompt instructs the model to use.
-    if (Array.isArray(blocks.blocks)) blocks = blocks.blocks;
-    else if (Array.isArray(blocks.article)) blocks = blocks.article;
-    else if (Array.isArray(blocks.content)) blocks = blocks.content;
-    else if (Array.isArray(blocks.data)) blocks = blocks.data;
-    else if (Array.isArray(blocks.items)) blocks = blocks.items;
-    else if (Array.isArray(blocks.sections)) blocks = blocks.sections;
-    else {
-      // Last-resort: scan all top-level values for the first array of objects
-      // that contain a 'type' field — this catches cases where the model invents
-      // a key name like "article_blocks" or "content_blocks".
-      const found = Object.values(blocks).find(
-        (v) => Array.isArray(v) && v.length > 0 && v[0] && typeof v[0] === 'object' && typeof v[0].type === 'string'
-      );
-      if (found) blocks = found;
+  const isBlocksArray = (arr) => 
+    Array.isArray(arr) && arr.length > 0 && arr[0] && typeof arr[0] === 'object' && typeof arr[0].type === 'string';
+    
+  const isNumericObjectBlocks = (obj) => {
+    if (Array.isArray(obj) || !obj || typeof obj !== 'object') return false;
+    const vals = Object.values(obj);
+    return vals.length > 0 && vals[0] && typeof vals[0] === 'object' && typeof vals[0].type === 'string';
+  };
+
+  const findBlocksDeep = (obj, depth = 0) => {
+    if (depth > 5 || !obj || typeof obj !== 'object') return null;
+    
+    if (isBlocksArray(obj)) return obj;
+    if (isNumericObjectBlocks(obj)) return Object.values(obj);
+
+    const priorityKeys = ['blocks', 'article', 'content', 'data', 'items', 'sections', 'body'];
+    
+    // First pass: look directly under priority keys (handles correctly named empty arrays too)
+    for (const key of priorityKeys) {
+      if (Array.isArray(obj[key])) {
+        if (obj[key].length === 0 || isBlocksArray(obj[key])) {
+           return obj[key];
+        }
+      }
     }
+
+    // Second pass: deep search within priority keys
+    for (const key of priorityKeys) {
+      if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+        const found = findBlocksDeep(obj[key], depth + 1);
+        if (found) return found;
+      }
+    }
+
+    // Third pass: deep search everywhere else
+    for (const key of Object.keys(obj)) {
+      if (!priorityKeys.includes(key) && obj[key] && typeof obj[key] === 'object') {
+        const found = findBlocksDeep(obj[key], depth + 1);
+        if (found) return found;
+      }
+    }
+    
+    return null;
+  };
+
+  const foundBlocks = findBlocksDeep(blocks);
+  if (foundBlocks) {
+    blocks = foundBlocks;
   }
 
-  // If the model returned a top-level array directly (no wrapping object),
-  // check if it looks like blocks.
-  if (Array.isArray(blocks) && blocks.length > 0 && blocks[0] && typeof blocks[0] === 'object' && typeof blocks[0].type === 'string') {
-    // Already a blocks array — use as-is.
-  } else if (!Array.isArray(blocks)) {
+  if (!Array.isArray(blocks)) {
     throw ApiError.upstream(`${provider} returned an article without a blocks array.`, {
       code: 'UPSTREAM_BAD_RESPONSE',
       details: { provider, received: typeof rawBlocksInput },
@@ -406,6 +433,14 @@ function normalizeBlocks(rawBlocksInput, { seoStructure = {}, provider = 'ai', a
     if (toggle && structure[toggle] === false) continue;
 
     const data = raw.data && typeof raw.data === 'object' ? { ...raw.data } : {};
+
+    // Auto-correct LLM placing HTML in the `text` field instead of the `html` field.
+    if (typeof data.text === 'string' && (!data.html || typeof data.html !== 'string')) {
+      if (/<[a-z\/][^>]*>/i.test(data.text)) {
+        data.html = data.text;
+        delete data.text;
+      }
+    }
 
     // h3 off means "no third level", but the section's prose still belongs in
     // the article — so the heading is promoted rather than the content dropped.
@@ -508,6 +543,26 @@ class BaseProvider {
   }
 
   /**
+   * One-shot, vision-capable knowledge extraction — used by the Knowledge &
+   * Learning Layer (services/agents/knowledge/knowledgeExtraction.js) to turn
+   * admin-fed sources (text/links/images/video transcripts) into structured
+   * candidate knowledge claims. Separate from `runAgentStep` (the tool-use
+   * loop) and `complete` (always uses the shared SYSTEM_PROMPT) because this
+   * needs a caller-supplied system prompt (parameterized by the target
+   * agent's persona) and optional image content blocks — neither of which
+   * either of those support today.
+   *
+   * @param {object} opts
+   * @param {string} opts.systemPrompt
+   * @param {string} opts.textContent Already-fenced, already-clamped combined text.
+   * @param {Array<{mediaType: string, base64: string}>} [opts.images]
+   * @returns {Promise<{raw: string, parsed: object}>}
+   */
+  async analyzeKnowledgeSample(opts) {
+    return this.notImplemented('analyzeKnowledgeSample', opts);
+  }
+
+  /**
    * @param {object} opts See prompts.outlinePrompt.
    * @returns {Promise<{outline: Array<{level: number, text: string}>}>}
    */
@@ -533,6 +588,37 @@ class BaseProvider {
    */
   async generateImage(opts) {
     return this.notImplemented('generateImage', opts);
+  }
+
+  // -------------------------------------------------------------------------
+  // Agentic chat interface
+  // -------------------------------------------------------------------------
+
+  /**
+   * Runs ONE step of a tool-use conversation — a single Messages API call that
+   * either invokes a tool or produces a final reply. Deliberately not a loop:
+   * the caller (services/agents/runAgentTurn.js) owns the multi-turn loop and
+   * tool execution, the same way every other multi-step business decision in
+   * this codebase lives in services/, never inside a provider. Returning raw
+   * tool_use for the orchestrator to execute keeps "did this setting actually
+   * get applied" a service-layer safety decision, not something trusted to
+   * however a provider happens to stop.
+   *
+   * A single step may request MULTIPLE tools at once — Claude is free to do
+   * this, and the Messages API requires every `tool_use` block to have a
+   * matching `tool_result` in the very next message, all together. So
+   * `toolUses` is always an array (possibly empty), never a single value, and
+   * the caller must resolve every entry before continuing the conversation.
+   *
+   * @param {object} opts
+   * @param {string} opts.systemPrompt
+   * @param {Array<{name: string, description: string, input_schema: object}>} opts.tools
+   * @param {Array<{role: string, content: *}>} opts.messages Running conversation, including any prior tool_use/tool_result blocks.
+   * @param {number} [opts.maxTokens]
+   * @returns {Promise<{stopReason: string, text: string|null, toolUses: Array<{id: string, name: string, input: object}>, rawAssistantContent: Array}>}
+   */
+  async runAgentStep(opts) {
+    return this.notImplemented('runAgentStep', opts);
   }
 }
 

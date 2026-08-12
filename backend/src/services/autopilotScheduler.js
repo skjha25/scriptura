@@ -12,7 +12,8 @@
  *   - Processes one keyword per tick to avoid API rate limits
  *   - Errors inside a tick are caught; one bad tick cannot kill future ticks
  *   - The generation itself is fire-and-forget (like manual startGeneration)
- *   - Keywords that fail get retried up to MAX_RETRIES before being skipped
+ *   - Keywords that fail get retried up to the admin-configurable
+ *     `autopilot.max_retries` setting before being skipped
  *
  * The flow for each keyword:
  *   1. Find the next due keyword (status=pending, gen_date <= now, cluster active)
@@ -28,7 +29,19 @@ const logger = require('../utils/logger');
 const activity = require('./activityLogger');
 const { CLUSTER_STATUS, CLUSTER_KEYWORD_STATUS, BLOG_STATUS, GENERATION_STATUS } = require('../constants');
 
-const MAX_RETRIES = 3;
+/**
+ * Reads the admin-configurable retry ceiling via the Autopilot Scheduler
+ * Agent's settings key. Fetched here (only on the failure path, not the
+ * happy path) rather than at module load, so a chat-proposed change takes
+ * effect on the very next failing tick without a process restart — unlike
+ * the cron cadence, which is still read once at boot (see server.js).
+ *
+ * @returns {Promise<number>}
+ */
+async function getMaxRetries() {
+  const { ScripturaSettings } = require('../models');
+  return ScripturaSettings.getValue('autopilot.max_retries', { fallback: 3 });
+}
 
 /**
  * Finds the next due keyword and triggers generation.
@@ -82,10 +95,26 @@ async function processNextDueKeyword() {
 
   // -------------------------------------------------------------------------
   // 2. Mark as generating IMMEDIATELY so subsequent ticks skip this keyword.
-  //    This is the critical guard against duplicates.
+  //    This is the critical guard against duplicates. Use an atomic update
+  //    to prevent race conditions if multiple schedulers run concurrently.
   // -------------------------------------------------------------------------
+  const [updatedRowsCount] = await ClusterKeyword.update(
+    { status: CLUSTER_KEYWORD_STATUS.GENERATING },
+    {
+      where: {
+        id: keyword.id,
+        status: keyword.status, // Optimistic lock
+      },
+    }
+  );
+
+  if (updatedRowsCount === 0) {
+    logger.info(`Autopilot: keyword "${primaryKeyword}" was already claimed by another process.`);
+    return { processed: false, error: 'Lost atomic claim race' };
+  }
+
+  // Update local instance to match the DB
   keyword.status = CLUSTER_KEYWORD_STATUS.GENERATING;
-  await keyword.save();
 
   try {
     // -----------------------------------------------------------------------
@@ -248,20 +277,21 @@ async function processNextDueKeyword() {
     }
 
     const retryCount = (keyword.metadata?.retry_count || 0) + 1;
+    keyword.metadata = { ...keyword.metadata, retry_count: retryCount, last_error: err.message };
+    const maxRetries = await getMaxRetries();
 
-    if (retryCount >= MAX_RETRIES) {
+    if (retryCount >= maxRetries) {
       // Exhausted retries — skip this keyword
-      logger.warn(`Autopilot: keyword "${primaryKeyword}" failed ${MAX_RETRIES} times, marking for manual intervention.`);
-      keyword.status = CLUSTER_KEYWORD_STATUS.PENDING;
-      // Remove the scheduled date so autopilot stops retrying
-      keyword.scheduled_generation_date = null;
+      logger.warn(`Autopilot: keyword "${primaryKeyword}" failed ${maxRetries} times, marking for manual intervention.`);
+      keyword.status = CLUSTER_KEYWORD_STATUS.FAILED;
+      // We do NOT remove scheduled_generation_date, so it remains discoverable as a failed scheduled job.
       await keyword.save();
 
       await activity.autopilotSkipped({
         clusterId: cluster.id,
         keywordId: keyword.id,
         keyword: primaryKeyword,
-        reason: `Failed ${MAX_RETRIES} times — requires manual intervention.`,
+        reason: `Failed ${maxRetries} times — requires manual intervention.`,
         metadata: { error: err.message, retry_count: retryCount },
       });
     } else {
@@ -275,7 +305,7 @@ async function processNextDueKeyword() {
         keywordId: keyword.id,
         keyword: primaryKeyword,
         retryCount,
-        maxRetries: MAX_RETRIES,
+        maxRetries,
         metadata: { error: err.message },
       });
     }

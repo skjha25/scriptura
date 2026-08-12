@@ -125,6 +125,58 @@ class Picker {
   }
 }
 
+/**
+ * Fills a JSON Schema's `properties` with deterministic, plausible-looking
+ * values, for MockProvider.runAgentStep's fake tool calls. Generic on purpose
+ * — every agent tool this app defines describes its arguments as a standard
+ * JSON Schema, so one filler covers all of them without per-tool mock code.
+ *
+ * @param {object} schema A JSON Schema object (`{type:'object', properties, required}`).
+ * @param {Picker} picker
+ * @returns {object}
+ */
+function synthesizeToolInput(schema, picker) {
+  if (!schema || schema.type !== 'object' || !schema.properties) return {};
+
+  const CANNED_STRINGS = [
+    'Brighter and more vibrant, less indigo.',
+    'Warmer, more approachable tone.',
+    'Slightly more formal and measured.',
+  ];
+
+  const fillOne = (propSchema) => {
+    if (!propSchema) return null;
+    if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) return picker.pick(propSchema.enum);
+    switch (propSchema.type) {
+      case 'string':
+        return picker.pick(CANNED_STRINGS);
+      case 'number':
+      case 'integer': {
+        const min = Number.isFinite(propSchema.minimum) ? propSchema.minimum : 0;
+        const max = Number.isFinite(propSchema.maximum) ? propSchema.maximum : min + 10;
+        return min + picker.int(Math.max(1, max - min + 1));
+      }
+      case 'boolean':
+        return picker.chance(50);
+      case 'array':
+        return [];
+      default:
+        return null;
+    }
+  };
+
+  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+  const out = {};
+  for (const [key, propSchema] of Object.entries(schema.properties)) {
+    // Only fill required fields, plus optional ones about a third of the time —
+    // exercises both "minimal call" and "fuller call" shapes across a test run.
+    if (required.has(key) || picker.chance(33)) {
+      out[key] = fillOne(propSchema);
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Content pools. Written to read like the seeded production rows.
 // ---------------------------------------------------------------------------
@@ -314,6 +366,16 @@ const TRAIT_POOL = [
   'Uses the traditional name alongside the Western one',
 ];
 
+/** Knowledge-point claims, for analyzeKnowledgeSample. Generic across agents on purpose. */
+const KNOWLEDGE_POINT_POOL = [
+  'Comprehensive coverage of related subtopics can strengthen topical relevance.',
+  'Consistency in publishing cadence correlates with steadier organic traffic.',
+  'Shorter paragraphs and more white space measurably improve on-page dwell time.',
+  'Internal links between related articles help distribute ranking signal.',
+  'Freshness signals matter more for time-sensitive or YMYL-adjacent topics.',
+  'Concrete, checkable claims are more persuasive than vague superlatives.',
+];
+
 // ---------------------------------------------------------------------------
 // Template rendering
 // ---------------------------------------------------------------------------
@@ -441,6 +503,31 @@ class MockProvider extends BaseProvider {
     // Fenced on purpose: the mock exercises the same fence-stripping path the
     // real providers occasionally need, so that code cannot rot untested.
     return { raw: ['```json', JSON.stringify(parsed), '```'].join('\n'), parsed };
+  }
+
+  /**
+   * Deterministic knowledge extraction. Returns the same `{candidates: [...]}`
+   * shape services/agents/knowledge/knowledgeExtraction.js expects from a real
+   * provider, so its parsing/validation logic is exercised in tests too — same
+   * "mock walks the real code path" principle as analyzeBrandVoice above.
+   *
+   * @param {{systemPrompt: string, textContent?: string, images?: Array}} opts
+   * @returns {Promise<{raw: string, parsed: object}>}
+   */
+  async analyzeKnowledgeSample({ textContent = '', images = [] } = {}) {
+    const picker = new Picker('knowledgeSample', `${textContent}|${images.length}`);
+    const parsed = {
+      candidates: [
+        {
+          category: picker.pick(['seo_strategy', 'content_principle', 'workflow', 'trend']),
+          topic: picker.pick(['topical_authority', 'freshness', 'internal_linking', 'publishing_cadence']),
+          claim: picker.pick(KNOWLEDGE_POINT_POOL),
+          evidence: `Derived from ${textContent.length} chars of text and ${images.length} image(s).`,
+          applicable_agents: [],
+        },
+      ],
+    };
+    return { raw: JSON.stringify(parsed), parsed };
   }
 
   /**
@@ -661,6 +748,62 @@ class MockProvider extends BaseProvider {
   }
 
   /**
+   * Deterministic tool-use step, mirroring AnthropicProvider.runAgentStep's
+   * contract without any network call.
+   *
+   * On the first step of a conversation (no `tool_result` block present yet in
+   * `messages`), deterministically picks one tool from `tools` and synthesises
+   * plausible input from its `input_schema` (same Picker-seeded approach as
+   * every other mock method — identical input always yields identical output).
+   * Once a `tool_result` is present, returns a canned confirmation reply and
+   * stops — real conversations in this app's agents never need more than one
+   * proposed change per turn.
+   *
+   * Always returns at most one tool per step (deliberately simpler than the
+   * real provider, which may return several) — `toolUses` is still an array,
+   * matching AnthropicProvider's contract, so callers never special-case mock
+   * vs. real shapes.
+   *
+   * @param {object} opts
+   * @param {string} opts.systemPrompt
+   * @param {Array<{name: string, description: string, input_schema: object}>} opts.tools
+   * @param {Array<{role: string, content: *}>} opts.messages
+   * @returns {Promise<{stopReason: string, text: string|null, toolUses: Array<{id: string, name: string, input: object}>, rawAssistantContent: Array}>}
+   */
+  async runAgentStep({ systemPrompt, tools = [], messages = [] } = {}) {
+    const hasToolResult = messages.some(
+      (m) => Array.isArray(m.content) && m.content.some((block) => block && block.type === 'tool_result')
+    );
+
+    const picker = new Picker('agentStep', {
+      systemPrompt,
+      toolNames: tools.map((t) => t.name),
+      messages,
+    });
+
+    if (hasToolResult || tools.length === 0) {
+      const id = `mock_msg_${picker.int(1e6)}`;
+      return {
+        stopReason: 'end_turn',
+        text: "Done — I've proposed that change above. Apply it whenever you're ready, or ask me to adjust it.",
+        toolUses: [],
+        rawAssistantContent: [{ type: 'text', text: id }],
+      };
+    }
+
+    const tool = picker.pick(tools);
+    const input = synthesizeToolInput(tool.input_schema, picker);
+    const toolUseId = `mock_tool_${picker.int(1e6)}`;
+
+    return {
+      stopReason: 'tool_use',
+      text: null,
+      toolUses: [{ id: toolUseId, name: tool.name, input }],
+      rawAssistantContent: [{ type: 'tool_use', id: toolUseId, name: tool.name, input }],
+    };
+  }
+
+  /**
    * Synthesises a small, valid PNG.
    *
    * A real PNG rather than a fake buffer because the storage layer runs it
@@ -726,4 +869,5 @@ module.exports = {
   SECTION_HEADINGS,
   TONE_POOL,
   TRAIT_POOL,
+  KNOWLEDGE_POINT_POOL,
 };

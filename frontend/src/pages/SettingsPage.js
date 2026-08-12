@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { settingsApi } from '../lib/api';
+import Button from '../components/ui/Button';
+import { Input } from '../components/ui/form';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 /**
  * SettingsPage (Trending Topics)
@@ -47,7 +50,7 @@ export default function SettingsPage() {
       if (topicText === newTopic) {
         setNewTopic('');
       }
-      
+
       // Remove from suggested if it was there
       setSuggestedTopics(suggestedTopics.filter(t => t !== topicText.trim()));
     } catch (err) {
@@ -113,14 +116,16 @@ export default function SettingsPage() {
                 Real-time analysis to suggest trending astrology topics based on current astrological events and search volume.
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="primary"
               onClick={handleSuggestTopics}
               disabled={suggesting}
-              className="btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white whitespace-nowrap"
+              loading={suggesting}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-none whitespace-nowrap"
             >
               {suggesting ? 'Analyzing...' : 'Suggest Topics'}
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-3">
@@ -141,14 +146,15 @@ export default function SettingsPage() {
                   className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl"
                 >
                   <span className="text-white font-medium">{topic}</span>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => handleAddTopic(topic)}
                     disabled={submitting}
-                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10 p-2 rounded-lg transition-colors text-sm font-semibold"
+                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10"
                   >
                     Add
-                  </button>
+                  </Button>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -162,21 +168,23 @@ export default function SettingsPage() {
           </p>
 
           <form onSubmit={(e) => handleAddTopic(newTopic, e)} className="flex gap-3 mb-8">
-            <input
+            <Input
               type="text"
-              className="input flex-1"
+              containerClassName="flex-1"
               placeholder="e.g., Diwali Puja Astrology..."
               value={newTopic}
               onChange={(e) => setNewTopic(e.target.value)}
               disabled={submitting}
             />
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary whitespace-nowrap"
+              variant="primary"
+              className="whitespace-nowrap"
               disabled={!newTopic.trim() || submitting}
+              loading={submitting}
             >
               {submitting ? 'Adding...' : 'Add Topic'}
-            </button>
+            </Button>
           </form>
 
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
@@ -197,13 +205,14 @@ export default function SettingsPage() {
                     className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
                   >
                     <span className="text-white font-medium">{t.topic}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="danger"
                       onClick={() => handleDelete(t.id)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors text-sm font-medium"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
                     >
                       Remove
-                    </button>
+                    </Button>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -211,6 +220,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <AgentChatWidget agents={['research_agent', 'autopilot_agent']} defaultAgent="research_agent" />
     </motion.div>
   );
 }

@@ -81,10 +81,23 @@ const generationLimiter = makeLimiter({
     'please wait before starting more generations.',
 });
 
+/**
+ * Applied to every agent chat turn: each one is a real Claude API call, same
+ * budget concern as generationLimiter but tracked separately so a chatty admin
+ * session cannot crowd out the article-generation budget for everyone else.
+ */
+const agentChatLimiter = makeLimiter({
+  windowMs: config.rateLimit.agentChatWindowMs,
+  max: config.rateLimit.agentChatMax,
+  code: 'AGENT_CHAT_RATE_LIMITED',
+  message: 'Agent chat rate limit reached. Please wait before sending more messages.',
+});
+
 module.exports = {
   globalLimiter,
   authLimiter,
   generationLimiter,
+  agentChatLimiter,
   makeLimiter,
   keyByUserOrIp,
 };

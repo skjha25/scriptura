@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { keywordsApi, clustersApi } from '../lib/api';
+import Button from '../components/ui/Button';
+import { Input } from '../components/ui/form';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 export default function KeywordsPage() {
   const navigate = useNavigate();
@@ -112,21 +115,23 @@ export default function KeywordsPage() {
           </div>
 
           <form onSubmit={handleSuggestKeywords} className="flex gap-3 mb-6">
-            <input
+            <Input
               type="text"
-              className="input flex-1"
+              containerClassName="flex-1"
               placeholder="e.g., Vedic Astrology..."
               value={topicForSuggestion}
               onChange={(e) => setTopicForSuggestion(e.target.value)}
               disabled={suggesting}
             />
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={suggesting || !topicForSuggestion.trim()}
-              className="btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white whitespace-nowrap"
+              loading={suggesting}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-none whitespace-nowrap"
             >
               {suggesting ? 'Fetching...' : 'Suggest Keywords'}
-            </button>
+            </Button>
           </form>
 
           <div className="space-y-3">
@@ -147,14 +152,15 @@ export default function KeywordsPage() {
                   className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl"
                 >
                   <span className="text-white font-medium">{kw}</span>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => handleAddKeyword(kw)}
                     disabled={submitting}
-                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10 p-2 rounded-lg transition-colors text-sm font-semibold"
+                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10"
                   >
                     Add
-                  </button>
+                  </Button>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -168,21 +174,23 @@ export default function KeywordsPage() {
           </p>
 
           <form onSubmit={(e) => handleAddKeyword(newKeyword, e)} className="flex gap-3 mb-8">
-            <input
+            <Input
               type="text"
-              className="input flex-1"
+              containerClassName="flex-1"
               placeholder="e.g., best horoscopes 2026"
               value={newKeyword}
               onChange={(e) => setNewKeyword(e.target.value)}
               disabled={submitting}
             />
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary whitespace-nowrap"
+              variant="primary"
+              className="whitespace-nowrap"
               disabled={!newKeyword.trim() || submitting}
+              loading={submitting}
             >
               {submitting ? 'Adding...' : 'Add Keyword'}
-            </button>
+            </Button>
           </form>
 
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
@@ -209,8 +217,9 @@ export default function KeywordsPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onClick={async () => {
                           try {
                             const cluster = await clustersApi.create({
@@ -223,17 +232,18 @@ export default function KeywordsPage() {
                             setError(err.message || 'Failed to create cluster');
                           }
                         }}
-                        className="text-accent hover:text-accent-bright hover:bg-accent/10 p-2 rounded-lg transition-colors text-xs font-medium whitespace-nowrap"
+                        className="text-accent hover:text-accent-bright hover:bg-accent/10 whitespace-nowrap"
                       >
                         Expand to Cluster
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="danger"
                         onClick={() => handleDelete(k.id)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors text-sm font-medium"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </motion.div>
                 ))}
@@ -242,6 +252,8 @@ export default function KeywordsPage() {
           </div>
         </div>
       </div>
+
+      <AgentChatWidget agents={['research_agent']} defaultAgent="research_agent" />
     </motion.div>
   );
 }

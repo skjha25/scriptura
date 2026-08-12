@@ -50,20 +50,29 @@ const GROUNDING_MAX_CHARS = 4000;
  * editorial rules Divinetalk cares about most (no invented predictions, no
  * medical/financial guarantees).
  */
+/**
+ * The "golden rule" for text generation — non-negotiable, never exposed to
+ * an agent as something it can propose changing (see BASE_DIRECTIVES in
+ * services/imageGeneration.js for the image-side equivalent). Extracted as
+ * its own array — rather than inlined only inside SYSTEM_PROMPT below — so
+ * GET /agents/golden-rules can show an admin the real, live text instead of
+ * a hand-maintained description that could drift from what the model
+ * actually receives.
+ */
+const EDITORIAL_GOLDEN_RULES = [
+  'Use the correct traditional terminology (nakshatra, dasha, dosha, vrat, puja vidhi) and gloss it in plain English on first use.',
+  'Never invent a specific dated prediction, a scripture citation, or a statistic. Where a classical source is referenced, describe it as a traditional reading rather than attributing a verse you cannot verify.',
+  'Never promise a guaranteed outcome, and never give medical, legal or financial advice. Remedies are framed as practices, not cures.',
+  'Respect the reader. No fear-selling, no "you are doomed unless" framing.',
+];
+
 const SYSTEM_PROMPT = [
   'You are the senior content editor for DivineTalk, an Indian astrology and',
   'spirituality brand. Your readers are Indian, mostly urban, comfortable in',
   'English but familiar with Sanskrit and Hindi devotional vocabulary.',
   '',
   'Editorial rules you never break:',
-  '- Use the correct traditional terminology (nakshatra, dasha, dosha, vrat,',
-  '  puja vidhi) and gloss it in plain English on first use.',
-  '- Never invent a specific dated prediction, a scripture citation, or a',
-  '  statistic. Where a classical source is referenced, describe it as a',
-  '  traditional reading rather than attributing a verse you cannot verify.',
-  '- Never promise a guaranteed outcome, and never give medical, legal or',
-  '  financial advice. Remedies are framed as practices, not cures.',
-  '- Respect the reader. No fear-selling, no "you are doomed unless" framing.',
+  ...EDITORIAL_GOLDEN_RULES.map((rule) => `- ${rule}`),
   '',
   'You always reply with valid JSON and nothing else — no prose preamble, no',
   'markdown code fences, no trailing commentary.',
@@ -97,7 +106,15 @@ function fence(label, text) {
 }
 
 /** Renders the wizard's tone/POV/readability knobs as prompt lines. */
-function styleDirectives({ toneOfVoice, pointOfView, readabilityLevel, language, targetCountry, brandVoice } = {}) {
+function styleDirectives({
+  toneOfVoice,
+  pointOfView,
+  readabilityLevel,
+  language,
+  targetCountry,
+  brandVoice,
+  extraStyleNotes,
+} = {}) {
   const lines = [];
 
   if (toneOfVoice) lines.push(`- Tone: ${toneOfVoice}.`);
@@ -128,6 +145,11 @@ function styleDirectives({ toneOfVoice, pointOfView, readabilityLevel, language,
   if (brandVoice && (brandVoice.tone || (brandVoice.traits || []).length)) {
     lines.push('- Match the confirmed brand voice below exactly.');
   }
+
+  // Admin-set global default (Generate Agent), applied after every explicit
+  // per-blog knob above so it reads as "also keep this in mind" rather than
+  // competing with them.
+  if (extraStyleNotes) lines.push(`- Additional style guidance: ${extraStyleNotes}.`);
 
   return lines;
 }
@@ -278,12 +300,30 @@ function titlesPrompt({
  *
  * @param {object} opts
  * @param {string} opts.sample Extracted writing sample (already length-capped).
+ * @param {object} [opts.previousProfile] A previously confirmed profile
+ *   (tone/pov/traits/summary) to refine rather than discard — passed by
+ *   styleProfile.js's extractStyleProfile so re-teaching the Generate
+ *   Agent from a new sample builds on what it already learned instead of
+ *   replacing it outright each time.
  * @returns {string}
  */
-function brandVoicePrompt({ sample } = {}) {
+function brandVoicePrompt({ sample, previousProfile } = {}) {
+  const previousProfileBlock = previousProfile
+    ? [
+        '',
+        'This voice has already been analysed before — here is what was learned',
+        'previously. Refine and build on it using the new sample below rather than',
+        'starting over: keep whatever still holds, adjust anything the new sample',
+        'contradicts, and fold in anything new it reveals.',
+        '',
+        fence('previous_profile', JSON.stringify(previousProfile)),
+      ]
+    : [];
+
   return [
     'Analyse the writing sample below and describe its voice so another writer',
     'could reproduce it.',
+    ...previousProfileBlock,
     '',
     fence('writing_sample', clamp(sample, BRAND_VOICE_SAMPLE_MAX_CHARS)),
     '',
@@ -591,6 +631,7 @@ function suggestTopicsFromKeywordPrompt({ keyword, secondaryKeywords = [], serpD
 
 module.exports = {
   SYSTEM_PROMPT,
+  EDITORIAL_GOLDEN_RULES,
   BRAND_VOICE_SAMPLE_MAX_CHARS,
   GROUNDING_MAX_CHARS,
   titlesPrompt,

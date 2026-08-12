@@ -168,6 +168,49 @@ function resolveBrandVoice(blog, cfg) {
 }
 
 /**
+ * Reads the Generate Agent's global content defaults (tone, POV, readability,
+ * extra notes) — a BASELINE that `providerOptionsFor` only falls back to when
+ * the blog's own config and a confirmed brand voice are both silent on a
+ * given field. An admin changing this through chat therefore never overrides
+ * a human's explicit per-blog choice, only fills in what nobody set.
+ *
+ * @returns {Promise<{toneOfVoice: string|undefined, pointOfView: string|undefined, readabilityLevel: string|undefined, extraNotes: string|undefined}>}
+ */
+async function resolveContentDefaults() {
+  const { ScripturaSettings } = require('../models');
+  const defaults = (await ScripturaSettings.getValue('agents.generate.content_defaults', { fallback: null })) || {};
+  return {
+    toneOfVoice: defaults.tone_of_voice || undefined,
+    pointOfView: defaults.point_of_view || undefined,
+    readabilityLevel: defaults.readability_level || undefined,
+    extraNotes: defaults.extra_notes || undefined,
+  };
+}
+
+/**
+ * Falls back to the Generate Agent's confirmed global style profile when the
+ * blog has no per-blog brand voice — coerced into the exact `{tone, pov,
+ * traits, summary}` shape a real brand voice has, so it flows through the
+ * SAME prompt-rendering path (`prompts.js`'s brandVoiceSection/styleDirectives)
+ * rather than a second near-duplicate one. Only ever reads a `confirmed:true`
+ * profile — an unconfirmed draft (returned in-chat by
+ * start_style_profile_extraction, never persisted by it) can't reach here.
+ *
+ * Judgment call: a per-blog brand voice always wins outright rather than the
+ * two stacking, since asking the model to reconcile two separate "match this
+ * voice" instructions is more likely to produce a muddled result than a clear
+ * one — see the Phase 1 plan for the full reasoning.
+ *
+ * @returns {Promise<{tone: string|null, pov: string|null, traits: string[], summary: string|null}|null>}
+ */
+async function resolveStyleProfileAsBrandVoice() {
+  const { ScripturaSettings } = require('../models');
+  const profile = await ScripturaSettings.getValue('agents.generate.style_profile', { fallback: null });
+  if (!profile || profile.confirmed !== true) return null;
+  return { tone: profile.tone, pov: profile.pov, traits: profile.traits || [], summary: profile.summary };
+}
+
+/**
  * Turns `internal_link_targets` (ids and/or slugs) into `{slug, title}` pairs.
  *
  * Only published, non-deleted rows are eligible — linking a reader to a draft is
@@ -206,6 +249,62 @@ async function resolveInternalLinks(cfg) {
   return rows
     .filter((row) => row.slug)
     .map((row) => ({ slug: row.slug, title: row.blog_title }));
+}
+
+/**
+ * Scans generated blocks for internal links and verifies the destination exists
+ * and is published. Strips the link tag (leaving the text intact) if the blog
+ * is missing, deleted, or a draft.
+ * 
+ * @param {Array} blocks
+ */
+async function verifyAndStripInvalidLinks(blocks) {
+  if (!blocks || !blocks.length) return;
+  
+  const linkRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
+  const slugsToCheck = new Set();
+  
+  // First pass: collect all internal slugs
+  for (const block of blocks) {
+    if (block?.data?.html) {
+      let match;
+      while ((match = linkRegex.exec(block.data.html)) !== null) {
+        const href = match[1];
+        if (href.includes('/blog/')) {
+          const slugMatch = href.match(/\/blog\/([^\/?#]+)/);
+          if (slugMatch && slugMatch[1]) {
+            slugsToCheck.add(slugMatch[1]);
+          }
+        }
+      }
+    }
+  }
+  
+  if (slugsToCheck.size === 0) return;
+  
+  // Verify slugs against the database
+  const { Blog } = require('../models');
+  const validRows = await Blog.scope('linkable').findAll({
+    where: { slug: Array.from(slugsToCheck) },
+    attributes: ['slug']
+  });
+  
+  const validSlugs = new Set(validRows.map(r => r.slug));
+  
+  // Second pass: strip invalid links
+  for (const block of blocks) {
+    if (block?.data?.html) {
+      block.data.html = block.data.html.replace(linkRegex, (fullMatch, href, linkText) => {
+        if (href.includes('/blog/')) {
+          const slugMatch = href.match(/\/blog\/([^\/?#]+)/);
+          if (!slugMatch || !slugMatch[1] || !validSlugs.has(slugMatch[1])) {
+            return linkText; // strip tag, keep text
+          }
+        }
+        return fullMatch; // keep valid link or external link
+      });
+    }
+  }
 }
 
 /**
@@ -261,9 +360,18 @@ function outlineFromBlocks(blocks) {
 
 /**
  * Builds the provider-facing options object from a validated config.
+ *
+ * Precedence for tone/POV/readability: explicit per-blog wizard config wins,
+ * then a confirmed per-blog brand voice, then the Generate Agent's global
+ * default (resolveContentDefaults) — an admin-set baseline never overrides a
+ * human's explicit choice for a specific article.
+ *
  * @private
  */
-function providerOptionsFor({ cfg, blog, brandVoice, internalLinks, groundingBrief }) {
+async function providerOptionsFor({ cfg, blog, brandVoice, internalLinks, groundingBrief }) {
+  const contentDefaults = await resolveContentDefaults();
+  const effectiveBrandVoice = brandVoice || (await resolveStyleProfileAsBrandVoice());
+
   return {
     topic: cfg.topic || blog.topic || blog.blog_title,
     title: cfg.title || blog.blog_title,
@@ -272,15 +380,21 @@ function providerOptionsFor({ cfg, blog, brandVoice, internalLinks, groundingBri
     outline: cfg.outline && cfg.outline.length ? cfg.outline : blog.outline || [],
     targetWordCount: cfg.target_word_count,
     articleType: cfg.article_type,
-    toneOfVoice: cfg.tone_of_voice || brandVoice?.tone || undefined,
-    pointOfView: cfg.point_of_view || brandVoice?.pov || undefined,
-    readabilityLevel: cfg.readability_level,
+    toneOfVoice: cfg.tone_of_voice || effectiveBrandVoice?.tone || contentDefaults.toneOfVoice,
+    pointOfView: cfg.point_of_view || effectiveBrandVoice?.pov || contentDefaults.pointOfView,
+    readabilityLevel: cfg.readability_level || contentDefaults.readabilityLevel,
+    extraStyleNotes: contentDefaults.extraNotes,
     language: cfg.language,
     targetCountry: cfg.target_country,
     aiContentCleaning: cfg.ai_content_cleaning,
     seoStructure: cfg.seo_structure_config,
-    brandVoice: brandVoice
-      ? { tone: brandVoice.tone, pov: brandVoice.pov, traits: brandVoice.traits, summary: brandVoice.summary }
+    brandVoice: effectiveBrandVoice
+      ? {
+          tone: effectiveBrandVoice.tone,
+          pov: effectiveBrandVoice.pov,
+          traits: effectiveBrandVoice.traits,
+          summary: effectiveBrandVoice.summary,
+        }
       : undefined,
     internalLinks,
     imageCount: cfg.include_images ? cfg.image_count : 0,
@@ -315,12 +429,15 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     return { status: 'abandoned', blogId: Number(blogId) };
   }
 
+  // Declared before the try so the catch block (which logs duration on
+  // failure too) can see it — a `const` declared inside the try is scoped to
+  // that block only and would throw a ReferenceError from the catch.
+  const startTime = Date.now();
+
   try {
     blog.generation_status = GENERATION_STATUS.GENERATING;
     blog.generation_error = null;
     await blog.save();
-
-    const startTime = Date.now();
 
     // Log generation started.
     activity.generationStarted({
@@ -344,7 +461,7 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
       : null;
 
     const textProvider = provider || getTextProvider();
-    const options = providerOptionsFor({
+    const options = await providerOptionsFor({
       cfg,
       blog,
       brandVoice,
@@ -354,6 +471,8 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
 
     const result = await textProvider.generateArticle(options);
     const blocks = result.blocks;
+
+    await verifyAndStripInvalidLinks(blocks);
 
     // blog_content is DERIVED, never hand-built. The renderer is the only thing
     // that may produce the HTML the public site reads — see the model's header.
@@ -765,6 +884,27 @@ async function reapStaleGenerations({ olderThanMs = DEFAULT_STALE_AFTER_MS } = {
     await blog.save();
     ids.push(Number(blog.id));
     activity.reapStale({ blogId: Number(blog.id) });
+    
+    if (blog.cluster_id) {
+      try {
+        const { ClusterKeyword } = require('../models');
+        const { CLUSTER_KEYWORD_STATUS } = require('../constants');
+        const clusterKw = await ClusterKeyword.findOne({
+          where: { assigned_blog_id: blog.id, cluster_id: blog.cluster_id },
+        });
+        if (clusterKw && clusterKw.status === CLUSTER_KEYWORD_STATUS.GENERATING) {
+          clusterKw.status = CLUSTER_KEYWORD_STATUS.SCHEDULED;
+          await clusterKw.save();
+          logger.info(`Cluster keyword #${clusterKw.id} reverted to scheduled after stale generation reap.`, { blogId: blog.id });
+        }
+      } catch (kwErr) {
+        logger.error('Failed to revert cluster keyword status during reap', {
+          blogId: blog.id,
+          clusterId: blog.cluster_id,
+          error: kwErr.message,
+        });
+      }
+    }
   }
 
   if (ids.length > 0) {

@@ -16,6 +16,7 @@ const { sequelize, assertConnection } = require('./config/database');
 const { ensureStorageReady } = require('./services/storage');
 const { startScheduledPublisher } = require('./services/scheduledPublisher');
 const { startAutopilotScheduler } = require('./services/autopilotScheduler');
+const { reapStaleGenerations } = require('./services/generation');
 
 /** Surfaces the config warnings collected at load time, once, on boot. */
 function reportWarnings() {
@@ -73,6 +74,13 @@ async function start() {
   // Flips SCHEDULED blogs to PUBLISHED once their publish_date arrives. See
   // services/scheduledPublisher.js. Returns null (and logs why) when disabled.
   const scheduledPublisherTask = startScheduledPublisher();
+
+  // Recover any generations left in 'generating' state due to a previous crash.
+  try {
+    await reapStaleGenerations();
+  } catch (err) {
+    logger.error('Failed to reap stale generations on startup', err);
+  }
 
   // Triggers blog generation for cluster keywords whose scheduled_generation_date
   // has arrived. See services/autopilotScheduler.js.

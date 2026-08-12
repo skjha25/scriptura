@@ -73,6 +73,7 @@ const MAX_TOKENS = Object.freeze({
   titles: 8192,
   brandVoice: 8192,
   outline: 8192,
+  knowledgeExtraction: 4096,
 });
 
 class AnthropicProvider extends BaseProvider {
@@ -250,6 +251,55 @@ class AnthropicProvider extends BaseProvider {
   }
 
   /**
+   * Vision-capable one-shot knowledge extraction. Deliberately bypasses
+   * `complete()` — that method always sends the shared `SYSTEM_PROMPT` and
+   * plain-string content; this needs a caller-supplied system prompt and,
+   * when images are present, an array of content blocks instead.
+   *
+   * @param {{systemPrompt: string, textContent: string, images?: Array<{mediaType: string, base64: string}>}} opts
+   * @returns {Promise<{raw: string, parsed: object}>}
+   */
+  async analyzeKnowledgeSample({ systemPrompt, textContent, images = [] } = {}) {
+    return this.run('analyzeKnowledgeSample', async () => {
+      const content = [
+        ...images.map((img) => ({
+          type: 'image',
+          source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+        })),
+        { type: 'text', text: textContent },
+      ];
+
+      const requestBody = {
+        model: this.model,
+        max_tokens: MAX_TOKENS.knowledgeExtraction,
+        system: systemPrompt,
+        messages: [{ role: 'user', content }],
+      };
+
+      const modelRequiresThinkingDisable = MODELS_WITHOUT_SAMPLING.some((m) => this.model.startsWith(m));
+      if (modelRequiresThinkingDisable) {
+        requestBody.thinking = { type: 'disabled' };
+      }
+
+      const response = await this.client.messages.create(requestBody, { timeout: this.timeoutMs });
+
+      const text = (response?.content || [])
+        .filter((part) => part && part.type === 'text')
+        .map((part) => part.text)
+        .join('');
+
+      if (!text || text.trim() === '') {
+        throw ApiError.upstream('Anthropic returned no text content.', {
+          code: 'UPSTREAM_EMPTY_RESPONSE',
+          details: { provider: this.name, operation: 'analyzeKnowledgeSample' },
+        });
+      }
+
+      return { raw: text, parsed: this.parse(text, 'knowledge extraction response') };
+    });
+  }
+
+  /**
    * Generates a section outline.
    * @param {object} opts See prompts.outlinePrompt.
    * @returns {Promise<{outline: Array<{level: number, text: string}>}>}
@@ -311,6 +361,68 @@ class AnthropicProvider extends BaseProvider {
       meta_description:
         typeof parsed?.meta_description === 'string' ? parsed.meta_description.trim() : null,
     };
+  }
+
+  /**
+   * One step of an agentic tool-use conversation. See BaseProvider.runAgentStep
+   * for why this returns a single step rather than looping internally.
+   *
+   * Deliberately omits `temperature` unconditionally (not just for
+   * MODELS_WITHOUT_SAMPLING) — deterministic tool choice is preferable for an
+   * ops/admin agent over creative sampling. The `thinking: {type: 'disabled'}`
+   * branch is still required for MODELS_WITHOUT_SAMPLING, for the same reason
+   * documented at the top of this file: without it, the model can spend its
+   * whole token budget "thinking" and return no text/tool_use content at all.
+   *
+   * Claude may request several tools in one response — `toolUses` is always an
+   * array so a caller that only handles one silently drops the rest and then
+   * gets a 400 on the next call (a real bug this comment exists because of):
+   * every `tool_use` block needs a matching `tool_result` in the very next
+   * message, or the Messages API rejects the whole request.
+   *
+   * @param {object} opts
+   * @param {string} opts.systemPrompt
+   * @param {Array<{name: string, description: string, input_schema: object}>} opts.tools
+   * @param {Array<{role: string, content: *}>} opts.messages
+   * @param {number} [opts.maxTokens]
+   * @returns {Promise<{stopReason: string, text: string|null, toolUses: Array<{id: string, name: string, input: object}>, rawAssistantContent: Array}>}
+   */
+  async runAgentStep({ systemPrompt, tools, messages, maxTokens = config.ai.anthropic.agentMaxTokens }) {
+    return this.run('runAgentStep', async () => {
+      const requestBody = {
+        model: this.model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages,
+        tools: (tools || []).map(({ name, description, input_schema }) => ({
+          name,
+          description,
+          input_schema,
+        })),
+      };
+
+      const modelRequiresThinkingDisable = MODELS_WITHOUT_SAMPLING.some((m) => this.model.startsWith(m));
+      if (modelRequiresThinkingDisable) {
+        requestBody.thinking = { type: 'disabled' };
+      }
+      // No `else` branch sending temperature here — see doc comment above.
+
+      const response = await this.client.messages.create(requestBody, { timeout: this.timeoutMs });
+
+      const content = response?.content || [];
+      const toolUseBlocks = content.filter((block) => block && block.type === 'tool_use');
+      const text = content
+        .filter((block) => block && block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+
+      return {
+        stopReason: response?.stop_reason ?? null,
+        text: text || null,
+        toolUses: toolUseBlocks.map((block) => ({ id: block.id, name: block.name, input: block.input })),
+        rawAssistantContent: content,
+      };
+    });
   }
 
   async generateAutoTopicFromKeyword(opts = {}) {

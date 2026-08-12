@@ -28,6 +28,9 @@ const KeywordsPage = lazy(() => import('./pages/KeywordsPage'));
 const ClusterPage = lazy(() => import('./pages/ClusterPage'));
 const ClusterDetailPage = lazy(() => import('./pages/ClusterDetailPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AgentActivityPage = lazy(() => import('./pages/AgentActivityPage'));
+const PlatformRulesPage = lazy(() => import('./pages/PlatformRulesPage'));
+const AgentKnowledgePage = lazy(() => import('./pages/AgentKnowledgePage'));
 /** Full-screen loading state, used while a lazy route or the session resolves. */
 function FullScreenLoader({ label = 'Loading' }) {
   return (
@@ -119,6 +122,9 @@ export default function App() {
           <Route path="keywords" element={<KeywordsPage />} />
           <Route path="clusters" element={<ClusterPage />} />
           <Route path="clusters/:id" element={<ClusterDetailPage />} />
+          <Route path="agents/activity" element={<AgentActivityPage />} />
+          <Route path="agents/rules" element={<PlatformRulesPage />} />
+          <Route path="agents/knowledge" element={<AgentKnowledgePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

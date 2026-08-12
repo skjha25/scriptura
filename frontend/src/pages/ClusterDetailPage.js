@@ -15,6 +15,7 @@ import { useParams, Link } from 'react-router-dom';
 
 import { clustersApi } from '../lib/api';
 import { humanizeEnum, CLUSTER_KEYWORD_STATUS_META } from '../lib/constants';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 import Button from '../components/ui/Button';
 import {
   Badge,
@@ -371,6 +372,8 @@ export default function ClusterDetailPage() {
           onApplied={load}
         />
       ) : null}
+
+      <AgentChatWidget agents={['cluster_agent']} defaultAgent="cluster_agent" />
     </div>
   );
 }

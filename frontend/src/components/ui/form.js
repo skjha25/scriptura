@@ -17,10 +17,10 @@ import clsx from 'clsx';
 
 /** Shared input chrome, so every control looks identical. */
 const CONTROL_BASE =
-  'w-full bg-panel-sunken text-ink placeholder:text-ink-faint border border-hairline rounded-lg ' +
+  'w-full bg-panel text-ink placeholder:text-ink-faint border border-hairline rounded-lg ' +
   'px-3 py-2.5 text-sm transition-colors duration-150 ' +
-  'hover:border-hairline-strong focus:border-accent focus:outline-none ' +
-  'disabled:opacity-50 disabled:cursor-not-allowed';
+  'hover:border-hairline-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
 
 const CONTROL_ERROR = 'border-status-critical/60 focus:border-status-critical';
 
@@ -307,7 +307,7 @@ export function TagInput({ label, hint, value = [], onChange, placeholder, max =
         className={clsx(
           CONTROL_BASE,
           'flex min-h-[42px] flex-wrap items-center gap-1.5 py-1.5',
-          'focus-within:border-accent'
+          'focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20'
         )}
       >
         {value.map((tag) => (

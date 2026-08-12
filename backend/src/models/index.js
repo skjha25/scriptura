@@ -27,6 +27,11 @@ const KeywordCluster = require('./keywordCluster')(sequelize);
 const ClusterKeyword = require('./clusterKeyword')(sequelize);
 const ScripturaSettings = require('./scripturaSettings')(sequelize);
 const ScripturaLog = require('./scripturaLog')(sequelize);
+const AgentActivity = require('./agentActivity')(sequelize);
+const AgentKnowledge = require('./agentKnowledge')(sequelize);
+const KnowledgeSource = require('./knowledgeSource')(sequelize);
+const SourceChunk = require('./sourceChunk')(sequelize);
+const AgentKnowledgeUsage = require('./agentKnowledgeUsage')(sequelize);
 
 // Set up associations
 ScripturaKeyword.hasMany(Blog, { foreignKey: 'keyword_pool_id', as: 'blogs' });
@@ -61,6 +66,28 @@ ScripturaLog.belongsTo(KeywordCluster, { foreignKey: 'cluster_id', as: 'cluster'
 ScripturaLog.belongsTo(ClusterKeyword, { foreignKey: 'keyword_id', as: 'keyword', constraints: false });
 ScripturaLog.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
 
+// agent_activity: same "logs survive the referenced entity" spirit as
+// scriptura_logs — an admin's account or a settings row can change or be
+// removed without invalidating the audit trail.
+AgentActivity.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
+
+// agent_knowledge: self-referencing version chain (a superseding row points
+// back at the one it replaces) plus who taught it, if a human did.
+AgentKnowledge.belongsTo(AgentKnowledge, { foreignKey: 'supersedes_id', as: 'supersedes', constraints: false });
+AgentKnowledge.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
+
+// Knowledge Layer v2: a claim optionally traces back to the raw source it was
+// distilled from; a source has many chunks; usage rows reference the claim
+// they were retrieved for. `constraints: false` throughout for the same
+// reason as agent_activity/scriptura_logs above — Sequelize's own `sync()`
+// (test suite only, see syncSchema below) shouldn't try to auto-create FKs
+// the real migrations already own.
+AgentKnowledge.belongsTo(KnowledgeSource, { foreignKey: 'source_id', as: 'source', constraints: false });
+KnowledgeSource.hasMany(SourceChunk, { foreignKey: 'source_id', as: 'chunks', constraints: false });
+SourceChunk.belongsTo(KnowledgeSource, { foreignKey: 'source_id', as: 'source', constraints: false });
+KnowledgeSource.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
+AgentKnowledgeUsage.belongsTo(AgentKnowledge, { foreignKey: 'knowledge_id', as: 'knowledge', constraints: false });
+
 const db = {
   sequelize,
   Sequelize,
@@ -72,6 +99,11 @@ const db = {
   ClusterKeyword,
   ScripturaSettings,
   ScripturaLog,
+  AgentActivity,
+  AgentKnowledge,
+  KnowledgeSource,
+  SourceChunk,
+  AgentKnowledgeUsage,
 };
 
 /**

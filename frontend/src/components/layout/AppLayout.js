@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
 import ThemeToggle from '../ui/ThemeToggle';
+import AgentChatWidget from '../agents/AgentChatWidget';
 
 const NAV_ITEMS = [
   {
@@ -76,6 +77,33 @@ const NAV_ITEMS = [
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-2.25z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agents/activity',
+    label: 'Agent Activity',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21M6.75 6.75h10.5v10.5H6.75V6.75z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agents/rules',
+    label: 'Platform Rules',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 4.556-3.032 8.25-6.75 9.75-3.718-1.5-6.75-5.194-6.75-9.75V5.311a1.5 1.5 0 01.998-1.415A11.968 11.968 0 0012 3c1.985 0 3.87.512 5.502 1.416a1.5 1.5 0 01.998 1.415V12z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agents/knowledge',
+    label: 'Agent Knowledge',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13M12 6.253C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
       </svg>
     ),
   },
@@ -310,7 +338,10 @@ export default function AppLayout() {
               )}
             </svg>
           </button>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <AgentChatWidget agents={['chief_agent']} defaultAgent="chief_agent" variant="header" />
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Mobile top bar. */}
@@ -330,7 +361,10 @@ export default function AppLayout() {
               <span className="text-sm font-semibold text-ink">Scriptura</span>
             </Link>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <AgentChatWidget agents={['chief_agent']} defaultAgent="chief_agent" variant="header" />
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

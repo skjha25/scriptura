@@ -58,6 +58,7 @@ import EditorCanvas from '../components/editor/EditorCanvas';
 import BlockSettingsPanel from '../components/editor/BlockSettingsPanel';
 import PreviewPane from '../components/editor/PreviewPane';
 import SaveStatus from '../components/editor/SaveStatus';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 import {
   createBlock,
   duplicateBlock,
@@ -623,6 +624,20 @@ export default function EditorPage() {
           onDelete={handleDelete}
         />
       </div>
+
+      <AgentChatWidget
+        agents={['blog_ops_agent']}
+        defaultAgent="blog_ops_agent"
+        context={{ blog_id: blog.id, blocks }}
+        onApplyProposal={(change) => {
+          if (change.domain !== 'blog_ops' || readOnly) return false;
+          // No mergeKey: an agent-applied edit is always its own undo step,
+          // distinguishable from a human's own typing (which merges via
+          // "<blockId>:field" keys) — see useBlockHistory.js.
+          handleChangeBlock(change.block_id, change.proposed_value);
+          return true;
+        }}
+      />
     </motion.div>
   );
 }

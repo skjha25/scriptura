@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 import { analyticsApi } from '../lib/api';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 import Button from '../components/ui/Button';
 import { Select } from '../components/ui/form';
@@ -472,6 +473,8 @@ export default function DashboardPage() {
 
         </>
       ) : null}
+
+      <AgentChatWidget agents={['seo_analyst_agent']} defaultAgent="seo_analyst_agent" />
     </div>
   );
 }

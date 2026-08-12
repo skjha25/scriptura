@@ -123,4 +123,7 @@ module.exports = {
   idParam,
   keywordParam,
   updateKeywordBody,
+  // Exported for validators/proposals.validators.js to reuse exact bounds
+  // rather than re-declaring them for the Cluster Agent's proposal branches.
+  datetimeString,
 };

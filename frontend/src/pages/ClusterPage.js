@@ -14,6 +14,7 @@ import { clustersApi } from '../lib/api';
 import { humanizeEnum } from '../lib/constants';
 import Button from '../components/ui/Button';
 import { Input, Select } from '../components/ui/form';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 import {
   Badge,
   EmptyState,
@@ -227,6 +228,8 @@ export default function ClusterPage() {
           </Button>
         </div>
       ) : null}
+
+      <AgentChatWidget agents={['cluster_agent']} defaultAgent="cluster_agent" />
     </div>
   );
 }

@@ -28,6 +28,7 @@ const mediaRoutes = require('./media.routes');
 const serpRoutes = require('./serp.routes');
 const analyticsRoutes = require('./analytics.routes');
 const settingsRoutes = require('./settings.routes');
+const agentsRoutes = require('./agents.routes');
 
 const router = express.Router();
 
@@ -92,5 +93,6 @@ router.use('/analytics', analyticsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/keywords', require('./keywords.routes'));
 router.use('/clusters', require('./clusters.routes'));
+router.use('/agents', agentsRoutes);
 
 module.exports = router;

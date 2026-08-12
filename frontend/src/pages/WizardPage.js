@@ -40,6 +40,7 @@ import { blogsApi } from '../lib/api';
 import { GENERATION_IN_FLIGHT } from '../lib/constants';
 import { useWizardDraft } from '../hooks/useWizardDraft';
 import { ErrorBanner, Skeleton } from '../components/ui/feedback';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 import WizardShell from '../components/wizard/WizardShell';
 import Step1Topic from '../components/wizard/Step1Topic';
 import Step2BrandVoice from '../components/wizard/Step2BrandVoice';
@@ -249,44 +250,49 @@ export default function WizardPage() {
   }
 
   return (
-    <WizardShell
-      step={step}
-      furthest={furthest}
-      completed={completed}
-      onStepChange={goToStep}
-      missing={missing}
-      showMissing={showMissing}
-      onNext={handleNext}
-      onBack={handleBack}
-      saving={draft.saving}
-      savedAt={draft.savedAt}
-    >
-      {/* Autosave failures belong above the step, not inside it: the fields are
-          still editable and the patch is still queued, so this is a warning about
-          durability rather than an error about the form. */}
-      <ErrorBanner error={draft.error} onDismiss={draft.dismissError} className="mb-4" />
+    <>
+      <WizardShell
+        step={step}
+        furthest={furthest}
+        completed={completed}
+        onStepChange={goToStep}
+        missing={missing}
+        showMissing={showMissing}
+        onNext={handleNext}
+        onBack={handleBack}
+        saving={draft.saving}
+        savedAt={draft.savedAt}
+      >
+        {/* Autosave failures belong above the step, not inside it: the fields are
+            still editable and the patch is still queued, so this is a warning about
+            durability rather than an error about the form. */}
+        <ErrorBanner error={draft.error} onDismiss={draft.dismissError} className="mb-4" />
 
-      {step === 1 ? <Step1Topic config={config} onChange={handleChange} /> : null}
-      {step === 2 ? <Step2BrandVoice config={config} onChange={handleChange} /> : null}
-      {step === 3 ? (
-        <Step3Content config={config} onChange={handleChange} blogId={blogId} />
-      ) : null}
-      {step === 4 ? <Step4Images config={config} onChange={handleChange} /> : null}
-      {step === 5 ? <Step5Publish config={config} onChange={handleChange} /> : null}
-      {step === 6 ? (
-        <Step6Generate
-          config={config}
-          blogId={blogId}
-          // A reload during a run has to resume watching it, not offer to start a
-          // second one — the server would refuse that with 409 anyway.
-          initialStatus={
-            GENERATION_IN_FLIGHT.includes(generationStatus) ? generationStatus : undefined
-          }
-          onGenerated={handleGenerated}
-          onGoToStep={goToStep}
-          onBeforeSubmit={draft.saveNow}
-        />
-      ) : null}
-    </WizardShell>
+        {step === 1 ? <Step1Topic config={config} onChange={handleChange} /> : null}
+        {step === 2 ? <Step2BrandVoice config={config} onChange={handleChange} /> : null}
+        {step === 3 ? (
+          <Step3Content config={config} onChange={handleChange} blogId={blogId} />
+        ) : null}
+        {step === 4 ? <Step4Images config={config} onChange={handleChange} /> : null}
+        {step === 5 ? <Step5Publish config={config} onChange={handleChange} /> : null}
+        {step === 6 ? (
+          <Step6Generate
+            config={config}
+            blogId={blogId}
+            // A reload during a run has to resume watching it, not offer to start a
+            // second one — the server would refuse that with 409 anyway.
+            initialStatus={
+              GENERATION_IN_FLIGHT.includes(generationStatus) ? generationStatus : undefined
+            }
+            onGenerated={handleGenerated}
+            onGoToStep={goToStep}
+            onBeforeSubmit={draft.saveNow}
+          />
+        ) : null}
+      </WizardShell>
+
+      {/* Floats independently of the step content, so it persists across all 6 steps. */}
+      <AgentChatWidget agents={['generate_agent', 'blog_image_agent']} defaultAgent="generate_agent" />
+    </>
   );
 }

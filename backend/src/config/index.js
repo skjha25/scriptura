@@ -174,10 +174,16 @@ const ai = {
     apiKey: anthropicApiKey,
     model: str(process.env.ANTHROPIC_MODEL, 'claude-sonnet-5'),
     maxTokens: int(process.env.ANTHROPIC_MAX_TOKENS, 16384),
+    // Agent chat turns are short replies/tool calls, not full articles — no
+    // need for the article-sized token budget above.
+    agentMaxTokens: int(process.env.ANTHROPIC_AGENT_MAX_TOKENS, 4096),
   },
   openai: {
     apiKey: openaiApiKey,
     imageModel: str(process.env.OPENAI_IMAGE_MODEL, 'gpt-image-1'),
+    // Knowledge Layer v2's hybrid retrieval — reuses the already-configured
+    // OpenAI client (same one Whisper transcription uses), not a new provider.
+    embeddingModel: str(process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small'),
   },
   // Generation is the slowest path in the app; a request-level ceiling keeps a
   // hung provider call from pinning a worker forever.
@@ -307,6 +313,8 @@ const config = Object.freeze({
     authMax: int(process.env.AUTH_RATE_LIMIT_MAX, 20),
     generationWindowMs: int(process.env.GENERATION_RATE_LIMIT_WINDOW_MS, 60 * 60 * 1000),
     generationMax: int(process.env.GENERATION_RATE_LIMIT_MAX, 30),
+    agentChatWindowMs: int(process.env.AGENT_CHAT_RATE_LIMIT_WINDOW_MS, 60 * 60 * 1000),
+    agentChatMax: int(process.env.AGENT_CHAT_RATE_LIMIT_MAX, 60),
   }),
 
   pagination: Object.freeze({

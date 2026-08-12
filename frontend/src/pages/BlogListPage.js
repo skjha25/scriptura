@@ -37,6 +37,7 @@ import BlogFilters, { SORT_OPTIONS } from '../components/blogs/BlogFilters';
 import BlogGrid from '../components/blogs/BlogGrid';
 import BlogTable from '../components/blogs/BlogTable';
 import BlogPagination from '../components/blogs/BlogPagination';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 const VIEW_STORAGE_KEY = 'scriptura.blogs.view';
 const PAGE_SIZE = 20;
@@ -402,6 +403,8 @@ export default function BlogListPage() {
           onPageChange={(page) => handleChange({ page })}
         />
       </section>
+
+      <AgentChatWidget agents={['blog_ops_agent']} defaultAgent="blog_ops_agent" />
     </div>
   );
 }

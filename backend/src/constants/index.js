@@ -167,6 +167,7 @@ const CLUSTER_KEYWORD_STATUS = Object.freeze({
   GENERATING: 'generating',
   GENERATED: 'generated',
   PUBLISHED: 'published',
+  FAILED: 'failed',
 });
 
 /** Search intent taxonomy (extends the existing 3 in scriptura_keywords). */
@@ -244,6 +245,57 @@ const LOG_TRIGGERED_BY = Object.freeze({
 /** The attribution string the existing production rows use. */
 const DEFAULT_PUBLISHED_BY = 'DivineTalk Astrology';
 
+// ==========================================================================
+// Agentic AI enums (agent_activity table)
+// ==========================================================================
+
+/**
+ * The chat agents an admin can talk to. Each name is both the tool-loop
+ * persona key (see services/agents/registry.js) and the `:agentName` route
+ * param on POST /agents/:agentName/chat.
+ */
+const AGENT_NAMES = Object.freeze({
+  BLOG_IMAGE: 'blog_image_agent',
+  GENERATE: 'generate_agent',
+  CHIEF: 'chief_agent',
+  SEO_ANALYST: 'seo_analyst_agent',
+  BLOG_OPS: 'blog_ops_agent',
+  CLUSTER: 'cluster_agent',
+  RESEARCH: 'research_agent',
+  AUTOPILOT: 'autopilot_agent',
+});
+
+/**
+ * Event types recorded in agent_activity — one row per step of an agent's
+ * tool-use loop, so a whole chat turn (and any delegation chain) is
+ * reconstructable from `trace_id` alone.
+ */
+const AGENT_EVENT_TYPES = Object.freeze({
+  USER_MESSAGE: 'user_message',
+  DELEGATION: 'delegation',
+  TOOL_CALL: 'tool_call',
+  SETTING_PROPOSED: 'setting_proposed',
+  SETTING_APPLIED: 'setting_applied',
+  SETTING_REVERTED: 'setting_reverted',
+  SETTING_DISMISSED: 'setting_dismissed',
+  ERROR: 'error',
+  FINAL_REPLY: 'final_reply',
+  CHAT_CLEARED: 'chat_cleared',
+});
+
+/**
+ * ScripturaSettings key for how many past user/assistant exchanges
+ * services/agents/runAgentTurn.js replays into an agent's context on each
+ * turn. Org-scoped only (an operational/cost knob, not a per-admin
+ * preference) — shared between settings.controller.js (reads/writes it) and
+ * runAgentTurn.js (reads it every turn) so the two can never drift on the
+ * key name or bounds.
+ */
+const AGENT_CHAT_CONTEXT_EXCHANGES_KEY = 'agents.chat.context_exchanges';
+const AGENT_CHAT_CONTEXT_EXCHANGES_DEFAULT = 10;
+const AGENT_CHAT_CONTEXT_EXCHANGES_MIN = 2;
+const AGENT_CHAT_CONTEXT_EXCHANGES_MAX = 30;
+
 module.exports = {
   BLOG_STATUS,
   BLOG_STATUS_LABELS,
@@ -273,4 +325,10 @@ module.exports = {
   LOG_EVENT_TYPES,
   LOG_STATUS,
   LOG_TRIGGERED_BY,
+  AGENT_NAMES,
+  AGENT_EVENT_TYPES,
+  AGENT_CHAT_CONTEXT_EXCHANGES_KEY,
+  AGENT_CHAT_CONTEXT_EXCHANGES_DEFAULT,
+  AGENT_CHAT_CONTEXT_EXCHANGES_MIN,
+  AGENT_CHAT_CONTEXT_EXCHANGES_MAX,
 };

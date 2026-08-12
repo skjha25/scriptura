@@ -100,15 +100,22 @@ function tidy(value, maxLength = MAX_PROMPT_FRAGMENT) {
  * context, because an author who typed a prompt still wants it to be about the
  * article.
  *
+ * The style directive itself may be overridden by an admin via the Blog Image
+ * Agent (stored in ScripturaSettings under `agents.image.style_overrides`,
+ * one directive per style) — this is the ONLY thing an agent can change here.
+ * `BASE_DIRECTIVES` below is never looked up from settings and is always
+ * appended after whatever directive is chosen; that is the entire enforcement
+ * mechanism for the dignity/no-text/no-watermark constraints staying locked.
+ *
  * @param {object} args
  * @param {string} [args.prompt] Author-written subject description.
  * @param {string} [args.topic] The blog's topic/seed keyword.
  * @param {string} [args.style] One of constants.IMAGE_STYLES.
  * @param {number} [args.index] 0-based position in a multi-image run.
  * @param {number} [args.count] Total images in the run.
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, count = 1 } = {}) {
+async function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, count = 1 } = {}) {
   const subject = tidy(prompt) || tidy(topic);
   if (!subject) {
     throw ApiError.unprocessable('An image needs either a prompt or a topic to work from.', {
@@ -116,7 +123,12 @@ function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, count = 1
     });
   }
 
-  const directive = STYLE_DIRECTIVES[style] || STYLE_DIRECTIVES.photo;
+  // Lazy require: keeps this module loadable (and unit-testable) without
+  // pulling in the full model registry for callers that never hit this path,
+  // matching the lazy-require convention already used for `./ai` below.
+  const { ScripturaSettings } = require('../models');
+  const overrides = (await ScripturaSettings.getValue('agents.image.style_overrides', { fallback: {} })) || {};
+  const directive = overrides[style]?.directive_text || STYLE_DIRECTIVES[style] || STYLE_DIRECTIVES.photo;
   const parts = [`Subject: ${subject}.`];
 
   // Keep the article's topic as context when the author supplied both.
@@ -254,7 +266,8 @@ async function generateBlogImage({
   // burst of 4 concurrent calls is the fastest way to get a 429 for the whole
   // set. Four sequential calls is also easier to attribute in the logs.
   for (let index = 0; index < total; index += 1) {
-    const imagePrompt = buildImagePrompt({ prompt, topic, style, index, count: total });
+    /* eslint-disable-next-line no-await-in-loop */
+    const imagePrompt = await buildImagePrompt({ prompt, topic, style, index, count: total });
 
     let generated;
     try {

@@ -20,6 +20,7 @@ import { blogsApi, generateApi } from '../lib/api';
 import { buildGenerationConfig } from '../components/wizard/Step6Generate';
 import { INITIAL_CONFIG } from '../components/wizard/steps';
 import { DEFAULT_SEO_STRUCTURE } from '../lib/constants';
+import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 // ─── Stage definitions ──────────────────────────────────────────────────────
 const STAGES = [
@@ -593,6 +594,9 @@ export default function AutomatedBlogPage() {
           </button>
         </motion.p>
       )}
+
+      {/* Same two agents as the Wizard — this page shares the same generation pipeline. */}
+      <AgentChatWidget agents={['generate_agent', 'blog_image_agent']} defaultAgent="generate_agent" />
     </div>
   );
 }

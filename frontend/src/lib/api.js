@@ -32,7 +32,7 @@ function resolveApiBase() {
   if (typeof window !== 'undefined' && window.location) {
     const path = window.location.pathname;
     const match = path.match(/^(\/[^/]+)/);
-    if (match && !['/blogs', '/login', '/api'].includes(match[1])) {
+    if (match && !['/blogs', '/blog', '/login', '/api', '/agents'].includes(match[1])) {
       return `${match[1]}/api/v1`;
     }
   }
@@ -376,6 +376,62 @@ export const clustersApi = {
 export const autopilotSettingsApi = {
   get: () => api.get('/settings/autopilot').then((r) => r.data.data),
   update: (payload) => api.put('/settings/autopilot', payload).then((r) => r.data.data),
+};
+
+export const agentsApi = {
+  /** One chat turn with a specific agent — never routes through the Chief Agent from the UI. */
+  chat: (agentName, payload) => api.post(`/agents/${agentName}/chat`, payload).then((r) => r.data.data),
+  /** This admin's last conversation with this agent — for the widget to reload on mount. */
+  getHistory: (agentName) => api.get(`/agents/${agentName}/history`).then((r) => r.data.data),
+  /** Marks the widget's visible thread as cleared — never deletes the underlying audit rows. */
+  clearHistory: (agentName) => api.post(`/agents/${agentName}/history/clear`).then((r) => r.data.data),
+  /** Current value of an agent-controlled setting, no model call spent. */
+  getSetting: (key) => api.get(`/agents/settings/${key}`).then((r) => r.data.data),
+  /** The only call that actually persists a proposed change — always an explicit human click. */
+  applySetting: (payload) => api.post('/agents/settings/apply', payload).then((r) => r.data.data),
+  revertSetting: (payload) => api.post('/agents/settings/revert', payload).then((r) => r.data.data),
+  /** The entity-mutation counterpart to applySetting — cluster/keyword-pool/topic writes. */
+  applyProposal: (payload) => api.post('/agents/proposals/apply', payload).then((r) => r.data.data),
+  listActivity: (params) => api.get('/agents/activity', { params }).then((r) => r.data.data),
+  /** Hardcoded directives no agent can ever propose changing — read-only reference. */
+  getGoldenRules: () => api.get('/agents/golden-rules').then((r) => r.data.data),
+  /** "Teach it something new" — analyses samples into a DRAFT profile, never persists it. */
+  extractStyleProfile: (payload) => api.post('/agents/generate/style-profile/extract', payload).then((r) => r.data.data),
+  /** The only call that persists a style-profile draft as the live, confirmed one. */
+  confirmStyleProfile: (payload) => api.post('/agents/generate/style-profile/confirm', payload).then((r) => r.data.data),
+  /** Logs that the admin explicitly rejected a proposed change — never writes any real state. */
+  dismissChange: (agentName, payload) => api.post(`/agents/${agentName}/dismiss`, payload).then((r) => r.data.data),
+  /** Which knowledge rows (if any) were retrieved and used for a given chat turn. */
+  getKnowledgeUsage: (traceId) => api.get('/agents/knowledge-usage', { params: { trace_id: traceId } }).then((r) => r.data.data),
+};
+
+/**
+ * Knowledge & Learning Layer — the shared "teach this agent" mechanism for
+ * every agent except generate_agent (which keeps agentsApi's own
+ * extractStyleProfile/confirmStyleProfile above). See
+ * services/agents/knowledge/knowledgeBase.js on the backend.
+ */
+export const knowledgeApi = {
+  /** This agent's current retrievable knowledge (global + its own scope), read-only. */
+  get: (agentName) => api.get(`/agents/${agentName}/knowledge-base`).then((r) => r.data.data),
+  /**
+   * Ingests+extracts+validates one submission into a DRAFT batch — never
+   * persists. `formData` carries text_samples/links/image_paths/youtube_links
+   * as JSON-stringified fields (multer flattens everything to strings) plus
+   * an optional `video` file field.
+   */
+  extract: (agentName, formData) =>
+    api
+      .post(`/agents/${agentName}/knowledge-base/extract`, formData, { headers: { 'Content-Type': undefined } })
+      .then((r) => r.data.data),
+  /**
+   * The only call that persists a reviewed batch — each item carries its own
+   * accept/skip decision. `scope` is batch-level: 'global' makes every
+   * accepted item in this batch visible to every agent, not just this one.
+   * Omitted (or 'agent') keeps the existing agent-scoped behavior.
+   */
+  confirm: (agentName, items, scope) =>
+    api.post(`/agents/${agentName}/knowledge-base/confirm`, { items, ...(scope ? { scope } : {}) }).then((r) => r.data.data),
 };
 
 export default api;
