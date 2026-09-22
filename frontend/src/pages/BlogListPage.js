@@ -111,12 +111,12 @@ function readStoredView() {
 function ListSkeleton({ view }) {
   if (view === 'table') {
     return (
-      <div className="space-y-3 rounded-xl border border-hairline bg-panel p-4">
+      <Card interactive={false} className="space-y-3 p-4">
         {Array.from({ length: 6 }).map((_, index) => (
           // eslint-disable-next-line react/no-array-index-key -- position is the identity
           <Skeleton key={index} className="h-12 w-full" />
         ))}
-      </div>
+      </Card>
     );
   }
 
@@ -298,7 +298,7 @@ export default function BlogListPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">All blogs</h1>
+            <h1 className="font-display text-2xl font-semibold text-ink">All blogs</h1>
             <p className="mt-1 text-sm text-ink-muted">
               {result?.pagination
                 ? `${formatCount(result.pagination.total)} matching ${

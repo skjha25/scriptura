@@ -170,16 +170,21 @@ const renderers = {
     );
     if (items.length === 0) return '';
 
-    // <details>/<summary> gives a real accordion with zero JavaScript, stays
-    // expandable for crawlers, and is keyboard accessible for free.
+    // Plain question-then-answer, always visible. This was a <details>/<summary>
+    // accordion, which worked but read as a widget bolted onto the article: on
+    // the live post every answer sat collapsed behind a disclosure triangle, so
+    // the section looked empty and out of place next to the surrounding prose.
+    // Open text costs nothing here — the answers are two or three sentences —
+    // and an <h3> question is a real heading for crawlers rather than a
+    // <summary> they have to be trusted to expand.
     const rendered = items
       .map((item) => {
         const q = inlineContent({ text: item.question, html: item.question_html });
         const a = inlineContent({ text: item.answer, html: item.answer_html });
         return (
-          `<details${classAttr('scriptura-faq-item')}>` +
-          `<summary${classAttr('scriptura-faq-question')}>${q}</summary>` +
-          `<div${classAttr('scriptura-faq-answer')}>${a}</div></details>`
+          `<div${classAttr('scriptura-faq-item')}>` +
+          `<h3${classAttr('scriptura-faq-question')}>${q}</h3>` +
+          `<div${classAttr('scriptura-faq-answer')}>${a}</div></div>`
         );
       })
       .join('');

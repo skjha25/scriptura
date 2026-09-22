@@ -33,6 +33,8 @@ const {
   IMAGE_COUNT_MIN,
   IMAGE_COUNT_MAX,
   IMAGE_STYLES,
+  DEFAULT_IMAGE_STYLE,
+  LANGUAGES,
   OPTIMIZATION_PROFILES,
 } = require('../constants');
 
@@ -153,7 +155,7 @@ const generationConfigSchema = z
     tone_of_voice: optionalText(100),
     point_of_view: z.enum(POINTS_OF_VIEW).optional(),
     readability_level: z.enum(READABILITY_LEVELS).default('8th_grade'),
-    language: z.string().trim().min(2).max(10).default('en'),
+    language: z.enum(LANGUAGES).default('en'),
     target_country: optionalText(100),
     target_word_count: z.coerce
       .number()
@@ -162,6 +164,12 @@ const generationConfigSchema = z
       .max(TARGET_WORD_COUNT_MAX)
       .default(TARGET_WORD_COUNT_DEFAULT),
     ai_content_cleaning: z.boolean().default(false),
+    /**
+     * Free-text instruction for THIS article only, given priority over
+     * every other tone/style directive in the generation prompt — see
+     * services/ai/prompts.js's articlePrompt.
+     */
+    custom_prompt: optionalText(3000),
 
     outline: outlineSchema.default([]),
     seo_structure_config: seoStructureSchema,
@@ -178,7 +186,7 @@ const generationConfigSchema = z
 
     include_images: z.boolean().default(true),
     image_count: z.coerce.number().int().min(IMAGE_COUNT_MIN).max(IMAGE_COUNT_MAX).default(1),
-    image_style: z.enum(IMAGE_STYLES).default('photo'),
+    image_style: z.enum(IMAGE_STYLES).default(DEFAULT_IMAGE_STYLE),
     logo_overlay: z.boolean().default(false),
     logo_position: z.enum(['top_left', 'top_right', 'bottom_left', 'bottom_right', 'none']).default('none'),
 
@@ -209,7 +217,7 @@ const generateTitleBody = z
     tone_of_voice: optionalText(100),
     point_of_view: z.enum(POINTS_OF_VIEW).optional(),
     readability_level: z.enum(READABILITY_LEVELS).default('8th_grade'),
-    language: z.string().trim().min(2).max(10).default('en'),
+    language: z.enum(LANGUAGES).default('en'),
     target_country: optionalText(100),
     count: z.coerce.number().int().min(TITLE_COUNT_MIN).max(TITLE_COUNT_MAX).default(TITLE_COUNT_DEFAULT),
     brand_voice: brandVoiceSchema,
@@ -229,7 +237,7 @@ const generateOutlineBody = z
     tone_of_voice: optionalText(100),
     point_of_view: z.enum(POINTS_OF_VIEW).optional(),
     readability_level: z.enum(READABILITY_LEVELS).default('8th_grade'),
-    language: z.string().trim().min(2).max(10).default('en'),
+    language: z.enum(LANGUAGES).default('en'),
     target_country: optionalText(100),
     target_word_count: z.coerce
       .number()

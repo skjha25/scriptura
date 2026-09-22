@@ -17,12 +17,14 @@ const {
   listBlogs,
   findLinkableBlogs,
   assertPublishable,
+  updateBlog: updateBlogService,
 } = require('../services/blogService');
 const {
   BLOG_STATUS,
   GENERATION_STATUS,
   DEFAULT_PUBLISHED_BY,
   DEFAULT_SEO_STRUCTURE,
+  DEFAULT_IMAGE_STYLE,
   USER_ROLES,
 } = require('../constants');
 
@@ -122,19 +124,68 @@ const create = asyncHandler(async (req, res) => {
  * block editor's autosave keeps the rendered HTML in step.
  */
 const update = asyncHandler(async (req, res) => {
+  const blog = await updateBlogService(req.params.id, req.body);
+
+  res.json({ data: serializeBlog(blog) });
+});
+
+/**
+ * PATCH /blogs/:id/blocks/:blockId/regenerate-image
+ *
+ * Regenerates exactly one image content block, in place. Reuses
+ * generateBlogImage() — the same function the /media/generate-image route
+ * and the editor's hero-regenerate action already call — rather than a
+ * parallel image pipeline. On any failure (including a bad/upstream error
+ * from the provider), nothing is written: the block keeps its original
+ * image, never a null one.
+ */
+const regenerateBlockImage = asyncHandler(async (req, res) => {
   const blog = await Blog.findByPk(req.params.id);
   if (!blog) throw ApiError.notFound(`No blog with id ${req.params.id}.`);
 
-  // Editing content while a generation run is writing to the same row would
-  // have one overwrite the other. Refuse rather than race.
-  if (blog.isGenerating() && req.body.content_blocks !== undefined) {
+  // Same guard updateBlog uses: this also mutates content_blocks, so it
+  // carries the same race risk against an in-flight generation run.
+  if (blog.isGenerating()) {
     throw ApiError.conflict(
       'Content is being generated for this blog right now. Wait for it to finish before editing.',
       { code: 'GENERATION_IN_PROGRESS' }
     );
   }
 
-  blog.set(req.body);
+  const blocks = Array.isArray(blog.content_blocks) ? blog.content_blocks : [];
+  const index = blocks.findIndex(
+    (block) => block?.id === req.params.blockId && block?.type === 'image'
+  );
+  if (index === -1) {
+    throw ApiError.notFound(`No image block with id ${req.params.blockId} on this blog.`);
+  }
+
+  const { generateBlogImage } = require('../services/imageGeneration');
+  const [generated] = await generateBlogImage({
+    prompt: req.body.prompt || undefined,
+    topic: blog.topic || blog.blog_title,
+    style: blog.image_style || DEFAULT_IMAGE_STYLE,
+    logoOverlay: blog.logo_overlay || false,
+    logoPosition: blog.logo_position || 'none',
+    count: 1,
+  });
+
+  // Only this block's image fields change — same block id, same position,
+  // same caption. Everything else on the row is untouched.
+  const updatedBlocks = blocks.map((block, i) =>
+    i === index
+      ? {
+          ...block,
+          data: {
+            ...block.data,
+            url: generated.relativePath,
+            alt_text: generated.alt_text,
+          },
+        }
+      : block
+  );
+
+  blog.set({ content_blocks: updatedBlocks });
   await blog.save();
 
   res.json({ data: serializeBlog(blog) });
@@ -202,7 +253,16 @@ const publish = asyncHandler(async (req, res) => {
     userId: req.user.id,
   });
 
-  res.json({ data: serializeBlog(blog) });
+  // Client publish-API delivery — additive, best-effort. Only fires on an
+  // actual publish (not a schedule), never blocks/reverses the save above,
+  // never throws (see clientDeliveryService.js's own contract). Scheduled
+  // blogs get delivered later via the equivalent call in
+  // scheduledPublisher.js once the cron job flips them to PUBLISHED.
+  const deliveryResults = scheduled
+    ? []
+    : await require('../services/delivery/clientDeliveryService').deliverIfConfigured(blog, { trigger: 'manual' });
+
+  res.json({ data: serializeBlog(blog), delivery: deliveryResults.map((d) => d.toJSON ? d.toJSON() : d) });
 });
 
 /**
@@ -258,4 +318,14 @@ const restore = asyncHandler(async (req, res) => {
   res.json({ data: serializeBlog(blog) });
 });
 
-module.exports = { list, linkable, detail, create, update, publish, remove, restore };
+module.exports = {
+  list,
+  linkable,
+  detail,
+  create,
+  update,
+  regenerateBlockImage,
+  publish,
+  remove,
+  restore,
+};

@@ -27,7 +27,7 @@ import clsx from 'clsx';
 
 import { resolveImageUrl } from '../../lib/media';
 import InlineEditable from './InlineEditable';
-import { plainTextOf, isRichText, setBlockText } from './blockModel';
+import { editableValueOf, setBlockText } from './blockModel';
 
 /** Type scale per heading level, matching `.prose-scriptura h2|h3|h4` in index.css. */
 const HEADING_CLASS = {
@@ -60,21 +60,6 @@ function MiniButton({ onClick, children, label, tone = 'neutral' }) {
   );
 }
 
-/**
- * Warning shown above a block whose text arrived as inline HTML.
- *
- * The canvas edits plain text, so the first keystroke drops the formatting. Saying so
- * before it happens is the difference between a decision and a surprise.
- */
-function RichTextNotice() {
-  return (
-    <p className="mb-1.5 text-[11px] text-status-warning">
-      Formatted text — editing here keeps the words and drops the bold, italics and
-      links.
-    </p>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Per-type bodies
 // ---------------------------------------------------------------------------
@@ -83,38 +68,34 @@ function HeadingBody({ block, readOnly, onChange }) {
   const { data } = block;
   const level = Number(data.level) || 2;
   return (
-    <>
-      {isRichText(data) ? <RichTextNotice /> : null}
-      <InlineEditable
-        value={plainTextOf(data)}
-        onChange={(text) => onChange(setBlockText(data, text), `${block.id}:text`)}
-        ariaLabel={`Heading text, level ${level}`}
-        placeholder="Section heading"
-        singleLine
-        readOnly={readOnly}
-        className={HEADING_CLASS[level] || HEADING_CLASS[2]}
-      />
-    </>
+    <InlineEditable
+      value={editableValueOf(data)}
+      onChange={(text) => onChange(setBlockText(data, text), `${block.id}:text`)}
+      ariaLabel={`Heading text, level ${level}`}
+      placeholder="Section heading"
+      singleLine
+      richText
+      readOnly={readOnly}
+      className={HEADING_CLASS[level] || HEADING_CLASS[2]}
+    />
   );
 }
 
 function ParagraphBody({ block, readOnly, onChange }) {
   const { data } = block;
   return (
-    <>
-      {isRichText(data) ? <RichTextNotice /> : null}
-      <InlineEditable
-        value={plainTextOf(data)}
-        onChange={(text) => onChange(setBlockText(data, text), `${block.id}:text`)}
-        ariaLabel={data.is_lead ? 'Lead paragraph text' : 'Paragraph text'}
-        placeholder="Write a paragraph…"
-        readOnly={readOnly}
-        className={clsx(
-          'leading-7',
-          data.is_lead ? 'text-lg leading-8 text-ink' : 'text-[15px] text-ink-secondary'
-        )}
-      />
-    </>
+    <InlineEditable
+      value={editableValueOf(data)}
+      onChange={(text) => onChange(setBlockText(data, text), `${block.id}:text`)}
+      ariaLabel={data.is_lead ? 'Lead paragraph text' : 'Paragraph text'}
+      placeholder="Write a paragraph…"
+      richText
+      readOnly={readOnly}
+      className={clsx(
+        'leading-7',
+        data.is_lead ? 'text-lg leading-8 text-ink' : 'text-[15px] text-ink-secondary'
+      )}
+    />
   );
 }
 
@@ -161,12 +142,12 @@ function QuoteBody({ block, readOnly, onChange }) {
   const { data } = block;
   return (
     <div className="border-l-2 border-accent/60 pl-4">
-      {isRichText(data) ? <RichTextNotice /> : null}
       <InlineEditable
-        value={plainTextOf(data)}
+        value={editableValueOf(data)}
         onChange={(text) => onChange(setBlockText(data, text), `${block.id}:text`)}
         ariaLabel="Quote text"
         placeholder="Quotation…"
+        richText
         readOnly={readOnly}
         className="text-[15px] italic leading-7"
       />

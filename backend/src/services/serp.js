@@ -29,6 +29,7 @@
  */
 
 const axios = require('axios');
+const { Op } = require('sequelize');
 
 const config = require('../config');
 const ApiError = require('../utils/ApiError');
@@ -46,6 +47,20 @@ const SNIPPET_MAX_CHARS = 400;
 
 /** Google locale defaults. Divinetalk's audience is Indian; these are the sane defaults. */
 const DEFAULT_LOCALE = Object.freeze({ gl: 'in', hl: 'en' });
+
+/**
+ * A second snapshot request for the same (keyword, location, language,
+ * device) inside this window is treated as an accidental duplicate — a
+ * double-click, a retry, two callers hitting the same keyword back-to-back —
+ * and reuses the existing row rather than inserting a near-identical one.
+ * Anything outside the window is a legitimate new historical observation
+ * (today vs. next week vs. next month), which is the whole point of keeping
+ * snapshots at all — never suppressed by this window.
+ */
+const SNAPSHOT_DEDUP_WINDOW_MS = 15 * 60 * 1000;
+
+/** Neither `checkRank` nor `fetchSerpDataForKeyword` sends a `device` param today; SerpAPI's own default is desktop. */
+const DEFAULT_DEVICE = 'desktop';
 
 /**
  * Whether SERP-backed features are usable.
@@ -150,12 +165,154 @@ function hostOf(value) {
   }
 }
 
+/** Collapses a keyword to the dedup/lookup key: lowercased, trimmed, internal whitespace collapsed. */
+function normalizeKeyword(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Which SERP features a response had, plus the handful of feature-derived
+ * text fields worth keeping without persisting the entire raw payload.
+ * @private
+ */
+function extractSerpFeatures(body) {
+  const relatedQuestions = Array.isArray(body.related_questions) ? body.related_questions : [];
+  const relatedSearches = Array.isArray(body.related_searches) ? body.related_searches : [];
+  const aiOverviewText = body.ai_overview?.text_blocks?.find((block) => block?.snippet)?.snippet;
+
+  return {
+    has_answer_box: Boolean(body.answer_box),
+    has_knowledge_graph: Boolean(body.knowledge_graph),
+    has_local_results: Boolean(body.local_results),
+    has_ads: Boolean(body.ads),
+    has_ai_overview: Boolean(body.ai_overview),
+    has_people_also_ask: relatedQuestions.length > 0,
+    has_related_searches: relatedSearches.length > 0,
+    people_also_ask: relatedQuestions
+      .slice(0, 10)
+      .map((q) => toPlainText(String(q?.question || '')).slice(0, 200))
+      .filter(Boolean),
+    related_searches: relatedSearches
+      .slice(0, 10)
+      .map((s) => toPlainText(String(s?.query || '')).slice(0, 200))
+      .filter(Boolean),
+    ai_overview_summary: aiOverviewText ? toPlainText(String(aiOverviewText)).slice(0, SNIPPET_MAX_CHARS) : null,
+  };
+}
+
+/** Parses SerpAPI's `"YYYY-MM-DD HH:mm:ss UTC"` timestamp; falls back to now if absent or unparseable. */
+function parseSearchedAt(body) {
+  const raw = body.search_metadata?.processed_at;
+  if (!raw) return new Date();
+  const parsed = new Date(raw.replace(' UTC', 'Z').replace(' ', 'T'));
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+/**
+ * Persists one real provider response as a queryable `SerpSnapshot` + its
+ * `SerpResult` rows, so the full organic list survives past the
+ * caller-specific shape `checkRank`/`fetchSerpDataForKeyword` reduce it to.
+ * Every organic result is stored, not just whichever one matches a
+ * particular domain — competitor comparison needs the whole list.
+ *
+ * Best-effort by contract: callers wrap this in a try/catch and only log on
+ * failure, same as `safeGroundFacts` — a storage problem here must never
+ * change `checkRank`/`fetchSerpDataForKeyword`'s existing return behavior.
+ *
+ * Deduped on (normalized_keyword, location, language, device): a call for the
+ * same identity inside `SNAPSHOT_DEDUP_WINDOW_MS` reuses the existing
+ * snapshot; a call outside it always creates a new row, because ranking
+ * movement over time is the reason this table exists.
+ *
+ * @param {object} input
+ * @param {string} input.keyword
+ * @param {object} input.body Raw SerpAPI response body (already fetched by `request()`).
+ * @param {string} input.location Google `gl` code actually used for this request.
+ * @param {string} input.language Google `hl` code actually used for this request.
+ * @param {'checkRank'|'fetchSerpDataForKeyword'} input.sourceFunction
+ * @returns {Promise<object>} The snapshot row (existing or newly created), with `.results` attached.
+ */
+async function saveSerpSnapshot({ keyword, body, location, language, sourceFunction }) {
+  // Lazy require: keeps this module importable without pulling in the models
+  // layer for callers (groundFacts, the disabled-feature path) that never hit it.
+  const { SerpSnapshot, SerpResult } = require('../models');
+
+  const normalizedKeyword = normalizeKeyword(keyword);
+
+  // Windowed on created_at (when *we* wrote the row), not searched_at (the
+  // provider's own reported timestamp) — dedup is about "did we already fetch
+  // this a moment ago", which is our clock, not Google's.
+  const existing = await SerpSnapshot.findOne({
+    where: {
+      normalized_keyword: normalizedKeyword,
+      location,
+      language,
+      device: DEFAULT_DEVICE,
+      created_at: { [Op.gte]: new Date(Date.now() - SNAPSHOT_DEDUP_WINDOW_MS) },
+    },
+    order: [['created_at', 'DESC']],
+    include: [{ model: SerpResult, as: 'results' }],
+  });
+  if (existing) return existing;
+
+  const organic = Array.isArray(body.organic_results) ? body.organic_results : [];
+  const totalResults = body.search_information?.total_results;
+
+  const snapshot = await SerpSnapshot.create({
+    keyword: String(keyword || '').trim(),
+    normalized_keyword: normalizedKeyword,
+    location,
+    language,
+    device: DEFAULT_DEVICE,
+    provider: 'serpapi',
+    searched_at: parseSearchedAt(body),
+    total_results: Number.isFinite(totalResults) ? totalResults : null,
+    serp_features: extractSerpFeatures(body),
+    normalized_payload: {
+      search_metadata: body.search_metadata
+        ? {
+            id: body.search_metadata.id,
+            created_at: body.search_metadata.created_at,
+            processed_at: body.search_metadata.processed_at,
+            google_url: body.search_metadata.google_url,
+          }
+        : null,
+      search_parameters: body.search_parameters || null,
+      search_information: body.search_information || null,
+    },
+    source_function: sourceFunction,
+  });
+
+  const resultRows = organic.map((result, index) => ({
+    snapshot_id: snapshot.id,
+    position: Number.isFinite(result?.position) ? result.position : index + 1,
+    title: result?.title ? toPlainText(String(result.title)).slice(0, 500) : null,
+    url: typeof result?.link === 'string' ? result.link.slice(0, 2000) : null,
+    domain: hostOf(result?.link) || null,
+    snippet: result?.snippet ? toPlainText(String(result.snippet)).slice(0, SNIPPET_MAX_CHARS) : null,
+    result_type: 'organic',
+    serp_feature: result?.rich_snippet ? 'rich_snippet' : null,
+    metadata: {
+      displayed_link: result?.displayed_link || null,
+      redirect_link: result?.redirect_link || null,
+      favicon: result?.favicon || null,
+    },
+  }));
+
+  if (resultRows.length > 0) {
+    await SerpResult.bulkCreate(resultRows);
+  }
+
+  snapshot.results = await SerpResult.findAll({ where: { snapshot_id: snapshot.id }, order: [['position', 'ASC']] });
+  return snapshot;
+}
+
 /**
  * Looks up where a domain ranks for a keyword.
  *
  * Matching is on hostname with the `www.` prefix normalised away, and a
- * subdomain of the target counts as a match — `blog.divinetalk.com` ranking is
- * the answer the user wanted when they typed `divinetalk.com`.
+ * subdomain of the target counts as a match — `blog.divinetalk.in` ranking is
+ * the answer the user wanted when they typed `divinetalk.in`.
  *
  * When `blogId` is supplied the result is written back to the row, because the
  * dashboard's rank column reads the stored value rather than re-querying a paid
@@ -180,16 +337,26 @@ async function checkRank({ keyword, domain, blogId, country } = {}) {
     throw ApiError.badRequest('A valid domain is required to check a rank.', { code: 'DOMAIN_REQUIRED' });
   }
 
+  const location = country || DEFAULT_LOCALE.gl;
   const body = await request(
     {
       engine: 'google',
       q: query,
       num: RANK_CHECK_DEPTH,
-      gl: country || DEFAULT_LOCALE.gl,
+      gl: location,
       hl: DEFAULT_LOCALE.hl,
     },
     'checkRank'
   );
+
+  try {
+    await saveSerpSnapshot({ keyword: query, body, location, language: DEFAULT_LOCALE.hl, sourceFunction: 'checkRank' });
+  } catch (err) {
+    logger.warn('SERP snapshot persistence failed; the rank check result is unaffected.', {
+      code: err.code,
+      message: err.message,
+    });
+  }
 
   const organic = Array.isArray(body.organic_results) ? body.organic_results : [];
 
@@ -362,6 +529,21 @@ async function fetchSerpDataForKeyword(keyword) {
     'fetchSerpDataForKeyword'
   );
 
+  try {
+    await saveSerpSnapshot({
+      keyword: query,
+      body,
+      location: DEFAULT_LOCALE.gl,
+      language: DEFAULT_LOCALE.hl,
+      sourceFunction: 'fetchSerpDataForKeyword',
+    });
+  } catch (err) {
+    logger.warn('SERP snapshot persistence failed; the returned SERP data is unaffected.', {
+      code: err.code,
+      message: err.message,
+    });
+  }
+
   const top_10_results = (Array.isArray(body.organic_results) ? body.organic_results : [])
     .slice(0, 10)
     .map((result) => ({
@@ -394,8 +576,11 @@ module.exports = {
   safeGroundFacts,
   fetchSerpDataForKeyword,
   hostOf,
+  saveSerpSnapshot,
+  normalizeKeyword,
   RANK_CHECK_DEPTH,
   GROUNDING_RESULTS,
   SNIPPET_MAX_CHARS,
   DEFAULT_LOCALE,
+  SNAPSHOT_DEDUP_WINDOW_MS,
 };

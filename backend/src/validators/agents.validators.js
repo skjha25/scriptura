@@ -35,6 +35,9 @@ const agentChatContext = z
   .object({
     blog_id: z.coerce.number().int().positive().optional(),
     blocks: z.array(z.record(z.any())).max(200).optional(),
+    // Current blog_title, so the Blog Ops Agent can propose a title edit
+    // without guessing at what the title currently is.
+    blog_title: z.string().trim().max(255).optional(),
   })
   .strict()
   .optional();
@@ -264,10 +267,135 @@ const dismissChangeBody = z
   })
   .strict();
 
+// ---------------------------------------------------------------------------
+// P1-A: recommendation approval/rejection (services/agents/recommendationDecisions.js)
+// ---------------------------------------------------------------------------
+
+/** POST /agents/recommendations/:id/approve|reject — id is a route param, never trusted from the body. */
+const recommendationIdParams = z
+  .object({
+    id: z.coerce.number().int().positive(),
+  })
+  .strict();
+
+/** GET /agents/recommendations */
+const listRecommendationsQuery = z
+  .object({
+    status: z.enum(['recommended', 'approved', 'rejected']).optional(),
+    agent_name: z.enum(Object.values(AGENT_NAMES)).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+// ---------------------------------------------------------------------------
+// P1-B: recommendation action tracking (services/agents/recommendationActions.js)
+// ---------------------------------------------------------------------------
+
+/** GET /agents/recommendations/:id/actions, POST /agents/recommendations/:id/actions */
+const recommendationActionsParams = z
+  .object({
+    id: z.coerce.number().int().positive(),
+  })
+  .strict();
+
+/** POST /agents/recommendations/:id/actions */
+const createRecommendationActionBody = z
+  .object({
+    action_type: z.string().trim().min(1).max(100),
+    parameters: z.record(z.any()).optional(),
+    trace_id: traceIdField,
+  })
+  .strict();
+
+/** POST /agents/recommendation-actions/:id/complete|fail|cancel — id is a route param, never trusted from the body. */
+const recommendationActionIdParams = z
+  .object({
+    id: z.coerce.number().int().positive(),
+  })
+  .strict();
+
+/** POST /agents/recommendation-actions/:id/complete */
+const completeRecommendationActionBody = z
+  .object({
+    result_summary: z.record(z.any()).optional(),
+  })
+  .strict();
+
+/** POST /agents/recommendation-actions/:id/fail */
+const failRecommendationActionBody = z
+  .object({
+    error: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+// POST /agents/recommendation-actions/:id/execute (P1-B4) reuses
+// recommendationActionIdParams for params and has no body — result_summary
+// is server-computed only, same precedent as the /cancel route below.
+
 /** GET /agents/knowledge-usage */
 const knowledgeUsageQuery = z
   .object({
     trace_id: z.string().uuid(),
+  })
+  .strict();
+
+// ---------------------------------------------------------------------------
+// P4-D: learning candidate review (services/agents/learningCandidateDecisions.js)
+// ---------------------------------------------------------------------------
+
+/** GET /agents/learning-candidates */
+const listLearningCandidatesQuery = z
+  .object({
+    status: z.enum(['pending_review', 'confirmed', 'rejected']).optional(),
+    agent_name: z.enum(Object.values(AGENT_NAMES)).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+/** POST /agents/learning-candidates/:id/confirm|reject — id is a route param, never trusted from the body. */
+const learningCandidateIdParams = z
+  .object({
+    id: z.coerce.number().int().positive(),
+  })
+  .strict();
+
+/**
+ * POST /agents/learning-candidates/:id/confirm
+ *
+ * `scope` defaults to 'agent' (matching confirmKnowledgeBatchBody's own
+ * default) when omitted — 'global' must be an explicit, deliberate choice
+ * by the human reviewing this candidate, never inferred or defaulted to.
+ */
+const confirmLearningCandidateBody = z
+  .object({
+    scope: z.enum(['agent', 'global']).optional(),
+  })
+  .strict();
+
+// ---------------------------------------------------------------------------
+// P5-D: Intelligence Observatory (services/agents/observatory.js) — every
+// route here is GET-only, read-only, no side effects.
+// ---------------------------------------------------------------------------
+
+/** GET /agents/observatory/activity */
+const observatoryActivityQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  })
+  .strict();
+
+/** GET /agents/observatory/knowledge-health, GET /agents/observatory/knowledge-nodes */
+const observatoryAgentQuery = z
+  .object({
+    agent_name: z.enum(Object.values(AGENT_NAMES)).optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+/** GET /agents/observatory/knowledge/:id/connections */
+const observatoryKnowledgeIdParams = z
+  .object({
+    id: z.coerce.number().int().positive(),
   })
   .strict();
 
@@ -285,4 +413,17 @@ module.exports = {
   confirmKnowledgeBatchBody,
   dismissChangeBody,
   knowledgeUsageQuery,
+  recommendationIdParams,
+  listRecommendationsQuery,
+  recommendationActionsParams,
+  createRecommendationActionBody,
+  recommendationActionIdParams,
+  completeRecommendationActionBody,
+  failRecommendationActionBody,
+  listLearningCandidatesQuery,
+  learningCandidateIdParams,
+  confirmLearningCandidateBody,
+  observatoryActivityQuery,
+  observatoryAgentQuery,
+  observatoryKnowledgeIdParams,
 };

@@ -34,12 +34,16 @@
  */
 
 const { DEFAULT_SEO_STRUCTURE, POINTS_OF_VIEW } = require('../../constants');
+const { PUBLIC_SITE_URL } = require('../publicLinks');
 
 /** Hard cap on a brand-voice sample. Tokens are money; 12k chars is ~3k tokens. */
 const BRAND_VOICE_SAMPLE_MAX_CHARS = 12000;
 
 /** Hard cap on grounding facts folded into the article prompt. */
 const GROUNDING_MAX_CHARS = 4000;
+
+/** Hard cap on a per-blog custom prompt, matching the validator caps. */
+const CUSTOM_PROMPT_MAX_CHARS = 3000;
 
 /**
  * The shared persona.
@@ -105,6 +109,35 @@ function fence(label, text) {
   ].join('\n');
 }
 
+/**
+ * Maps a stored `language` value to the actual generation instruction.
+ *
+ * Centralized here rather than inlined in `styleDirectives` so every
+ * supported language gets an explicit, named instruction rather than relying
+ * on the model to infer a language purely from its ISO code — naming the
+ * language is more reliable than the code alone, especially for languages
+ * the model sees less training data for. One new entry here is all a future
+ * supported language needs.
+ */
+const LANGUAGE_INSTRUCTIONS = {
+  hi: 'Write in the language with ISO code "hi" (Hindi).',
+  gu: 'Write in the language with ISO code "gu" (Gujarati).',
+  mr: 'Write in the language with ISO code "mr" (Marathi).',
+  ta: 'Write in the language with ISO code "ta" (Tamil).',
+  te: 'Write in the language with ISO code "te" (Telugu).',
+  kn: 'Write in the language with ISO code "kn" (Kannada).',
+  bn: 'Write in the language with ISO code "bn" (Bengali).',
+  pa: 'Write in the language with ISO code "pa" (Punjabi).',
+  ml: 'Write in the language with ISO code "ml" (Malayalam).',
+  or: 'Write in the language with ISO code "or" (Odia).',
+  ur: 'Write in the language with ISO code "ur" (Urdu).',
+};
+
+function resolveLanguageInstruction(language) {
+  if (!language || language === 'en') return null;
+  return LANGUAGE_INSTRUCTIONS[language] || `Write in the language with ISO code "${language}".`;
+}
+
 /** Renders the wizard's tone/POV/readability knobs as prompt lines. */
 function styleDirectives({
   toneOfVoice,
@@ -135,9 +168,8 @@ function styleDirectives({
     }[readabilityLevel];
     if (described) lines.push(`- Readability: write so that ${described}.`);
   }
-  if (language && language !== 'en') {
-    lines.push(`- Write in the language with ISO code "${language}".`);
-  }
+  const languageInstruction = resolveLanguageInstruction(language);
+  if (languageInstruction) lines.push(`- ${languageInstruction}`);
   if (targetCountry) {
     lines.push(`- Audience country: ${targetCountry}. Use local conventions for dates and currency.`);
   }
@@ -485,6 +517,7 @@ function articlePrompt({
   articleType = 'general',
   aiContentCleaning = false,
   optimizationProfile = 'balanced',
+  customPrompt,
   ...style
 } = {}) {
   const structure = { ...DEFAULT_SEO_STRUCTURE, ...(seoStructure || {}) };
@@ -494,7 +527,7 @@ function articlePrompt({
     : '';
 
   const linkText = internalLinks.length
-    ? internalLinks.map((l) => `- ${l.title} -> /blog/${l.slug}`).join('\n')
+    ? internalLinks.map((l) => `- ${l.title} -> ${PUBLIC_SITE_URL}/blog/${l.slug}`).join('\n')
     : '';
 
   return [
@@ -508,8 +541,14 @@ function articlePrompt({
     groundingFacts ? fence('verified_facts', clamp(groundingFacts, GROUNDING_MAX_CHARS)) : '',
     linkText ? fence('internal_link_targets', linkText) : '',
     brandVoiceSection(brandVoice),
+    customPrompt ? fence('custom_instructions', clamp(customPrompt, CUSTOM_PROMPT_MAX_CHARS)) : '',
     '',
     `Article type: ${articleType}.`,
+    customPrompt
+      ? '- The custom_instructions above are the admin\'s explicit instructions for THIS specific ' +
+        'article. Follow them precisely. Where they conflict with any other tone, style, or ' +
+        'structural guidance elsewhere in this prompt, custom_instructions wins.'
+      : '',
     ...styleDirectives({ brandVoice, ...style }),
     '',
     'Block types you may use, and nothing else:',
@@ -536,8 +575,15 @@ function articlePrompt({
     structure.tables ? '- Include at most one table, and only where a comparison genuinely needs one.' : '',
     structure.quotes ? '- At most one quote block. Attribute it to a tradition, not to a fabricated person.' : '',
     linkText
-      ? '- Integrate the provided internal links naturally where contextually relevant. Use a paragraph html block and the /blog/<slug> path.'
+      ? '- Integrate the provided internal links naturally where contextually relevant. Use a paragraph html block.'
       : '',
+    linkText
+      ? '- Copy each URL from internal_link_targets character for character. Never rebuild it ' +
+        "from the target's title: the slug is not the title, and inserting a joining word " +
+        'such as "and" where the title had a comma produces a dead link.'
+      : '',
+    '- Do not write a /blog/ link to any article that is not listed in internal_link_targets. ' +
+      'Unlisted internal links are removed before publishing, so they only cost you the sentence.',
     '- End with one cta_button block pointing at https://divinetalk.in/astrology.',
     aiContentCleaning
       ? '- Write the way a human editor would: vary sentence length, avoid the "moreover / furthermore / in conclusion" register, and cut every sentence that only restates the previous one.'
@@ -644,4 +690,5 @@ module.exports = {
   blockSchemaFor,
   clamp,
   fence,
+  resolveLanguageInstruction,
 };

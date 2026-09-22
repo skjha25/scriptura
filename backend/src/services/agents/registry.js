@@ -19,6 +19,7 @@ const autopilotAgentTools = require('./tools/autopilotAgentTools');
 const clusterAgentTools = require('./tools/clusterAgentTools');
 const blogOpsAgentTools = require('./tools/blogOpsAgentTools');
 const { makeKnowledgeTools } = require('./tools/sharedKnowledgeTools');
+const { makeRecommendationTools } = require('./tools/sharedRecommendationTools');
 
 const registry = {
   [AGENT_NAMES.BLOG_IMAGE]: {
@@ -48,7 +49,14 @@ const registry = {
   [AGENT_NAMES.SEO_ANALYST]: {
     name: AGENT_NAMES.SEO_ANALYST,
     systemPrompt: systemPrompts.SEO_ANALYST_AGENT_PROMPT,
-    tools: [...seoAnalystAgentTools.TOOLS, ...makeKnowledgeTools(AGENT_NAMES.SEO_ANALYST)],
+    // makeRecommendationTools is registered ONLY here for now — SEO Analyst is
+    // the first (and currently only) agent whose entire job is analyze-and-suggest
+    // with no propose_* tool of its own. See sharedRecommendationTools.js's header.
+    tools: [
+      ...seoAnalystAgentTools.TOOLS,
+      ...makeKnowledgeTools(AGENT_NAMES.SEO_ANALYST),
+      ...makeRecommendationTools(AGENT_NAMES.SEO_ANALYST),
+    ],
   },
   [AGENT_NAMES.AUTOPILOT]: {
     name: AGENT_NAMES.AUTOPILOT,
@@ -63,7 +71,8 @@ const registry = {
   [AGENT_NAMES.BLOG_OPS]: {
     name: AGENT_NAMES.BLOG_OPS,
     systemPrompt: systemPrompts.BLOG_OPS_AGENT_PROMPT,
-    // Block-edit tools are appended once the Editor page's local-apply wiring exists.
+    // Block edit/insert/delete + title-edit tools all apply locally via the
+    // Editor page's onApplyProposal/applyBlogOpsChange wiring — see EditorPage.js.
     tools: [...blogOpsAgentTools.TOOLS, ...makeKnowledgeTools(AGENT_NAMES.BLOG_OPS)],
   },
 };

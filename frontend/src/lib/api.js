@@ -32,7 +32,22 @@ function resolveApiBase() {
   if (typeof window !== 'undefined' && window.location) {
     const path = window.location.pathname;
     const match = path.match(/^(\/[^/]+)/);
-    if (match && !['/blogs', '/blog', '/login', '/api', '/agents'].includes(match[1])) {
+    if (
+      match &&
+      ![
+        '/blogs',
+        '/blog',
+        '/login',
+        '/welcome',
+        '/api',
+        '/agents',
+        '/settings',
+        '/keywords',
+        '/clusters',
+        '/config',
+        '/users',
+      ].includes(match[1])
+    ) {
       return `${match[1]}/api/v1`;
     }
   }
@@ -282,7 +297,13 @@ export const blogsApi = {
   update: (id, payload) => api.patch(`/blogs/${id}`, payload).then((r) => r.data.data),
   remove: (id) => api.delete(`/blogs/${id}`).then((r) => r.data),
   restore: (id) => api.post(`/blogs/${id}/restore`).then((r) => r.data.data),
-  publish: (id, payload = {}) => api.post(`/blogs/${id}/publish`, payload).then((r) => r.data.data),
+  // Spread, not replaced: every existing caller reads the blog's own fields
+  // (blog_status, etc.) directly off the resolved value — `delivery` is
+  // added alongside them, never nested, so nothing that already works here
+  // has to change. See backend/src/controllers/blogs.controller.js's
+  // `publish` handler for what populates it (empty array when no client
+  // integration is configured/enabled).
+  publish: (id, payload = {}) => api.post(`/blogs/${id}/publish`, payload).then((r) => ({ ...r.data.data, delivery: r.data.delivery || [] })),
   linkable: (params) => api.get('/blogs/linkable', { params }).then((r) => r.data.data),
   /**
    * Top-level, not `{data}`: this route is the generation controller's
@@ -290,6 +311,11 @@ export const blogsApi = {
    * follows the generation envelope rather than the blogs one.
    */
   generationStatus: (id) => api.get(`/blogs/${id}/generation-status`).then((r) => r.data),
+  /** Regenerates exactly one image content block. `prompt` is optional. */
+  regenerateBlockImage: (id, blockId, prompt) =>
+    api
+      .patch(`/blogs/${id}/blocks/${blockId}/regenerate-image`, prompt ? { prompt } : {})
+      .then((r) => r.data.data),
 };
 
 // Generation, brand voice, media and SERP all respond at the top level.
@@ -337,6 +363,40 @@ export const serpApi = {
   groundFacts: (payload) => api.post('/serp/ground-facts', payload).then((r) => r.data),
 };
 
+export const gscApi = {
+  /** Manual on-demand fetch+store — see backend/src/controllers/gsc.controller.js. */
+  sync: (payload = {}) => api.post('/gsc/sync', payload).then((r) => r.data),
+};
+
+/**
+ * Config page: client publish-API integrations. `has_secret` (never a
+ * decrypted secret) reflects whether a credential is set — see
+ * backend/src/controllers/publishingIntegration.controller.js.
+ */
+export const publishingConfigApi = {
+  availableFields: () => api.get('/config/available-fields').then((r) => r.data.data),
+  list: () => api.get('/config/integrations').then((r) => r.data.data),
+  get: (id) => api.get(`/config/integrations/${id}`).then((r) => r.data.data),
+  create: (payload) => api.post('/config/integrations', payload).then((r) => r.data.data),
+  update: (id, payload) => api.patch(`/config/integrations/${id}`, payload).then((r) => r.data.data),
+  replaceFieldMappings: (id, mappings) =>
+    api.put(`/config/integrations/${id}/field-mappings`, { mappings }).then((r) => r.data.data),
+  testConnection: (id, payload = {}) => api.post(`/config/integrations/${id}/test-connection`, payload).then((r) => r.data),
+  deliveryLogs: (id, params) => api.get(`/config/integrations/${id}/delivery-logs`, { params }).then((r) => r.data),
+  retryDelivery: (logId) => api.post(`/config/delivery-logs/${logId}/retry`).then((r) => r.data.data),
+};
+
+/**
+ * Users page: platform user management. Admin-only on the backend
+ * (requireAdmin) — see backend/src/controllers/users.controller.js. Never
+ * returns a password hash; `toSafeJSON()` on the backend guarantees that.
+ */
+export const usersApi = {
+  list: (params) => api.get('/users', { params }).then((r) => r.data),
+  create: (payload) => api.post('/users', payload).then((r) => r.data.data),
+  update: (id, payload) => api.patch(`/users/${id}`, payload).then((r) => r.data.data),
+};
+
 export const analyticsApi = {
   overview: (params) => api.get('/analytics/overview', { params }).then((r) => r.data.data),
   inFlight: () => api.get('/analytics/in-flight').then((r) => r.data.data),
@@ -347,6 +407,36 @@ export const settingsApi = {
   suggestTopics: () => api.get('/settings/topics/suggest').then((r) => r.data.data),
   addTopic: (payload) => api.post('/settings/topics', payload).then((r) => r.data.data),
   deleteTopic: (id) => api.delete(`/settings/topics/${id}`),
+};
+
+/**
+ * P6: global, org-scoped content-configuration settings (image defaults
+ * today; fact sources and reusable links join this same object as later P6
+ * sub-phases). Backend: controllers/settings.controller.js,
+ * ScripturaSettings-backed, read automatically by every image-generation
+ * call site. Never per-user — see that controller's own comment on why.
+ */
+export const contentSettingsApi = {
+  getImageDefaults: () => api.get('/settings/image-defaults').then((r) => r.data.data),
+  updateImageDefaults: (payload) => api.put('/settings/image-defaults', payload).then((r) => r.data.data),
+};
+
+/**
+ * P6-B: Fact Verification source management — real CRUD over
+ * `content.fact_sources`/`content.fact_verification_policy`
+ * (controllers/factSources.controller.js). `addSource` is JSON
+ * (website/reference_text); `uploadSource` is multipart (document/pdf) — two
+ * functions because the backend genuinely has two endpoints for this, not
+ * an arbitrary frontend split.
+ */
+export const factSourcesApi = {
+  list: () => api.get('/settings/fact-sources').then((r) => r.data.data),
+  addSource: (payload) => api.post('/settings/fact-sources', payload).then((r) => r.data.data),
+  uploadSource: (formData) =>
+    api.post('/settings/fact-sources/upload', formData, { headers: { 'Content-Type': undefined } }).then((r) => r.data.data),
+  updateSource: (id, payload) => api.put(`/settings/fact-sources/${id}`, payload).then((r) => r.data.data),
+  removeSource: (id) => api.delete(`/settings/fact-sources/${id}`),
+  updatePolicy: (policy) => api.put('/settings/fact-verification-policy', { policy }).then((r) => r.data.data),
 };
 
 export const keywordsApi = {
@@ -403,6 +493,100 @@ export const agentsApi = {
   dismissChange: (agentName, payload) => api.post(`/agents/${agentName}/dismiss`, payload).then((r) => r.data.data),
   /** Which knowledge rows (if any) were retrieved and used for a given chat turn. */
   getKnowledgeUsage: (traceId) => api.get('/agents/knowledge-usage', { params: { trace_id: traceId } }).then((r) => r.data.data),
+  /**
+   * P1-A: structured recommendations (agent_recommendations), completely
+   * separate from the proposed_change Apply flow above — see
+   * AgentActivityPage.js's "Pending Recommendations" section. Defaults to
+   * the pending ("recommended") view when no params are given.
+   */
+  listRecommendations: (params) => api.get('/agents/recommendations', { params }).then((r) => r.data.data),
+  approveRecommendation: (id) => api.post(`/agents/recommendations/${id}/approve`).then((r) => r.data.data),
+  rejectRecommendation: (id) => api.post(`/agents/recommendations/${id}/reject`).then((r) => r.data.data),
+  /** Decides every currently-pending recommendation at once, not just a loaded page. */
+  bulkApproveRecommendations: () => api.post('/agents/recommendations/bulk-approve').then((r) => r.data.data),
+  bulkRejectRecommendations: () => api.post('/agents/recommendations/bulk-reject').then((r) => r.data.data),
+  /**
+   * P1-B: recommendation action tracking (recommendation_actions), completely
+   * separate from the proposed_change Apply flow — see AgentActivityPage.js's
+   * "Approved — Awaiting Action" section. An action is never auto-created by
+   * approval; createRecommendationAction is its own explicit human step.
+   */
+  listRecommendationActions: (id) => api.get(`/agents/recommendations/${id}/actions`).then((r) => r.data.data),
+  createRecommendationAction: (id, payload) =>
+    api.post(`/agents/recommendations/${id}/actions`, payload).then((r) => r.data.data),
+  completeRecommendationAction: (id, payload) =>
+    api.post(`/agents/recommendation-actions/${id}/complete`, payload).then((r) => r.data.data),
+  failRecommendationAction: (id, payload) =>
+    api.post(`/agents/recommendation-actions/${id}/fail`, payload).then((r) => r.data.data),
+  cancelRecommendationAction: (id) => api.post(`/agents/recommendation-actions/${id}/cancel`).then((r) => r.data.data),
+  /**
+   * P1-B4: performs the real, whitelisted Blog mutation for an automated
+   * action (executor_type==='automated'). No request body — result_summary
+   * is server-computed only.
+   */
+  executeRecommendationAction: (id) => api.post(`/agents/recommendation-actions/${id}/execute`).then((r) => r.data.data),
+  /**
+   * P2-D: read-only outcome data (baseline/fresh evidence, metric_deltas,
+   * classification) for one action, if any was ever captured. Resolves to
+   * `null` — not a thrown error — when no outcome exists yet (OUTCOME_NOT_FOUND
+   * is an expected, common state: the action may predate outcome tracking,
+   * may not be completed, or nothing was metric-observable), so callers can
+   * treat "no outcome yet" as data, not as a page-level failure. Any other
+   * error (network, 401/403, 500) still propagates normally.
+   *
+   * IMPORTANT: `api`'s response interceptor (above) already ran every
+   * rejection through `normalizeError()` before this `.catch` ever sees it —
+   * by this point `err` is `{message, code, status, ...}`, never a raw axios
+   * error, so there is no `err.response` here at all. Checking
+   * `err.response?.status` (the pre-interceptor shape) always silently
+   * misses, and the 404 re-throws as a generic error instead of resolving to
+   * `null` — exactly the bug this comment is here to stop from recurring.
+   */
+  getRecommendationActionOutcome: (id) =>
+    api
+      .get(`/agents/recommendation-actions/${id}/outcome`)
+      .then((r) => r.data.data)
+      .catch((err) => {
+        if (err.status === 404) return null;
+        throw err;
+      }),
+  /**
+   * P4-D: learning candidate review (learning_candidates) — patterns
+   * detected from real recommendation_outcome data, awaiting a human
+   * confirm/reject decision. Defaults to nothing filtered; the caller
+   * narrows via `{status, agent_name}`. See
+   * services/agents/learningCandidateDecisions.js on the backend — this is
+   * a thin client over that existing, unmodified API.
+   */
+  listLearningCandidates: (params) => api.get('/agents/learning-candidates', { params }).then((r) => r.data.data),
+  /**
+   * `scope` is omitted (never sent as `undefined`/`null`) for an
+   * agent-scoped confirm — the backend defaults to 'agent' when the key is
+   * absent. `scope:'global'` is only ever sent when the caller passes it
+   * explicitly, so an agent-scope confirm can never accidentally promote to
+   * global through this wrapper.
+   */
+  confirmLearningCandidate: (id, scope) =>
+    api.post(`/agents/learning-candidates/${id}/confirm`, scope === 'global' ? { scope: 'global' } : {}).then((r) => r.data.data),
+  rejectLearningCandidate: (id) => api.post(`/agents/learning-candidates/${id}/reject`).then((r) => r.data.data),
+};
+
+/**
+ * P5-D: Intelligence Observatory — read-only aggregation over the existing
+ * P0-P5 lifecycle (services/agents/observatory.js on the backend). Every
+ * call here is a GET; nothing in this object can write anything.
+ */
+export const observatoryApi = {
+  getSummary: () => api.get('/agents/observatory/summary').then((r) => r.data.data),
+  getAgents: () => api.get('/agents/observatory/agents').then((r) => r.data.data),
+  getActivity: (params) => api.get('/agents/observatory/activity', { params }).then((r) => r.data.data),
+  getKnowledgeHealth: (agentName) =>
+    api.get('/agents/observatory/knowledge-health', { params: agentName ? { agent_name: agentName } : {} }).then((r) => r.data.data),
+  getKnowledgeNodes: (agentName, limit) =>
+    api
+      .get('/agents/observatory/knowledge-nodes', { params: { ...(agentName ? { agent_name: agentName } : {}), ...(limit ? { limit } : {}) } })
+      .then((r) => r.data.data),
+  getKnowledgeConnections: (id) => api.get(`/agents/observatory/knowledge/${id}/connections`).then((r) => r.data.data),
 };
 
 /**

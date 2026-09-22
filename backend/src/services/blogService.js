@@ -136,6 +136,7 @@ function serializeBlog(blog, { includeContent = true } = {}) {
     language: blog.language,
     readability_level: blog.readability_level,
     ai_content_cleaning: blog.ai_content_cleaning,
+    custom_prompt: blog.custom_prompt,
 
     brand_voice: {
       source_type: blog.brand_voice_source_type,
@@ -165,6 +166,8 @@ function serializeBlog(blog, { includeContent = true } = {}) {
     aeo_score_breakdown: blog.aeo_score_breakdown,
     geo_score: blog.geo_score,
     geo_score_breakdown: blog.geo_score_breakdown,
+    // null means verification was never run — never interpret as "verified" (see models/blog.js).
+    fact_verification: blog.fact_verification,
     cluster_id: blog.cluster_id === null || blog.cluster_id === undefined ? null : Number(blog.cluster_id),
     optimization_profile: blog.optimization_profile,
     word_count: blog.word_count,
@@ -385,6 +388,86 @@ async function findBlog(idOrSlug, { paranoid = true } = {}) {
 }
 
 /**
+ * Loads a blog by id, applies a partial patch, and saves it.
+ *
+ * This is the one real blog-mutation write path — `blogs.controller.js`'s
+ * `PATCH /blogs/:id` handler and the recommendation-action executors
+ * (services/agents/actionExecutors.js) both call this instead of duplicating
+ * load/guard/set/save logic, mirroring the "exactly one write path per table"
+ * invariant `proposals.controller.js`'s `applyProposal` already documents for
+ * other tables.
+ *
+ * Refuses to touch `content_blocks` while the blog is mid-generation, same as
+ * before this was extracted — editing content while a generation run is
+ * writing to the same row would have one overwrite the other.
+ *
+ * Internal blog links in an incoming `content_blocks` are verified here, because
+ * this is the one write path they can arrive through after generation — the
+ * editor's autosave and the Blog Ops agent's `update_block` both land here, and
+ * an agent rewriting a paragraph invents a slug exactly the way the article
+ * model does (see services/internalLinks.js).
+ *
+ * `linkPolicy` decides what happens to a link whose destination cannot be
+ * placed:
+ *   'repair' (default) — rewrite near-misses, leave the rest alone. For saves a
+ *                        person is driving: autosave fires mid-keystroke, and a
+ *                        link must not disappear while it is being typed.
+ *   'strict'           — rewrite near-misses, strip the rest. For machine-written
+ *                        content, which gets the same treatment as generation.
+ *
+ * Best-effort: a failure verifying links never blocks the save.
+ *
+ * @param {number|string} id
+ * @param {object} patch - fields to set on the blog (e.g. content_blocks, meta_description).
+ * @param {object} [options]
+ * @param {'repair'|'strict'} [options.linkPolicy='repair']
+ * @returns {Promise<import('../models').Blog>}
+ */
+async function updateBlog(id, patch, { linkPolicy = 'repair' } = {}) {
+  const ApiError = require('../utils/ApiError');
+
+  const blog = await Blog.findByPk(id);
+  if (!blog) throw ApiError.notFound(`No blog with id ${id}.`);
+
+  if (blog.isGenerating() && patch.content_blocks !== undefined) {
+    throw ApiError.conflict(
+      'Content is being generated for this blog right now. Wait for it to finish before editing.',
+      { code: 'GENERATION_IN_PROGRESS' }
+    );
+  }
+
+  if (Array.isArray(patch.content_blocks) && patch.content_blocks.length > 0) {
+    try {
+      const logger = require('../utils/logger');
+      const { repairInternalLinks } = require('./internalLinks');
+      // Mutates in place, so the caller's own copy of the blocks — the value an
+      // agent executor reports as the applied change — stays truthful.
+      const outcome = await repairInternalLinks(patch.content_blocks, {
+        strip: linkPolicy === 'strict',
+      });
+      if (outcome.repaired.length > 0 || outcome.stripped.length > 0) {
+        logger.info('Internal blog links corrected on save', {
+          blogId: Number(blog.id),
+          linkPolicy,
+          repaired: outcome.repaired,
+          stripped: outcome.stripped,
+        });
+      }
+    } catch (err) {
+      require('../utils/logger').warn('Internal blog link verification skipped on save', {
+        blogId: Number(blog.id),
+        error: err.message,
+      });
+    }
+  }
+
+  blog.set(patch);
+  await blog.save();
+
+  return blog;
+}
+
+/**
  * True when the blog is in a state where publishing makes sense.
  *
  * Publishing an article whose generation failed, or that has no content at all,
@@ -433,6 +516,7 @@ module.exports = {
   listBlogs,
   findLinkableBlogs,
   findBlog,
+  updateBlog,
   assertPublishable,
   publicUrlFor,
 };

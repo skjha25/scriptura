@@ -8,6 +8,9 @@ const {
   AGENT_CHAT_CONTEXT_EXCHANGES_DEFAULT,
   AGENT_CHAT_CONTEXT_EXCHANGES_MIN,
   AGENT_CHAT_CONTEXT_EXCHANGES_MAX,
+  IMAGE_DEFAULTS_SETTINGS_KEY,
+  IMAGE_DEFAULTS_FALLBACK,
+  DEFAULT_IMAGE_STYLE,
 } = require('../constants');
 
 /**
@@ -75,7 +78,7 @@ const suggestTopics = asyncHandler(async (req, res) => {
 /** Default values when no settings row exists yet. */
 const AUTOPILOT_DEFAULTS = Object.freeze({
   'autopilot.image_count': 1,
-  'autopilot.image_style': 'photo',
+  'autopilot.image_style': DEFAULT_IMAGE_STYLE,
   'autopilot.logo_overlay': false,
   'autopilot.logo_position': 'bottom_right',
   'autopilot.max_blogs_per_day': null,
@@ -151,6 +154,45 @@ const updateAutopilot = asyncHandler(async (req, res) => {
   res.json({ data: saved });
 });
 
+// ---------------------------------------------------------------------------
+// P6-A: global content image defaults (ScripturaSettings, scope:'org' only)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/v1/settings/image-defaults
+ * Org-wide only (see constants.IMAGE_DEFAULTS_SETTINGS_KEY's own comment for
+ * why this has no user-scope override, unlike /settings/autopilot) — falls
+ * back to the real current behavior (services/imageGeneration.js's own
+ * `DEFAULT_SIZE`, parsed to numbers) until an org explicitly saves something.
+ */
+const getImageDefaults = asyncHandler(async (req, res) => {
+  const value = await ScripturaSettings.getValue(IMAGE_DEFAULTS_SETTINGS_KEY, {
+    fallback: IMAGE_DEFAULTS_FALLBACK,
+  });
+  res.json({ data: { ...IMAGE_DEFAULTS_FALLBACK, ...value } });
+});
+
+/**
+ * PUT /api/v1/settings/image-defaults
+ * Body already validated by contentSettings.validators#imageDefaultsBody
+ * (width/height bounds, lockAspectRatio optional) via the `validate`
+ * middleware — this handler only persists it. Read by
+ * services/imageGeneration.js#generateBlogImage on every future image
+ * generation/regeneration; never applied retroactively to images already
+ * generated.
+ */
+const updateImageDefaults = asyncHandler(async (req, res) => {
+  const { width, height, lockAspectRatio } = req.body;
+  const value = { width, height, lockAspectRatio: lockAspectRatio !== false };
+
+  await ScripturaSettings.setValue(IMAGE_DEFAULTS_SETTINGS_KEY, value, {
+    scope: SETTINGS_SCOPE.ORG,
+    userId: null,
+  });
+
+  res.json({ data: value });
+});
+
 module.exports = {
   getTopics,
   addTopic,
@@ -158,4 +200,6 @@ module.exports = {
   suggestTopics,
   getAutopilot,
   updateAutopilot,
+  getImageDefaults,
+  updateImageDefaults,
 };

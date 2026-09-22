@@ -94,9 +94,9 @@ function TextWithBreaks({ text }) {
  * @param {string} props.tag Element to render.
  * @param {object} props.data Block data carrying `text` and/or `html`.
  * @param {boolean} [props.keepEmpty] Render the element even with no content.
- *   Used where the container is structural — an FAQ answer panel must exist for
- *   the accordion to have something to reveal, and the backend emits it
- *   unconditionally.
+ *   Used where the container is structural — the backend emits an FAQ answer
+ *   panel unconditionally, so the DOM must carry it even when the answer is
+ *   empty or the parity test sees drift.
  */
 function InlineInto({ tag: Tag, data, keepEmpty = false, ...props }) {
   const content = inlineContent(data);
@@ -217,14 +217,16 @@ function FaqBlock({ data }) {
   if (items.length === 0) return null;
 
   return (
-    // <details>/<summary> gives a real accordion with no JavaScript, stays
-    // expandable for crawlers, and is keyboard accessible for free.
+    // Plain question-then-answer, always visible — mirrors blocksToHtml.js. It
+    // was a <details>/<summary> accordion; every answer sat collapsed on the
+    // live post, which read as a widget bolted onto the article rather than
+    // part of it. See that file's faq_accordion renderer for the full reasoning.
     <section className="scriptura-faq">
       {items.map((item, index) => (
         // eslint-disable-next-line react/no-array-index-key
-        <details key={index} className="scriptura-faq-item">
+        <div key={index} className="scriptura-faq-item">
           <InlineInto
-            tag="summary"
+            tag="h3"
             className="scriptura-faq-question"
             data={{ text: item.question, html: item.question_html }}
           />
@@ -234,7 +236,7 @@ function FaqBlock({ data }) {
             data={{ text: item.answer, html: item.answer_html }}
             keepEmpty
           />
-        </details>
+        </div>
       ))}
     </section>
   );

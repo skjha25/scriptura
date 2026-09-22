@@ -94,6 +94,14 @@ async function publishScheduledBlogs() {
     publishedIds.push(Number(blog.id));
     logger.info(`Published scheduled blog ${blog.id} ("${blog.blog_title}").`);
     activity.scheduledPublish({ blogId: Number(blog.id), title: blog.blog_title });
+
+    // Client publish-API delivery — additive, best-effort, never blocks/
+    // reverses the save above, never throws. See the equivalent call and
+    // its rationale in blogs.controller.js's `publish` handler, and
+    // clientDeliveryService.js's own contract.
+    require('./delivery/clientDeliveryService')
+      .deliverIfConfigured(blog, { trigger: 'scheduled' })
+      .catch((err) => logger.error('Client delivery failed for a scheduled publish.', { blogId: Number(blog.id), message: err.message }));
   }
 
   if (publishedIds.length > 0 || skipped > 0) {

@@ -12,102 +12,131 @@
  * No manual input required. Every wizard step is handled automatically.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Rocket,
+  Search,
+  PenLine,
+  FileText,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  Lightbulb,
+  Pencil,
+  RotateCcw,
+  Check,
+} from 'lucide-react';
 
 import { blogsApi, generateApi } from '../lib/api';
 import { buildGenerationConfig } from '../components/wizard/Step6Generate';
 import { INITIAL_CONFIG } from '../components/wizard/steps';
-import { DEFAULT_SEO_STRUCTURE } from '../lib/constants';
+import { DEFAULT_IMAGE_STYLE, DEFAULT_SEO_STRUCTURE } from '../lib/constants';
+import { Card } from '../components/ui/feedback';
+import Button from '../components/ui/Button';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
 
 // ─── Stage definitions ──────────────────────────────────────────────────────
 const STAGES = [
-  { key: 'idle',       label: 'Ready',                icon: '🚀', description: 'Click below to start fully automated blog generation.' },
-  { key: 'topic',      label: 'Finding Topic',        icon: '🔍', description: 'AI is researching trending astrology topics…' },
-  { key: 'title',      label: 'Generating Title',     icon: '✍️', description: 'Scoring and selecting the best SEO title…' },
-  { key: 'creating',   label: 'Creating Draft',       icon: '📝', description: 'Setting up the blog with optimized defaults…' },
-  { key: 'generating', label: 'Writing Article',      icon: '⚡', description: 'AI is writing your full article with images and SEO…' },
-  { key: 'done',       label: 'Complete!',            icon: '✅', description: 'Your article is ready for review.' },
-  { key: 'error',      label: 'Something went wrong', icon: '❌', description: '' },
+  { key: 'idle', label: 'Ready', icon: Rocket, description: 'Click below to start fully automated blog generation.' },
+  { key: 'topic', label: 'Finding Topic', icon: Search, description: 'AI is researching trending astrology topics…' },
+  { key: 'title', label: 'Generating Title', icon: PenLine, description: 'Scoring and selecting the best SEO title…' },
+  { key: 'creating', label: 'Creating Draft', icon: FileText, description: 'Setting up the blog with optimized defaults…' },
+  { key: 'generating', label: 'Writing Article', icon: Zap, description: 'AI is writing your full article with images and SEO…' },
+  { key: 'done', label: 'Complete!', icon: CheckCircle2, description: 'Your article is ready for review.' },
+  { key: 'error', label: 'Something went wrong', icon: XCircle, description: '' },
 ];
 
 function stageIndex(key) {
   return STAGES.findIndex((s) => s.key === key);
 }
 
-// ─── Particle background ────────────────────────────────────────────────────
-function FloatingParticles() {
+// ─── Ambient background ─────────────────────────────────────────────────────
+/**
+ * A small, fixed set of soft accent-colored motes — deliberately not a dense
+ * randomized particle field (the spec calls that out as a template cliché).
+ * Positions/delays are computed once via `memo` so they don't reshuffle on
+ * every re-render — this component re-mounts under a parent that updates
+ * every second while generation is running, and without memoizing it the
+ * dots used to visibly jump to new random positions each tick.
+ */
+const FloatingParticles = memo(function FloatingParticles() {
+  const dots = [
+    { top: '15%', left: '10%', size: 3, delay: 0 },
+    { top: '25%', left: '85%', size: 4, delay: 0.6 },
+    { top: '65%', left: '92%', size: 3, delay: 1.2 },
+    { top: '80%', left: '8%', size: 4, delay: 1.8 },
+    { top: '45%', left: '50%', size: 3, delay: 2.4 },
+    { top: '10%', left: '55%', size: 2, delay: 0.3 },
+    { top: '70%', left: '35%', size: 3, delay: 1.5 },
+  ];
+
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-      {Array.from({ length: 20 }).map((_, i) => (
+      {dots.map((dot, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full"
-          style={{
-            width: Math.random() * 4 + 2,
-            height: Math.random() * 4 + 2,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            background: `hsla(${220 + Math.random() * 40}, 80%, 70%, ${0.15 + Math.random() * 0.2})`,
-          }}
-          animate={{
-            y: [0, -30 - Math.random() * 40, 0],
-            x: [0, (Math.random() - 0.5) * 20, 0],
-            opacity: [0.2, 0.6, 0.2],
-          }}
-          transition={{
-            duration: 4 + Math.random() * 4,
-            repeat: Infinity,
-            delay: Math.random() * 3,
-            ease: 'easeInOut',
-          }}
+          className="absolute rounded-full bg-accent/25"
+          style={{ top: dot.top, left: dot.left, width: dot.size, height: dot.size }}
+          animate={{ y: [0, -24, 0], opacity: [0.2, 0.55, 0.2] }}
+          transition={{ duration: 6, repeat: Infinity, delay: dot.delay, ease: 'easeInOut' }}
         />
       ))}
     </div>
   );
-}
+});
 
 // ─── Promo Workflow (Idle State) ────────────────────────────────────────────
 function PromoWorkflow() {
   const steps = [
-    { id: 'Idea', icon: '💡', desc: 'Brainstorm concepts' },
-    { id: 'Draft', icon: '📝', desc: 'Write full article' },
-    { id: 'Review', icon: '✅', desc: 'Check SEO & facts' },
-    { id: 'Publish', icon: '🚀', desc: 'Go live anytime' },
+    { id: 'Idea', icon: Lightbulb, desc: 'Brainstorm concepts' },
+    { id: 'Draft', icon: FileText, desc: 'Write full article' },
+    { id: 'Review', icon: CheckCircle2, desc: 'Check SEO & facts' },
+    { id: 'Publish', icon: Rocket, desc: 'Go live anytime' },
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto my-8 relative z-10">
-      <div className="text-center mb-10">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-          Your content creates itself. <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">You stay in control.</span>
+    <div className="relative z-10 mx-auto my-8 w-full max-w-4xl">
+      <div className="mb-10 text-center">
+        <h2 className="font-display text-2xl font-semibold text-ink md:text-3xl">
+          Your content creates itself.{' '}
+          <span className="bg-glow-accent bg-clip-text text-transparent">You stay in control.</span>
         </h2>
-        <p className="text-gray-400 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
-          Define your niche and standards just once. From there, our AI engine dreams up fresh topics, drafts full articles, verifies facts, and optimizes for search. You just drop in whenever you're ready to review and publish.
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-ink-muted md:text-lg">
+          Define your niche and standards just once. From there, our AI engine dreams up fresh topics, drafts full
+          articles, verifies facts, and optimizes for search. You just drop in whenever you're ready to review and
+          publish.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative">
+      <div className="relative grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
         {/* Connection line */}
-        <div className="hidden md:block absolute top-[40%] left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-blue-500/20 via-purple-500/50 to-pink-500/20 -translate-y-1/2 z-0" />
-        
-        {steps.map((step, i) => (
-          <motion.div
-            key={step.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.1 }}
-            className="relative z-10 flex flex-col items-center p-5 bg-panel/40 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl hover:bg-panel/80 hover:border-white/20 transition-all"
-          >
-            <div className="text-3xl mb-3 p-4 bg-white/5 rounded-full shadow-inner border border-white/5">
-              {step.icon}
-            </div>
-            <h3 className="text-white font-bold text-lg mb-1">{step.id}</h3>
-            <p className="text-gray-400 text-xs md:text-sm text-center">{step.desc}</p>
-          </motion.div>
-        ))}
+        <div
+          aria-hidden="true"
+          className="absolute left-[12%] right-[12%] top-[40%] z-0 hidden h-px -translate-y-1/2 bg-gradient-to-r from-accent/20 via-accent/50 to-accent-magenta/20 md:block"
+        />
+
+        {steps.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.1 }}
+              className="relative z-10"
+            >
+              <Card className="flex flex-col items-center p-5 text-center">
+                <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-glow-subtle text-accent-bright">
+                  <Icon className="h-5 w-5" strokeWidth={1.75} />
+                </div>
+                <h3 className="text-base font-semibold text-ink">{step.id}</h3>
+                <p className="mt-1 text-xs text-ink-muted md:text-sm">{step.desc}</p>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
@@ -118,11 +147,12 @@ function StageCard({ stage, elapsed, details, error }) {
   const def = STAGES.find((s) => s.key === stage) || STAGES[0];
   const idx = stageIndex(stage);
   const total = STAGES.length - 2; // exclude idle and error
+  const Icon = def.icon;
 
   return (
     <motion.div
       layout
-      className="relative w-full max-w-lg mx-auto overflow-hidden rounded-2xl border border-white/10 bg-panel/60 backdrop-blur-xl shadow-2xl"
+      className="relative mx-auto w-full max-w-lg overflow-hidden rounded-2xl border border-hairline bg-panel/60 shadow-panel backdrop-blur-xl"
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 150, damping: 20 }}
@@ -130,7 +160,7 @@ function StageCard({ stage, elapsed, details, error }) {
       {/* Progress bar */}
       {stage !== 'idle' && stage !== 'error' && (
         <motion.div
-          className="absolute top-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+          className="absolute left-0 top-0 h-1 bg-glow-accent"
           initial={{ width: '0%' }}
           animate={{
             width: stage === 'done' ? '100%' : `${(Math.max(0, idx - 1) / (total - 1)) * 100}%`,
@@ -143,19 +173,19 @@ function StageCard({ stage, elapsed, details, error }) {
         {/* Stage icon */}
         <motion.div
           key={stage}
-          className="text-5xl mb-4 inline-block"
+          className="mb-4 inline-grid h-16 w-16 place-items-center rounded-2xl bg-glow-subtle text-accent-bright"
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 15 }}
         >
-          {def.icon}
+          <Icon className="h-7 w-7" strokeWidth={1.75} />
         </motion.div>
 
         {/* Stage label */}
         <AnimatePresence mode="wait">
           <motion.h2
             key={`label-${stage}`}
-            className="text-xl font-bold text-ink mb-2"
+            className="mb-2 font-display text-xl font-semibold text-ink"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -168,7 +198,7 @@ function StageCard({ stage, elapsed, details, error }) {
         <AnimatePresence mode="wait">
           <motion.p
             key={`desc-${stage}`}
-            className="text-sm text-ink-muted mb-4"
+            className="mb-4 text-sm text-ink-muted"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -179,18 +209,16 @@ function StageCard({ stage, elapsed, details, error }) {
 
         {/* Spinner for active stages */}
         {!['idle', 'done', 'error'].includes(stage) && (
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="relative w-8 h-8">
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <div className="relative h-8 w-8">
               <motion.div
-                className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-purple-500 border-b-pink-500 border-l-transparent"
+                className="absolute inset-0 rounded-full border-2 border-l-transparent border-b-accent-magenta border-r-accent-violet border-t-accent"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
             </div>
             {elapsed > 0 && (
-              <span className="text-xs text-ink-muted font-mono tabular-nums">
-                {formatElapsed(elapsed)}
-              </span>
+              <span className="font-mono text-xs tabular-nums text-ink-muted">{formatElapsed(elapsed)}</span>
             )}
           </div>
         )}
@@ -200,7 +228,7 @@ function StageCard({ stage, elapsed, details, error }) {
           <AnimatePresence mode="wait">
             <motion.div
               key={`details-${stage}`}
-              className="mt-4 rounded-xl bg-surface/50 border border-white/5 p-4 text-left text-sm text-ink-secondary"
+              className="mt-4 rounded-xl border border-hairline bg-panel-sunken p-4 text-left text-sm text-ink-secondary"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -220,31 +248,31 @@ function StepTimeline({ stage }) {
   const currentIdx = stageIndex(stage);
 
   return (
-    <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
+    <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
       {activeSteps.map((s, i) => {
         const sIdx = stageIndex(s.key);
         const isActive = sIdx === currentIdx;
         const isDone = sIdx < currentIdx;
+        const Icon = s.icon;
 
         return (
           <div key={s.key} className="flex items-center gap-2">
             <motion.div
-              className={`
-                flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                ${isDone
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              className={
+                isDone
+                  ? 'flex items-center gap-1.5 rounded-full border border-status-good/30 bg-status-good/15 px-3 py-1.5 text-xs font-medium text-status-good'
                   : isActive
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-lg shadow-blue-500/10'
-                    : 'bg-surface/30 text-ink-muted border border-white/5'}
-              `}
+                    ? 'flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-medium text-accent-bright shadow-glow-sm'
+                    : 'flex items-center gap-1.5 rounded-full border border-hairline bg-panel-raised/50 px-3 py-1.5 text-xs font-medium text-ink-muted'
+              }
               animate={isActive ? { scale: [1, 1.05, 1] } : {}}
               transition={isActive ? { duration: 1.5, repeat: Infinity } : {}}
             >
-              <span>{isDone ? '✓' : s.icon}</span>
+              {isDone ? <Check className="h-3.5 w-3.5" strokeWidth={2} /> : <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />}
               <span className="hidden sm:inline">{s.label}</span>
             </motion.div>
             {i < activeSteps.length - 1 && (
-              <div className={`w-4 h-px ${isDone ? 'bg-green-500/40' : 'bg-white/10'}`} />
+              <div className={`h-px w-4 ${isDone ? 'bg-status-good/40' : 'bg-hairline'}`} />
             )}
           </div>
         );
@@ -303,8 +331,14 @@ export default function AutomatedBlogPage() {
         if (status.generation_status === 'generated') {
           setDetails(
             <div className="space-y-2">
-              <div className="flex justify-between"><span>SEO Score</span><span className="font-bold text-green-400">{status.seo_score ?? '—'}/100</span></div>
-              <div className="flex justify-between"><span>Word Count</span><span className="font-bold text-blue-400">{status.word_count?.toLocaleString() ?? '—'}</span></div>
+              <div className="flex justify-between">
+                <span>SEO Score</span>
+                <span className="font-semibold text-status-good">{status.seo_score ?? '—'}/100</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Word Count</span>
+                <span className="font-semibold text-accent-bright">{status.word_count?.toLocaleString() ?? '—'}</span>
+              </div>
             </div>
           );
           setStage('done');
@@ -363,7 +397,7 @@ export default function AutomatedBlogPage() {
       const chosenTitle = bestTitle?.title || `${topicResult.topic}: What the Stars Reveal`;
       setDetails(
         <div className="space-y-2">
-          <div className="text-ink font-medium">"{chosenTitle}"</div>
+          <div className="font-medium text-ink">&quot;{chosenTitle}&quot;</div>
           {bestTitle?.seo && (
             <div className="text-xs text-ink-muted">SEO Score: {bestTitle.seo.score}/100</div>
           )}
@@ -398,7 +432,7 @@ export default function AutomatedBlogPage() {
         // Images
         include_images: true,
         image_count: 1,
-        image_style: 'photo',
+        image_style: DEFAULT_IMAGE_STYLE,
         logo_overlay: true,
         logo_position: 'top_right',
         // Publishing
@@ -415,7 +449,7 @@ export default function AutomatedBlogPage() {
         <div className="space-y-1">
           <div><span className="text-ink-muted">Blog ID:</span> <span className="font-medium text-ink">#{newBlogId}</span></div>
           <div><span className="text-ink-muted">Title:</span> <span className="font-medium text-ink">{chosenTitle}</span></div>
-          <div><span className="text-ink-muted">Status:</span> <span className="text-yellow-400">Draft</span></div>
+          <div><span className="text-ink-muted">Status:</span> <span className="text-status-warning">Draft</span></div>
         </div>
       );
 
@@ -434,7 +468,7 @@ export default function AutomatedBlogPage() {
 
       await generateApi.article({ blog_id: newBlogId, config: genConfig });
       setDetails(
-        <div className="text-ink-muted text-center">
+        <div className="text-center text-ink-muted">
           AI is writing your full article. This typically takes 30–90 seconds.
         </div>
       );
@@ -459,21 +493,19 @@ export default function AutomatedBlogPage() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4 py-12">
+    <div className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-12">
       <FloatingParticles />
 
       {/* Header */}
       <motion.div
-        className="text-center mb-8 relative z-10"
+        className="relative z-10 mb-8 text-center"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2">
-          <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Autopilot Mode
-          </span>
+        <h1 className="mb-2 font-display text-3xl font-semibold sm:text-4xl">
+          <span className="bg-glow-accent bg-clip-text text-transparent">Autopilot Mode</span>
         </h1>
-        <p className="text-ink-muted text-sm sm:text-base max-w-md mx-auto">
+        <p className="mx-auto max-w-md text-sm text-ink-muted sm:text-base">
           One click. AI picks the topic, writes the article, generates images, and scores for SEO — all automatically.
         </p>
       </motion.div>
@@ -493,87 +525,49 @@ export default function AutomatedBlogPage() {
       {stage === 'idle' ? (
         <PromoWorkflow />
       ) : (
-        <div className="relative z-10 w-full max-w-lg mt-8">
+        <div className="relative z-10 mt-8 w-full max-w-lg">
           <StageCard stage={stage} elapsed={elapsed} details={details} error={error} />
         </div>
       )}
 
       {/* Action buttons */}
       <motion.div
-        className="relative z-10 mt-8 flex flex-col sm:flex-row gap-3"
+        className="relative z-10 mt-8 flex flex-col gap-3 sm:flex-row"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
         {stage === 'idle' && (
           <button
+            type="button"
             onClick={startAutomation}
-            className="
-              group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl
-              bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600
-              text-white font-semibold text-base shadow-xl
-              hover:shadow-2xl hover:shadow-purple-500/25
-              active:scale-[0.97] transition-all duration-200
-              overflow-hidden
-            "
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-glow-accent px-8 py-3.5 text-base font-semibold text-white shadow-glow-sm transition-all duration-200 hover:shadow-glow active:scale-[0.97]"
           >
             {/* Shimmer effect */}
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-            <svg className="w-5 h-5 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            <Rocket className="relative z-10 h-5 w-5" strokeWidth={2} />
             <span className="relative z-10">Start Generating</span>
           </button>
         )}
 
         {stage === 'done' && (
           <>
-            <button
-              onClick={() => navigate(`/blogs/${blogId}/edit`)}
-              className="
-                inline-flex items-center gap-2 px-6 py-3 rounded-xl
-                bg-gradient-to-r from-green-600 to-emerald-600
-                text-white font-semibold shadow-lg
-                hover:shadow-xl hover:shadow-green-500/25
-                active:scale-[0.97] transition-all duration-200
-              "
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-              </svg>
-              Review & Edit Article
-            </button>
-            <button
-              onClick={handleRetry}
-              className="
-                inline-flex items-center gap-2 px-6 py-3 rounded-xl
-                border border-white/10 bg-surface/50 backdrop-blur
-                text-ink-secondary font-medium
-                hover:bg-surface hover:text-ink
-                active:scale-[0.97] transition-all duration-200
-              "
-            >
+            <Button variant="success" size="lg" onClick={() => navigate(`/blogs/${blogId}/edit`)}>
+              <Pencil className="h-4 w-4" strokeWidth={2} />
+              Review &amp; Edit Article
+            </Button>
+            <Button variant="secondary" size="lg" onClick={handleRetry}>
+              <RotateCcw className="h-4 w-4" strokeWidth={2} />
               Generate Another
-            </button>
+            </Button>
           </>
         )}
 
         {stage === 'error' && (
-          <button
-            onClick={handleRetry}
-            className="
-              inline-flex items-center gap-2 px-6 py-3 rounded-xl
-              border border-red-500/30 bg-red-500/10
-              text-red-400 font-medium
-              hover:bg-red-500/20
-              active:scale-[0.97] transition-all duration-200
-            "
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-            </svg>
+          <Button variant="danger" size="lg" onClick={handleRetry}>
+            <RotateCcw className="h-4 w-4" strokeWidth={2} />
             Try Again
-          </button>
+          </Button>
         )}
       </motion.div>
 
@@ -586,10 +580,7 @@ export default function AutomatedBlogPage() {
           transition={{ delay: 0.5 }}
         >
           Blog #{blogId} created in {formatElapsed(elapsed)} •{' '}
-          <button
-            onClick={() => navigate(`/blogs/${blogId}`)}
-            className="text-accent hover:underline"
-          >
+          <button type="button" onClick={() => navigate(`/blogs/${blogId}`)} className="text-accent hover:underline">
             View
           </button>
         </motion.p>

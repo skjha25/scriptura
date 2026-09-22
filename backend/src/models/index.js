@@ -32,6 +32,17 @@ const AgentKnowledge = require('./agentKnowledge')(sequelize);
 const KnowledgeSource = require('./knowledgeSource')(sequelize);
 const SourceChunk = require('./sourceChunk')(sequelize);
 const AgentKnowledgeUsage = require('./agentKnowledgeUsage')(sequelize);
+const SerpSnapshot = require('./serpSnapshot')(sequelize);
+const SerpResult = require('./serpResult')(sequelize);
+const GscSnapshot = require('./gscSnapshot')(sequelize);
+const GscRow = require('./gscRow')(sequelize);
+const AgentRecommendation = require('./agentRecommendation')(sequelize);
+const RecommendationAction = require('./recommendationAction')(sequelize);
+const RecommendationOutcome = require('./recommendationOutcome')(sequelize);
+const LearningCandidate = require('./learningCandidate')(sequelize);
+const PublishingIntegration = require('./publishingIntegration')(sequelize);
+const PublishingFieldMapping = require('./publishingFieldMapping')(sequelize);
+const PublishingDeliveryLog = require('./publishingDeliveryLog')(sequelize);
 
 // Set up associations
 ScripturaKeyword.hasMany(Blog, { foreignKey: 'keyword_pool_id', as: 'blogs' });
@@ -88,6 +99,72 @@ SourceChunk.belongsTo(KnowledgeSource, { foreignKey: 'source_id', as: 'source', 
 KnowledgeSource.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
 AgentKnowledgeUsage.belongsTo(AgentKnowledge, { foreignKey: 'knowledge_id', as: 'knowledge', constraints: false });
 
+// serp_snapshots/serp_results: brand-new tables, no legacy readers, so a real
+// FK cascade is safe — deleting a snapshot deletes its result rows with it.
+SerpSnapshot.hasMany(SerpResult, { foreignKey: 'snapshot_id', as: 'results', onDelete: 'CASCADE' });
+SerpResult.belongsTo(SerpSnapshot, { foreignKey: 'snapshot_id', as: 'snapshot' });
+
+// gsc_snapshots/gsc_rows: same shape/reasoning as serp_snapshots/serp_results
+// above — brand-new tables, real FK cascade is safe.
+GscSnapshot.hasMany(GscRow, { foreignKey: 'snapshot_id', as: 'rows', onDelete: 'CASCADE' });
+GscRow.belongsTo(GscSnapshot, { foreignKey: 'snapshot_id', as: 'snapshot' });
+
+// agent_recommendations: references the agent_activity row it was captured
+// from. constraints:false, same reasoning as agent_activity's own audit-log
+// references (scriptura_logs, agent_knowledge, etc.) — this is an
+// audit-adjacent link to a row that is never deleted, not a real ownership
+// relationship that should cascade.
+AgentRecommendation.belongsTo(AgentActivity, { foreignKey: 'source_activity_id', as: 'sourceActivity', constraints: false });
+// P1-A: who decided. Same constraints:false posture as every other
+// audit-adjacent User reference (AgentActivity.belongsTo(User) above,
+// KnowledgeSource.belongsTo(User), etc.) — the real FK lives in the migration.
+AgentRecommendation.belongsTo(User, { foreignKey: 'decided_by', as: 'decidedByUser', constraints: false });
+
+// recommendation_actions: an owned child of the recommendation it tracks
+// execution for — real FK cascade posture (like serp_snapshots/serp_results
+// above), not constraints:false, since an action row has no meaning without
+// its parent recommendation (see the migration's ON DELETE RESTRICT).
+AgentRecommendation.hasMany(RecommendationAction, { foreignKey: 'recommendation_id', as: 'actions' });
+RecommendationAction.belongsTo(AgentRecommendation, { foreignKey: 'recommendation_id', as: 'recommendation' });
+// Who actually did/reported the work — same constraints:false posture as
+// every other audit-adjacent User reference (decided_by, created_by, etc.).
+RecommendationAction.belongsTo(User, { foreignKey: 'executed_by', as: 'executedByUser', constraints: false });
+
+// recommendation_outcomes: P2-A. An owned child of the action it measures —
+// real FK cascade posture (not constraints:false), same reasoning as
+// RecommendationAction's own link to AgentRecommendation: an outcome row has
+// no meaning without the action it followed up on (see the migration's ON
+// DELETE RESTRICT). hasOne, not hasMany, on the action side — action_id is
+// unique, one action earns at most one outcome row.
+AgentRecommendation.hasMany(RecommendationOutcome, { foreignKey: 'recommendation_id', as: 'outcomes' });
+RecommendationOutcome.belongsTo(AgentRecommendation, { foreignKey: 'recommendation_id', as: 'recommendation' });
+RecommendationAction.hasOne(RecommendationOutcome, { foreignKey: 'action_id', as: 'outcome' });
+RecommendationOutcome.belongsTo(RecommendationAction, { foreignKey: 'action_id', as: 'action' });
+
+// learning_candidates: P4-A. No association to RecommendationOutcome — its
+// evidence_refs stays a JSON pointer array by deliberate design (see the
+// migration), not a real FK/join table. reviewed_by/confirmed_knowledge_id
+// are audit-adjacent references only, same constraints:false posture as
+// every other User/cross-table reference in this file (decided_by,
+// executed_by, created_by, etc.) — a candidate row is never deleted or
+// invalidated just because the reviewing user's account or the resulting
+// knowledge row changes.
+LearningCandidate.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer', constraints: false });
+LearningCandidate.belongsTo(AgentKnowledge, { foreignKey: 'confirmed_knowledge_id', as: 'confirmedKnowledge', constraints: false });
+
+// publishing_field_mappings / publishing_delivery_logs: owned children of the
+// integration they belong to — real FK RESTRICT posture (like
+// recommendation_actions above), since there is no delete-integration
+// affordance in v1 (see the migrations). delivery_logs.blog_id is a soft
+// reference (constraints:false), matching ScripturaLog's own blog_id posture
+// above — a delivery log must survive regardless of any future change to how
+// blogs are deleted/archived.
+PublishingIntegration.hasMany(PublishingFieldMapping, { foreignKey: 'integration_id', as: 'fieldMappings' });
+PublishingFieldMapping.belongsTo(PublishingIntegration, { foreignKey: 'integration_id', as: 'integration' });
+PublishingIntegration.hasMany(PublishingDeliveryLog, { foreignKey: 'integration_id', as: 'deliveryLogs' });
+PublishingDeliveryLog.belongsTo(PublishingIntegration, { foreignKey: 'integration_id', as: 'integration' });
+PublishingDeliveryLog.belongsTo(Blog, { foreignKey: 'blog_id', as: 'blog', constraints: false });
+
 const db = {
   sequelize,
   Sequelize,
@@ -104,6 +181,17 @@ const db = {
   KnowledgeSource,
   SourceChunk,
   AgentKnowledgeUsage,
+  SerpSnapshot,
+  SerpResult,
+  GscSnapshot,
+  GscRow,
+  AgentRecommendation,
+  RecommendationAction,
+  RecommendationOutcome,
+  LearningCandidate,
+  PublishingIntegration,
+  PublishingFieldMapping,
+  PublishingDeliveryLog,
 };
 
 /**

@@ -42,6 +42,18 @@ const ALLOWED_ATTRS = { A: new Set(['href', 'title']) };
  */
 const DROP_CONTENT_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'OPTION', 'NOSCRIPT']);
 
+/** Public site that serves `/blog/<slug>`. */
+const PUBLIC_SITE_URL = 'https://divinetalk.in';
+
+/** Rewrites an internal blog href (relative, or on a divinetalk.live host) to the public site. */
+function toPublicBlogHref(href) {
+  const value = String(href).trim();
+  if (/^\/blog\//i.test(value)) return `${PUBLIC_SITE_URL}${value}`;
+  const absolute = /^https?:\/\/([^/?#]+)(\/blog\/.*)$/i.exec(value);
+  if (absolute && /(^|\.)divinetalk\.live$/i.test(absolute[1])) return `${PUBLIC_SITE_URL}${absolute[2]}`;
+  return href;
+}
+
 /** URL schemes safe to put in an href. */
 const SAFE_SCHEME = /^(?:https?:|mailto:|tel:)/i;
 
@@ -116,6 +128,11 @@ function scrub(node) {
     // External links get noopener: without it, a target=_blank link hands the
     // opened page a reference to ours via window.opener.
     if (child.tagName === 'A') {
+      // Internal blog links point at the public site; a root-relative /blog/
+      // href would resolve to this app's host, which serves no blog pages.
+      // Mirrors backend/src/services/publicLinks.js.
+      const rawHref = child.getAttribute('href');
+      if (rawHref) child.setAttribute('href', toPublicBlogHref(rawHref));
       const href = child.getAttribute('href') || '';
       if (/^https?:\/\//i.test(href)) {
         child.setAttribute('rel', 'noopener noreferrer');

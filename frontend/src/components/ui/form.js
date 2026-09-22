@@ -12,7 +12,7 @@
  *      field in without inventing unique ids.
  */
 
-import { useId, forwardRef } from 'react';
+import { useId, forwardRef, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 /** Shared input chrome, so every control looks identical. */
@@ -191,6 +191,155 @@ export const Select = forwardRef(function Select(
 });
 
 /**
+ * Searchable dropdown — a `Select` for a list long/grouped enough that typing
+ * to filter beats scrolling. `options` take the same `{value, label}` shape
+ * as `Select`, plus an optional `category` for a group heading.
+ *
+ * A real `<select>` was the first choice, same reasoning as `Select`'s own
+ * comment — but a native select's browser-provided type-ahead only jumps to
+ * the next option starting with the typed letter, not a real filter, which
+ * stops helping the moment two options share a first letter. This is a
+ * button + a floating panel rather than an `<input>` with a live dropdown,
+ * so the field's own value is never ambiguous with in-progress search text.
+ */
+export function SearchableSelect({
+  label,
+  hint,
+  error,
+  required,
+  id,
+  options = [],
+  placeholder = 'Select…',
+  searchPlaceholder = 'Search…',
+  value,
+  onChange,
+  containerClassName = '',
+}) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleOutsideClick(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [open]);
+
+  const selected = options.find((option) => option.value === value);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered =
+    normalizedQuery === ''
+      ? options
+      : options.filter((option) => `${option.category || ''} ${option.label}`.toLowerCase().includes(normalizedQuery));
+
+  // Groups filtered options under their category, preserving first-seen order —
+  // matching how the field allowlist is already ordered (Blog, SEO, Images, Publishing).
+  const groups = [];
+  for (const option of filtered) {
+    const category = option.category || '';
+    let group = groups.find((g) => g.category === category);
+    if (!group) {
+      group = { category, items: [] };
+      groups.push(group);
+    }
+    group.items.push(option);
+  }
+
+  function select(option) {
+    onChange?.(option.value);
+    setOpen(false);
+    setQuery('');
+  }
+
+  return (
+    <Field label={label} htmlFor={inputId} hint={hint} error={error} required={required} className={containerClassName}>
+      <div ref={containerRef} className="relative">
+        <button
+          type="button"
+          id={inputId}
+          onClick={() => setOpen((prev) => !prev)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className={clsx(
+            CONTROL_BASE,
+            'flex cursor-pointer items-center justify-between gap-2 text-left',
+            !selected && 'text-ink-faint',
+            error && CONTROL_ERROR
+          )}
+        >
+          <span className="truncate">
+            {selected ? (selected.category ? `${selected.category} — ${selected.label}` : selected.label) : placeholder}
+          </span>
+          <span aria-hidden="true" className="shrink-0 text-ink-muted">▾</span>
+        </button>
+
+        {open ? (
+          <div
+            role="listbox"
+            className="absolute z-20 mt-1 max-h-72 w-full overflow-hidden rounded-lg border border-hairline bg-panel shadow-lg"
+          >
+            <input
+              type="text"
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setOpen(false);
+                  setQuery('');
+                }
+              }}
+              placeholder={searchPlaceholder}
+              aria-label={`Search ${label || 'options'}`}
+              className="w-full border-b border-hairline bg-transparent px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none"
+            />
+            <div className="max-h-60 overflow-y-auto py-1">
+              {groups.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-ink-muted">No matching fields.</p>
+              ) : (
+                groups.map((group) => (
+                  <div key={group.category || '_'}>
+                    {group.category ? (
+                      <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                        {group.category}
+                      </p>
+                    ) : null}
+                    {group.items.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={option.value === value}
+                        onClick={() => select(option)}
+                        className={clsx(
+                          'block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-panel-raised',
+                          option.value === value ? 'bg-accent/10 text-accent-bright' : 'text-ink'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Field>
+  );
+}
+
+/**
  * Switch-style toggle.
  *
  * Built on a real checkbox with the input visually hidden but still focusable, so
@@ -276,29 +425,60 @@ export function Checkbox({ label, checked, onChange, disabled, id, className = '
  *
  * Commits on Enter or comma and removes the last tag on Backspace when the input
  * is empty — the interaction people already expect from this control.
+ *
+ * Pasting (or typing, then hitting Enter over) a comma- or newline-separated
+ * batch — "keyword one, keyword two, keyword three" pasted from notes — adds
+ * every piece as its own tag in one go, rather than the whole string becoming
+ * a single tag. Splitting one at a time by hand was the actual complaint this
+ * was built for: a list of 10-15 keywords from notes needs one paste, not one
+ * Enter per keyword.
  */
 export function TagInput({ label, hint, value = [], onChange, placeholder, max = 30, id }) {
   const generatedId = useId();
   const inputId = id || generatedId;
 
-  function addTag(raw) {
-    const tag = String(raw).trim().replace(/,$/, '');
-    if (tag === '' || value.length >= max) return;
-    // Case-insensitive de-duplication, so "Shiva" and "shiva" do not both appear.
-    if (value.some((existing) => existing.toLowerCase() === tag.toLowerCase())) return;
-    onChange?.([...value, tag]);
+  /**
+   * Splits `raw` on commas and newlines, trims each piece, and adds every
+   * non-empty one that is not already present (case-insensitive) — against
+   * both the existing tags and earlier pieces in this same batch, so a pasted
+   * "Shiva, shiva, Ganesha" adds two tags, not three. Silently stops at `max`
+   * rather than throwing, matching the existing single-tag behavior.
+   */
+  function addTags(raw) {
+    const pieces = String(raw)
+      .split(/[,\n]/)
+      .map((piece) => piece.trim())
+      .filter(Boolean);
+    if (pieces.length === 0) return;
+
+    const next = [...value];
+    for (const piece of pieces) {
+      if (next.length >= max) break;
+      if (next.some((existing) => existing.toLowerCase() === piece.toLowerCase())) continue;
+      next.push(piece);
+    }
+    if (next.length !== value.length) onChange?.(next);
   }
 
   function handleKeyDown(event) {
     if (event.key === 'Enter' || event.key === ',') {
       event.preventDefault();
-      addTag(event.target.value);
+      addTags(event.target.value);
       event.target.value = '';
       return;
     }
     if (event.key === 'Backspace' && event.target.value === '' && value.length > 0) {
       onChange?.(value.slice(0, -1));
     }
+  }
+
+  /** A paste lands as one string with no per-character keydown, so comma-splitting has to happen here explicitly. */
+  function handlePaste(event) {
+    const pasted = event.clipboardData?.getData('text');
+    if (!pasted || !/[,\n]/.test(pasted)) return; // a single pasted word behaves like normal typing
+    event.preventDefault();
+    addTags(`${event.target.value}${pasted}`);
+    event.target.value = '';
   }
 
   return (
@@ -330,10 +510,11 @@ export function TagInput({ label, hint, value = [], onChange, placeholder, max =
           id={inputId}
           type="text"
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           // Committing on blur too, so a typed-but-unsubmitted tag is not lost
           // when the user tabs away.
           onBlur={(event) => {
-            addTag(event.target.value);
+            addTags(event.target.value);
             event.target.value = '';
           }}
           placeholder={value.length === 0 ? placeholder : ''}

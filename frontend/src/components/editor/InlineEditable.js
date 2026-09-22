@@ -32,8 +32,120 @@
  * there is never a scrollbar inside a box inside the page.
  */
 
-import { forwardRef, useCallback, useLayoutEffect, useRef } from 'react';
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
+
+/**
+ * Wraps the textarea's current selection in an inline tag, or — with nothing
+ * selected — inserts the tag around a short placeholder and selects it, so
+ * either way the author lands with something to type over.
+ *
+ * Splicing the raw string and restoring selection by offset is what a real
+ * textarea's native selection API makes reliable here (see this file's own
+ * header comment on why contentEditable was rejected) — a Range-based
+ * insert into a contentEditable is exactly the caret-restoration problem
+ * that reasoning warns about.
+ *
+ * @returns {{value: string, selectionStart: number, selectionEnd: number}}
+ */
+function wrapSelection(current, start, end, openTag, closeTag, placeholder) {
+  const hasSelection = end > start;
+  const inner = hasSelection ? current.slice(start, end) : placeholder;
+  const before = current.slice(0, start);
+  const after = current.slice(hasSelection ? end : start);
+  const next = `${before}${openTag}${inner}${closeTag}${after}`;
+  const innerStart = before.length + openTag.length;
+  return { value: next, selectionStart: innerStart, selectionEnd: innerStart + inner.length };
+}
+
+/** Small formatting toolbar for a `richText` field — Bold, Italic, and Link. */
+function FormattingToolbar({ targetRef, onApply, disabled }) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+
+  function wrapWith(openTag, closeTag, placeholder) {
+    const node = targetRef.current;
+    if (!node) return;
+    const result = wrapSelection(node.value, node.selectionStart, node.selectionEnd, openTag, closeTag, placeholder);
+    onApply(result);
+  }
+
+  function submitLink(event) {
+    event.preventDefault();
+    const href = linkUrl.trim();
+    if (href === '') return;
+    // `href` is attribute-escaped, not left to the caller — this is the one
+    // place user-typed text becomes an HTML attribute value.
+    wrapWith(`<a href="${href.replace(/"/g, '&quot;')}">`, '</a>', 'link text');
+    setLinkUrl('');
+    setLinkOpen(false);
+  }
+
+  return (
+    <div className="mb-1 flex flex-wrap items-center gap-1">
+      <button
+        type="button"
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()} // keep textarea focus/selection intact
+        onClick={() => wrapWith('<strong>', '</strong>', 'bold text')}
+        aria-label="Bold"
+        title="Bold"
+        className="rounded border border-hairline px-1.5 py-0.5 text-xs font-bold text-ink-secondary hover:border-hairline-strong hover:text-ink disabled:opacity-40"
+      >
+        B
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => wrapWith('<em>', '</em>', 'italic text')}
+        aria-label="Italic"
+        title="Italic"
+        className="rounded border border-hairline px-1.5 py-0.5 text-xs italic text-ink-secondary hover:border-hairline-strong hover:text-ink disabled:opacity-40"
+      >
+        I
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setLinkOpen((open) => !open)}
+        aria-label="Insert link"
+        title="Insert link"
+        aria-expanded={linkOpen}
+        className="rounded border border-hairline px-1.5 py-0.5 text-xs text-ink-secondary underline hover:border-hairline-strong hover:text-ink disabled:opacity-40"
+      >
+        Link
+      </button>
+      {linkOpen ? (
+        <form onSubmit={submitLink} className="flex items-center gap-1">
+          <input
+            type="text"
+            autoFocus
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            placeholder="https://…"
+            aria-label="Link URL"
+            className="w-40 rounded border border-hairline bg-transparent px-1.5 py-0.5 text-xs text-ink placeholder:text-ink-faint focus:border-accent/60 focus:outline-none"
+          />
+          <button type="submit" className="rounded border border-accent/40 px-1.5 py-0.5 text-xs text-accent-bright hover:bg-accent/10">
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLinkOpen(false);
+              setLinkUrl('');
+            }}
+            className="rounded border border-hairline px-1.5 py-0.5 text-xs text-ink-muted hover:text-ink"
+          >
+            Cancel
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * @param {object} props
@@ -45,6 +157,8 @@ import clsx from 'clsx';
  *   one line (a heading, a list item, a CTA label).
  * @param {() => void} [props.onEnter] Fired instead of a newline when `singleLine`.
  * @param {boolean} [props.readOnly]
+ * @param {boolean} [props.richText] Shows a Bold/Italic/Link toolbar above the field
+ *   that wraps the current selection in inline markup — see `wrapSelection`.
  */
 const InlineEditable = forwardRef(function InlineEditable(
   {
@@ -55,12 +169,18 @@ const InlineEditable = forwardRef(function InlineEditable(
     singleLine = false,
     onEnter,
     readOnly = false,
+    richText = false,
     className = '',
     ...rest
   },
   forwardedRef
 ) {
   const innerRef = useRef(null);
+  // A toolbar click changes `value` via the controlled-input round trip, so the
+  // new selection can only be applied once the DOM textarea actually holds the
+  // new value — this ref carries the request from the click handler to the
+  // layout effect below that fires right after that re-render.
+  const pendingSelectionRef = useRef(null);
 
   /**
    * Matches the control's height to its content.
@@ -76,7 +196,20 @@ const InlineEditable = forwardRef(function InlineEditable(
   }, []);
 
   // Layout effect, not effect: growing after paint is a visible jump on load.
-  useLayoutEffect(resize, [resize, value]);
+  useLayoutEffect(() => {
+    resize();
+    const pending = pendingSelectionRef.current;
+    if (pending && innerRef.current) {
+      innerRef.current.focus();
+      innerRef.current.setSelectionRange(pending.selectionStart, pending.selectionEnd);
+      pendingSelectionRef.current = null;
+    }
+  }, [resize, value]);
+
+  function applyFormatting(result) {
+    pendingSelectionRef.current = { selectionStart: result.selectionStart, selectionEnd: result.selectionEnd };
+    onChange(result.value);
+  }
 
   const setRefs = useCallback(
     (node) => {
@@ -94,26 +227,31 @@ const InlineEditable = forwardRef(function InlineEditable(
   }
 
   return (
-    <textarea
-      ref={setRefs}
-      rows={1}
-      value={value}
-      readOnly={readOnly}
-      aria-label={ariaLabel}
-      placeholder={placeholder}
-      spellCheck
-      onChange={(event) => onChange(event.target.value)}
-      onKeyDown={handleKeyDown}
-      className={clsx(
-        'block w-full resize-none overflow-hidden bg-transparent',
-        'rounded-md border border-transparent px-1.5 py-0.5',
-        'text-ink placeholder:text-ink-faint',
-        'hover:border-hairline focus:border-accent/60 focus:outline-none',
-        readOnly && 'cursor-default text-ink-secondary hover:border-transparent',
-        className
-      )}
-      {...rest}
-    />
+    <div>
+      {richText && !readOnly ? (
+        <FormattingToolbar targetRef={innerRef} onApply={applyFormatting} disabled={readOnly} />
+      ) : null}
+      <textarea
+        ref={setRefs}
+        rows={1}
+        value={value}
+        readOnly={readOnly}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        spellCheck
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={handleKeyDown}
+        className={clsx(
+          'block w-full resize-none overflow-hidden bg-transparent',
+          'rounded-md border border-transparent px-1.5 py-0.5',
+          'text-ink placeholder:text-ink-faint',
+          'hover:border-hairline focus:border-accent/60 focus:outline-none',
+          readOnly && 'cursor-default text-ink-secondary hover:border-transparent',
+          className
+        )}
+        {...rest}
+      />
+    </div>
   );
 });
 

@@ -69,7 +69,7 @@ const {
   generateTitleBody,
   generateOutlineBody,
 } = require('../validators/generation.validators');
-const { GENERATION_STATUS, GENERATION_IN_FLIGHT, GENERATION_RETRYABLE_FROM } = require('../constants');
+const { GENERATION_STATUS, GENERATION_IN_FLIGHT, GENERATION_RETRYABLE_FROM, DEFAULT_IMAGE_STYLE } = require('../constants');
 
 /**
  * Rows stuck in `generating` for longer than this are assumed dead.
@@ -252,58 +252,35 @@ async function resolveInternalLinks(cfg) {
 }
 
 /**
- * Scans generated blocks for internal links and verifies the destination exists
- * and is published. Strips the link tag (leaving the text intact) if the blog
- * is missing, deleted, or a draft.
- * 
+ * Verifies every internal blog link the model wrote, repairing the ones that
+ * point at a real article under a slightly wrong slug and stripping the rest.
+ *
+ * Thin wrapper over `internalLinks.repairInternalLinks`, kept here because this
+ * is the one point in the pipeline where generated blocks are still mutable.
+ * The rules, and why a repair step exists at all, live in that module.
+ *
+ * Best-effort: a failure here logs and leaves the blocks as written rather than
+ * failing a generation run that otherwise succeeded.
+ *
  * @param {Array} blocks
+ * @param {object} [context] Ids for the log line only.
  */
-async function verifyAndStripInvalidLinks(blocks) {
-  if (!blocks || !blocks.length) return;
-  
-  const linkRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
-  const slugsToCheck = new Set();
-  
-  // First pass: collect all internal slugs
-  for (const block of blocks) {
-    if (block?.data?.html) {
-      let match;
-      while ((match = linkRegex.exec(block.data.html)) !== null) {
-        const href = match[1];
-        if (href.includes('/blog/')) {
-          const slugMatch = href.match(/\/blog\/([^\/?#]+)/);
-          if (slugMatch && slugMatch[1]) {
-            slugsToCheck.add(slugMatch[1]);
-          }
-        }
-      }
-    }
-  }
-  
-  if (slugsToCheck.size === 0) return;
-  
-  // Verify slugs against the database
-  const { Blog } = require('../models');
-  const validRows = await Blog.scope('linkable').findAll({
-    where: { slug: Array.from(slugsToCheck) },
-    attributes: ['slug']
-  });
-  
-  const validSlugs = new Set(validRows.map(r => r.slug));
-  
-  // Second pass: strip invalid links
-  for (const block of blocks) {
-    if (block?.data?.html) {
-      block.data.html = block.data.html.replace(linkRegex, (fullMatch, href, linkText) => {
-        if (href.includes('/blog/')) {
-          const slugMatch = href.match(/\/blog\/([^\/?#]+)/);
-          if (!slugMatch || !slugMatch[1] || !validSlugs.has(slugMatch[1])) {
-            return linkText; // strip tag, keep text
-          }
-        }
-        return fullMatch; // keep valid link or external link
+async function verifyAndStripInvalidLinks(blocks, context = {}) {
+  try {
+    const { repairInternalLinks } = require('./internalLinks');
+    const outcome = await repairInternalLinks(blocks);
+    if (outcome.repaired.length > 0 || outcome.stripped.length > 0) {
+      logger.info('Internal blog links corrected after generation', {
+        ...context,
+        checked: outcome.checked,
+        repaired: outcome.repaired,
+        stripped: outcome.stripped,
       });
     }
+    return outcome;
+  } catch (err) {
+    logger.warn('Internal blog link verification skipped', { ...context, error: err.message });
+    return null;
   }
 }
 
@@ -380,6 +357,9 @@ async function providerOptionsFor({ cfg, blog, brandVoice, internalLinks, ground
     outline: cfg.outline && cfg.outline.length ? cfg.outline : blog.outline || [],
     targetWordCount: cfg.target_word_count,
     articleType: cfg.article_type,
+    // Explicit per-blog override, given priority in the prompt itself
+    // (see prompts.js's articlePrompt) over every knob below.
+    customPrompt: cfg.custom_prompt || blog.custom_prompt || undefined,
     toneOfVoice: cfg.tone_of_voice || effectiveBrandVoice?.tone || contentDefaults.toneOfVoice,
     pointOfView: cfg.point_of_view || effectiveBrandVoice?.pov || contentDefaults.pointOfView,
     readabilityLevel: cfg.readability_level || contentDefaults.readabilityLevel,
@@ -470,14 +450,18 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     });
 
     const result = await textProvider.generateArticle(options);
-    const blocks = result.blocks;
+    let blocks = result.blocks;
 
-    await verifyAndStripInvalidLinks(blocks);
+    await verifyAndStripInvalidLinks(blocks, { blogId: Number(blog.id) });
 
-    // blog_content is DERIVED, never hand-built. The renderer is the only thing
-    // that may produce the HTML the public site reads — see the model's header.
-    const html = blocksToHtml(blocks);
-    const wordCount = countWords(blocks);
+    // P6-B: real fact verification against the org's configured sources —
+    // operates on the same already-generated `blocks`, before rendering,
+    // exactly where `verifyAndStripInvalidLinks` already runs its own
+    // post-generation check. `null` when nothing is configured/readable —
+    // never a fabricated "verified". Best-effort: a failure here is caught
+    // inside factVerification.js itself and never reaches this function, so
+    // it can never fail generation.
+    const factVerification = await require('./factVerification').verifyBlocks(blocks);
 
     let generatedImages = [];
     if (cfg.include_images && cfg.image_count > 0) {
@@ -486,18 +470,25 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
         generatedImages = await generateBlogImage({
           prompt: cfg.topic || blog.topic || blog.blog_title,
           topic: cfg.topic || blog.topic || blog.blog_title,
-          style: cfg.image_style || 'photo',
+          style: cfg.image_style || DEFAULT_IMAGE_STYLE,
           logoOverlay: cfg.logo_overlay || false,
           logoPosition: cfg.logo_position || 'none',
           count: cfg.image_count,
         });
 
         if (generatedImages.length > 0) {
+          // Hero image: unchanged from pre-existing behavior.
           blog.blog_picture = generatedImages[0].relativePath;
           blog.extra_images = generatedImages.map((img) => ({
             ...img,
             url: img.relativePath,
           }));
+
+          // Additional images (index 1+): inserted as content blocks so they
+          // actually appear in the article, instead of sitting unused in
+          // extra_images. See imagePlacement.js for the placement rule.
+          const { placeImagesInBlocks } = require('./imagePlacement');
+          blocks = placeImagesInBlocks(blocks, generatedImages).blocks;
         }
       } catch (imgErr) {
         logger.error('Failed to generate images during article generation', {
@@ -509,6 +500,13 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
         });
       }
     }
+
+    // blog_content is DERIVED, never hand-built. The renderer is the only thing
+    // that may produce the HTML the public site reads — see the model's header.
+    // Computed after image placement so the rendered HTML/word count include
+    // any inserted image blocks.
+    const html = blocksToHtml(blocks);
+    const wordCount = countWords(blocks);
 
     const metaDescription =
       cfg.meta_description ||
@@ -541,6 +539,7 @@ async function runGeneration(blogId, cfg, { provider } = {}) {
     blog.blog_content = html;
     blog.word_count = wordCount;
     blog.seo_score = score;
+    blog.fact_verification = factVerification;
     blog.meta_title = metaTitle || null;
     blog.meta_description = metaDescription || null;
 

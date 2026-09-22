@@ -1,115 +1,61 @@
 // frontend/src/pages/LoginPage.js
 /**
- * Sign-in screen.
- *
- * There is no registration link — accounts are created by an admin out-of-band,
- * because this is an internal tool and self-serve signup would be a way in for
- * anyone who found the URL.
+ * Sign-in screen — split-screen layout around <LoginForm>, whose auth logic
+ * is unchanged from before this redesign (see components/auth/LoginForm.js).
  */
 
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
-import { useAuth } from '../context/AuthContext';
-import Button from '../components/ui/Button';
-import { Input } from '../components/ui/form';
-import { ErrorBanner } from '../components/ui/feedback';
+import LoginForm from '../components/auth/LoginForm';
+import BrandLogo from '../components/layout/BrandLogo';
+import LifecycleGlyph from '../components/landing/LifecycleGlyph';
+import MouseGlow from '../components/ui/MouseGlow';
 
 export default function LoginPage() {
-  const { login, error, clearError } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (submitting) return;
-
-    setSubmitting(true);
-    clearError();
-    try {
-      await login(email, password);
-      // Return the user to wherever they were headed before the redirect.
-      navigate(location.state?.from || '/', { replace: true });
-    } catch {
-      // AuthContext already holds the normalised error for the banner; there is
-      // nothing useful to add here.
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-sm"
-      >
-        <div className="mb-8 text-center">
-          
-          <h1 className="text-2xl font-semibold text-ink">Scriptura</h1>
-          <p className="mt-1.5 text-sm text-ink-muted">
-            Divinetalk's internal content engine
-          </p>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* Rendered outside the animated motion.div below — a `transform` on an
+          ancestor would turn it into MouseGlow's containing block and break
+          its viewport-fixed positioning. */}
+      <MouseGlow />
+
+      {/* Brand panel — hidden below lg to keep the form the whole screen on mobile. */}
+      <div className="relative hidden overflow-hidden border-r border-hairline bg-panel/30 lg:flex lg:flex-col lg:justify-between lg:p-10">
+        <div className="absolute inset-0 bg-cosmic-wash" aria-hidden="true" />
+        <Link to="/welcome" className="relative flex items-center gap-2.5">
+          <BrandLogo />
+          <span className="text-sm font-semibold text-ink">Scriptura</span>
+        </Link>
+
+        <div className="relative mx-auto w-full max-w-sm">
+          <LifecycleGlyph />
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-xl border border-hairline bg-panel p-6 shadow-panel"
-          noValidate
+        <p className="relative max-w-sm text-sm leading-relaxed text-ink-secondary">
+          Every recommendation waits for your approval. Every outcome gets measured before the
+          system trusts it.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center px-4 py-10">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-sm"
         >
-          <ErrorBanner error={error} onDismiss={clearError} />
+          <div className="mb-8 text-center">
+            <Link to="/welcome" className="mb-4 inline-flex items-center gap-2.5 lg:hidden">
+              <BrandLogo />
+            </Link>
+            <h1 className="text-2xl font-semibold text-ink">Scriptura</h1>
+            <p className="mt-1.5 text-sm text-ink-muted">Divinetalk's content intelligence platform</p>
+          </div>
 
-          <Input
-            label="Email"
-            type="email"
-            name="email"
-            autoComplete="username"
-            // The first field on a login screen is the one place autofocus is
-            // unambiguously right: it is why the user is here.
-            autoFocus
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@divinetalk.com"
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
-          />
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            loading={submitting}
-            // Disabled until both fields have content, so the obvious mistake is
-            // caught before a network round trip.
-            disabled={email.trim() === '' || password === ''}
-            className="w-full"
-          >
-            {submitting ? 'Signing in' : 'Sign in'}
-          </Button>
-
-          <p className="pt-1 text-center text-[11px] leading-relaxed text-ink-faint">
-            Accounts are provisioned by an administrator. Ask in the team channel if
-            you need access.
-          </p>
-        </form>
-      </motion.div>
+          <LoginForm />
+        </motion.div>
+      </div>
     </div>
   );
 }

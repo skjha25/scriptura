@@ -38,8 +38,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
+import { Undo2, Redo2, RefreshCw } from 'lucide-react';
 
-import { blogsApi, mediaApi } from '../lib/api';
+import { blogsApi, mediaApi, agentsApi } from '../lib/api';
 import { BLOG_STATUS, GENERATION_IN_FLIGHT } from '../lib/constants';
 import { useInterval } from '../hooks/useDebouncedValue';
 import useBlockHistory from '../hooks/useBlockHistory';
@@ -58,7 +59,12 @@ import EditorCanvas from '../components/editor/EditorCanvas';
 import BlockSettingsPanel from '../components/editor/BlockSettingsPanel';
 import PreviewPane from '../components/editor/PreviewPane';
 import SaveStatus from '../components/editor/SaveStatus';
+import FactVerificationBadge from '../components/editor/FactVerificationBadge';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
+import AiEditBar from '../components/editor/AiEditBar';
+import Modal from '../components/ui/Modal';
+import { Textarea } from '../components/ui/form';
+import SeoPanel from '../components/editor/SeoPanel';
 import {
   createBlock,
   duplicateBlock,
@@ -120,6 +126,11 @@ export default function EditorPage() {
 
   const [regeneratingImage, setRegeneratingImage] = useState(false);
 
+  /** Which image block's regenerate modal is open, if any. */
+  const [regenerateModalBlockId, setRegenerateModalBlockId] = useState(null);
+  const [regeneratingBlockId, setRegeneratingBlockId] = useState(null);
+  const [regenerateBlockError, setRegenerateBlockError] = useState(null);
+
   /** Set when the backend refuses a write because generation owns the row. */
   const [generationLock, setGenerationLock] = useState(false);
 
@@ -131,6 +142,16 @@ export default function EditorPage() {
   useEffect(() => {
     blocksRef.current = blocks;
   }, [blocks]);
+
+  /**
+   * Chains consecutive AiEditBar turns into one conversation so a clarifying
+   * question the agent asks has memory of itself when the admin answers it —
+   * reset only on a real article change, never by an ordinary instruction.
+   */
+  const aiEditTraceRef = useRef(null);
+  useEffect(() => {
+    aiEditTraceRef.current = null;
+  }, [id]);
 
   const generating = GENERATION_IN_FLIGHT.includes(blog?.generation_status);
   const readOnly = generating || generationLock;
@@ -286,6 +307,57 @@ export default function EditorPage() {
 
   const handleReorder = useCallback((next) => setBlocks(next), [setBlocks]);
 
+  /**
+   * Applies one blog_ops proposed change directly into editor state — shared
+   * by AgentChatWidget's Apply button and AiEditBar's auto-apply. Every
+   * branch reuses an existing handler/pipeline (undo, autosave) rather than
+   * writing a second one, except update_title: blog_title is not part of
+   * content_blocks, so it mirrors handleRegenerateImage's own pattern of an
+   * immediate direct PATCH for a non-block field.
+   */
+  const applyBlogOpsChange = useCallback(
+    (change) => {
+      if (change.domain !== 'blog_ops' || readOnly) return false;
+
+      if (change.action === 'update_block') {
+        // No mergeKey: an agent-applied edit is always its own undo step,
+        // distinguishable from a human's own typing (which merges via
+        // "<blockId>:field" keys) — see useBlockHistory.js.
+        handleChangeBlock(change.block_id, change.proposed_value);
+        return true;
+      }
+
+      if (change.action === 'insert_block') {
+        const block = createBlock(change.block_type, change.proposed_value);
+        setBlocks((previous) => {
+          const index = change.after_block_id
+            ? previous.findIndex((b) => b.id === change.after_block_id)
+            : -1;
+          const at = index === -1 ? 0 : index + 1;
+          return [...previous.slice(0, at), block, ...previous.slice(at)];
+        });
+        setSelectedId(block.id);
+        return true;
+      }
+
+      if (change.action === 'delete_block') {
+        handleDelete(change.block_id);
+        return true;
+      }
+
+      if (change.action === 'update_title') {
+        blogsApi
+          .update(id, { blog_title: change.proposed_value })
+          .then((updated) => setBlog(metaOf(updated)))
+          .catch((err) => setPublishError(err));
+        return true;
+      }
+
+      return false;
+    },
+    [readOnly, handleChangeBlock, handleDelete, setBlocks, id]
+  );
+
   // The notice is transient — it is an offer, not a state. Eight seconds is long enough
   // to read and react to, short enough not to linger over the next edit.
   useEffect(() => {
@@ -305,8 +377,10 @@ export default function EditorPage() {
         logo_position: 'top_right',
         count: 1
       });
-      if (generated && generated.length > 0) {
-        const newPicture = generated[0].publicUrl;
+      if (generated?.images?.length > 0) {
+        // Storage-relative path, never the public URL: blog_picture is read by
+        // publicUrlFor and by client delivery, both of which reject a URL-shaped value.
+        const newPicture = generated.images[0].relativePath;
         const updated = await blogsApi.update(blog.id, { blog_picture: newPicture });
         setBlog(metaOf(updated));
       }
@@ -316,6 +390,98 @@ export default function EditorPage() {
       setRegeneratingImage(false);
     }
   };
+
+  /**
+   * SeoPanel's save path: meta_title/meta_description/slug are not part of
+   * `content_blocks`, so this is an immediate direct PATCH — same pattern as
+   * handleRegenerateImage and applyBlogOpsChange's update_title branch —
+   * rather than going through the debounced blocks autosave. Rejects on
+   * failure so SeoPanel's own per-field error handling can show it.
+   */
+  const handleSaveSeoField = useCallback(
+    async (patch) => {
+      const updated = await blogsApi.update(id, patch);
+      setBlog(metaOf(updated));
+    },
+    [id]
+  );
+
+  /**
+   * Regenerates exactly one image content block via
+   * PATCH /blogs/:id/blocks/:blockId/regenerate-image. Only that block's
+   * data changes locally — everything else in `blocks` is left as-is, and a
+   * failure leaves the block showing its original image (no null, no
+   * partial state), per the modal's own error banner below.
+   *
+   * The updated block replaces the local one and is immediately declared
+   * saved via `sync`, mirroring `applyRecord` — the server already
+   * persisted it, so autosave must not re-PATCH the same content right
+   * after.
+   */
+  const handleRegenerateBlockImage = useCallback(
+    async (blockId, prompt) => {
+      setRegeneratingBlockId(blockId);
+      setRegenerateBlockError(null);
+      try {
+        const updated = await blogsApi.regenerateBlockImage(id, blockId, prompt);
+        const updatedBlock = (updated.content_blocks || []).find((b) => b.id === blockId);
+        if (updatedBlock) {
+          const nextBlocks = blocksRef.current.map((b) => (b.id === blockId ? updatedBlock : b));
+          setBlocks(nextBlocks);
+          sync(nextBlocks);
+        }
+        setRegenerateModalBlockId(null);
+      } catch (err) {
+        // Stored as the raw error object (matching loadError/saveError elsewhere
+        // on this screen), not a bare string — ErrorBanner reads `.message`.
+        setRegenerateBlockError(err);
+      } finally {
+        setRegeneratingBlockId(null);
+      }
+    },
+    [id, setBlocks, sync]
+  );
+
+  /**
+   * One AiEditBar turn: sends the instruction (plus live blocks/title as
+   * context) to blog_ops_agent, applies every change it proposes, and
+   * returns a short result for the bar to display. Returning a synthesized
+   * summary rather than the turn's raw `reply` matters: when a turn's last
+   * step is a tool call with no trailing text, `reply` is a generic
+   * chat-widget-oriented fallback ("...take a look and apply the ones you'd
+   * like above") that makes no sense next to a bar that already auto-applied
+   * everything.
+   */
+  const handleAiEdit = useCallback(
+    async (instruction) => {
+      const result = await agentsApi.chat('blog_ops_agent', {
+        message: instruction,
+        trace_id: aiEditTraceRef.current || undefined,
+        context: { blog_id: blog.id, blocks: blocksRef.current, blog_title: blog.blog_title },
+      });
+      aiEditTraceRef.current = result.traceId;
+
+      const proposed = result.proposedChanges || [];
+      if (proposed.length === 0) {
+        return { clarification: result.reply };
+      }
+
+      let applied = 0;
+      proposed.forEach((change) => {
+        if (applyBlogOpsChange(change)) applied += 1;
+      });
+
+      if (applied === 0) return { clarification: result.reply };
+
+      const truncated = (result.toolCalls?.length || 0) >= 6;
+      return {
+        summary:
+          `Applied ${applied} change${applied === 1 ? '' : 's'} — check the editor below, and use Undo to revert.` +
+          (truncated ? ' This may be a partial update — resubmit if more remain.' : ''),
+      };
+    },
+    [blog, applyBlogOpsChange]
+  );
 
   // -------------------------------------------------------------------------
   // Keyboard: undo / redo
@@ -365,7 +531,22 @@ export default function EditorPage() {
       const updated = await blogsApi.publish(id);
       const meta = metaOf(updated);
       if (meta) setBlog((previous) => ({ ...previous, ...meta }));
-      setPublishNotice('Published. The article is now live.');
+
+      // `delivery` is only ever non-empty when a Config integration is
+      // enabled — see backend/src/controllers/blogs.controller.js. Publish
+      // itself already succeeded by this point regardless of what follows.
+      const delivery = updated.delivery || [];
+      const delivered = delivery.filter((d) => d.status === 'delivered');
+      const createdCount = delivered.filter((d) => d.delivery_mode !== 'update').length;
+      const updatedCount = delivered.length - createdCount;
+      const failed = delivery.filter((d) => d.status === 'failed').length;
+      const deliveryParts = [
+        createdCount > 0 && `created on ${createdCount}`,
+        updatedCount > 0 && `updated on ${updatedCount}`,
+        failed > 0 && `failed for ${failed} — see Config for details`,
+      ].filter(Boolean);
+      const deliverySuffix = deliveryParts.length === 0 ? '' : ` Client API: ${deliveryParts.join(', ')}.`;
+      setPublishNotice(`Published. The article is now live.${deliverySuffix}`);
     } catch (err) {
       // 422 carries a code — NO_CONTENT, GENERATION_FAILED, GENERATION_IN_PROGRESS —
       // and a message written for the author. ErrorBanner shows the message; the code
@@ -428,6 +609,7 @@ export default function EditorPage() {
           </Link>
           <StatusBadge status={blog.blog_status} />
           <GenerationBadge status={blog.generation_status} />
+          <FactVerificationBadge factVerification={blog.fact_verification} />
           {blog.word_count ? (
             <span className="text-xs text-ink-muted tabular">{blog.word_count} words</span>
           ) : null}
@@ -435,7 +617,7 @@ export default function EditorPage() {
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold leading-tight text-ink sm:text-2xl">
+            <h1 className="truncate font-display text-xl font-semibold leading-tight text-ink sm:text-2xl">
               {blog.blog_title}
             </h1>
             <p className="mt-1 text-xs text-ink-muted">
@@ -465,7 +647,7 @@ export default function EditorPage() {
               aria-label="Undo"
               aria-keyshortcuts="Control+Z Meta+Z"
             >
-              <span aria-hidden="true">↶</span>
+              <Undo2 className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
@@ -475,7 +657,7 @@ export default function EditorPage() {
               aria-label="Redo"
               aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
             >
-              <span aria-hidden="true">↷</span>
+              <Redo2 className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
             </Button>
           </div>
 
@@ -517,9 +699,9 @@ export default function EditorPage() {
               loading={regeneratingImage}
               onClick={handleRegenerateImage}
               title="Regenerate Image"
-              className="bg-white/80 hover:bg-white backdrop-blur-sm"
+              className="bg-panel/90 backdrop-blur-sm"
             >
-              <span aria-hidden="true" className="text-lg">↻</span> Regenerate
+              <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Regenerate
             </Button>
           </div>
         </div>
@@ -535,6 +717,10 @@ export default function EditorPage() {
           </Button>
         </div>
       )}
+
+      <div className="mb-6">
+        <SeoPanel blog={blog} readOnly={readOnly} onSave={handleSaveSeoField} />
+      </div>
 
       {generating ? (
         <InfoBanner tone="warning">
@@ -589,6 +775,8 @@ export default function EditorPage() {
         </div>
       ) : null}
 
+      <AiEditBar onSubmit={handleAiEdit} readOnly={readOnly} />
+
       <div
         className={clsx(
           'grid min-w-0 gap-5',
@@ -622,22 +810,71 @@ export default function EditorPage() {
           onClose={() => setSelectedId(null)}
           onDuplicate={handleDuplicate}
           onDelete={handleDelete}
+          onRegenerateImage={(blockId) => {
+            setRegenerateBlockError(null);
+            setRegenerateModalBlockId(blockId);
+          }}
         />
       </div>
+
+      <RegenerateImageModal
+        open={Boolean(regenerateModalBlockId)}
+        loading={regeneratingBlockId === regenerateModalBlockId}
+        error={regenerateBlockError}
+        onDismissError={() => setRegenerateBlockError(null)}
+        onCancel={() => setRegenerateModalBlockId(null)}
+        onConfirm={(prompt) => handleRegenerateBlockImage(regenerateModalBlockId, prompt)}
+      />
 
       <AgentChatWidget
         agents={['blog_ops_agent']}
         defaultAgent="blog_ops_agent"
         context={{ blog_id: blog.id, blocks }}
-        onApplyProposal={(change) => {
-          if (change.domain !== 'blog_ops' || readOnly) return false;
-          // No mergeKey: an agent-applied edit is always its own undo step,
-          // distinguishable from a human's own typing (which merges via
-          // "<blockId>:field" keys) — see useBlockHistory.js.
-          handleChangeBlock(change.block_id, change.proposed_value);
-          return true;
-        }}
+        onApplyProposal={applyBlogOpsChange}
       />
     </motion.div>
+  );
+}
+
+/**
+ * "Rewrite / Regenerate this image" — an optional instruction, never
+ * required. An empty prompt regenerates with the block's existing context,
+ * exactly as the spec asks: the user is never forced to type something.
+ */
+function RegenerateImageModal({ open, loading, error, onDismissError, onCancel, onConfirm }) {
+  const [prompt, setPrompt] = useState('');
+
+  useEffect(() => {
+    if (open) setPrompt('');
+  }, [open]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={loading ? () => {} : onCancel}
+      title="Regenerate this image"
+      subtitle="Want to give a direction for the new image? Leave it blank to regenerate with the existing context."
+      footer={
+        <>
+          <Button variant="secondary" size="sm" disabled={loading} onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" loading={loading} onClick={() => onConfirm(prompt.trim())}>
+            Regenerate
+          </Button>
+        </>
+      }
+    >
+      <Textarea
+        label="Optional instruction"
+        value={prompt}
+        onChange={(event) => setPrompt(event.target.value)}
+        placeholder="e.g. Make it more minimal, premium and spiritual"
+        rows={3}
+        maxLength={500}
+        disabled={loading}
+      />
+      {error ? <ErrorBanner error={error} onDismiss={onDismissError} /> : null}
+    </Modal>
   );
 }

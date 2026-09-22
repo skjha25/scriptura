@@ -659,7 +659,7 @@ class MockProvider extends BaseProvider {
           data: {
             html:
               `We covered the groundwork for this in ` +
-              `<a href="/blog/${target.slug}">${target.title}</a>, which is worth reading first ` +
+              `<a href="https://divinetalk.in/blog/${target.slug}">${target.title}</a>, which is worth reading first ` +
               `if ${vars.k} is new to you.`,
           },
         });

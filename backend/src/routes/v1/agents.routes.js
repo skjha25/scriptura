@@ -33,6 +33,19 @@ const {
   confirmKnowledgeBatchBody,
   dismissChangeBody,
   knowledgeUsageQuery,
+  recommendationIdParams,
+  listRecommendationsQuery,
+  recommendationActionsParams,
+  createRecommendationActionBody,
+  recommendationActionIdParams,
+  completeRecommendationActionBody,
+  failRecommendationActionBody,
+  listLearningCandidatesQuery,
+  learningCandidateIdParams,
+  confirmLearningCandidateBody,
+  observatoryActivityQuery,
+  observatoryAgentQuery,
+  observatoryKnowledgeIdParams,
 } = require('../../validators/agents.validators');
 const {
   chat,
@@ -50,6 +63,27 @@ const {
   listActivity,
   dismissChange,
   getKnowledgeUsage,
+  listRecommendations,
+  approveRecommendation,
+  rejectRecommendation,
+  bulkApproveRecommendations,
+  bulkRejectRecommendations,
+  listRecommendationActions,
+  createRecommendationAction,
+  completeRecommendationAction,
+  failRecommendationAction,
+  cancelRecommendationAction,
+  executeRecommendationAction,
+  getRecommendationActionOutcome,
+  listLearningCandidates,
+  confirmLearningCandidate,
+  rejectLearningCandidate,
+  getObservatorySummary,
+  getObservatoryAgents,
+  getObservatoryActivity,
+  getObservatoryKnowledgeHealth,
+  getObservatoryKnowledgeNodes,
+  getObservatoryKnowledgeConnections,
 } = require('../../controllers/agents.controller');
 const { applyProposalBody } = require('../../validators/proposals.validators');
 const { applyProposal } = require('../../controllers/proposals.controller');
@@ -162,5 +196,129 @@ router.get('/activity', validate({ query: listActivityQuery }), listActivity);
 
 /** GET /agents/knowledge-usage — which knowledge rows were retrieved for a given turn. */
 router.get('/knowledge-usage', validate({ query: knowledgeUsageQuery }), getKnowledgeUsage);
+
+/**
+ * P1-A: recommendation approval/rejection (see
+ * services/agents/recommendationDecisions.js). Not rate-limited: DB-only
+ * state transitions, no AI call — same posture as /proposals/apply.
+ *
+ * GET defaults to the pending ("recommended") view; approve/reject never
+ * execute anything — this is the human-decision step only, see the P1
+ * design report for why action tracking is deliberately not part of P1-A.
+ */
+router.get('/recommendations', validate({ query: listRecommendationsQuery }), listRecommendations);
+// Bulk routes declared before '/:id/...' — same reasoning as '/linkable' vs
+// '/:id' elsewhere in this codebase, though these particular paths don't
+// actually collide (different segment counts).
+router.post('/recommendations/bulk-approve', bulkApproveRecommendations);
+router.post('/recommendations/bulk-reject', bulkRejectRecommendations);
+router.post('/recommendations/:id/approve', validate({ params: recommendationIdParams }), approveRecommendation);
+router.post('/recommendations/:id/reject', validate({ params: recommendationIdParams }), rejectRecommendation);
+
+/**
+ * P1-B: recommendation action tracking (see
+ * services/agents/recommendationActions.js). Not rate-limited: DB-only
+ * bookkeeping writes, no AI call, no execution of anything — same posture as
+ * the P1-A recommendation endpoints above.
+ *
+ * An action is never auto-created by approval — creating one is its own
+ * explicit human step, guarded on the parent recommendation already being
+ * 'approved'. complete/fail/cancel are self-reported outcomes; nothing here
+ * executes anything, and a failed/cancelled action never changes the parent
+ * recommendation's own status.
+ */
+router.get(
+  '/recommendations/:id/actions',
+  validate({ params: recommendationActionsParams }),
+  listRecommendationActions
+);
+router.post(
+  '/recommendations/:id/actions',
+  validate({ params: recommendationActionsParams, body: createRecommendationActionBody }),
+  createRecommendationAction
+);
+router.post(
+  '/recommendation-actions/:id/complete',
+  validate({ params: recommendationActionIdParams, body: completeRecommendationActionBody }),
+  completeRecommendationAction
+);
+router.post(
+  '/recommendation-actions/:id/fail',
+  validate({ params: recommendationActionIdParams, body: failRecommendationActionBody }),
+  failRecommendationAction
+);
+router.post(
+  '/recommendation-actions/:id/cancel',
+  validate({ params: recommendationActionIdParams }),
+  cancelRecommendationAction
+);
+
+/**
+ * POST /agents/recommendation-actions/:id/execute — P1-B4. Performs the
+ * real, whitelisted Blog mutation for an automated action (see
+ * services/agents/actionExecutors.js). No body: result_summary is
+ * server-computed only. Not rate-limited: a DB-guarded write, no AI call —
+ * same posture as complete/fail/cancel above.
+ */
+router.post(
+  '/recommendation-actions/:id/execute',
+  validate({ params: recommendationActionIdParams }),
+  executeRecommendationAction
+);
+
+/**
+ * GET /agents/recommendation-actions/:id/outcome — P2-D. Read-only: exposes
+ * the deterministic baseline/fresh evidence + delta/classification P2-B/P2-C
+ * already computed. No mutation endpoint exists for this resource — the
+ * frontend can only ever read it. Not rate-limited: a DB-only read, no AI
+ * call — same posture as complete/fail/cancel/execute above. Reuses the
+ * existing recommendationActionIdParams validator, same :id shape.
+ */
+router.get(
+  '/recommendation-actions/:id/outcome',
+  validate({ params: recommendationActionIdParams }),
+  getRecommendationActionOutcome
+);
+
+/**
+ * P4-D: learning candidate review (see
+ * services/agents/learningCandidateDecisions.js). Not rate-limited: DB-only
+ * state transitions, no AI call — same posture as the P1-A/P1-B endpoints
+ * above. Confirming writes to agent_knowledge exclusively via the existing,
+ * unmodified confirmKnowledgeBatch — no new write path for that table.
+ * A candidate is never auto-created here — detection is the background
+ * scheduler (services/learningCandidateScheduler.js); these are the human
+ * review step only.
+ */
+router.get('/learning-candidates', validate({ query: listLearningCandidatesQuery }), listLearningCandidates);
+router.post(
+  '/learning-candidates/:id/confirm',
+  validate({ params: learningCandidateIdParams, body: confirmLearningCandidateBody }),
+  confirmLearningCandidate
+);
+router.post(
+  '/learning-candidates/:id/reject',
+  validate({ params: learningCandidateIdParams }),
+  rejectLearningCandidate
+);
+
+/**
+ * P5-D: Intelligence Observatory (see services/agents/observatory.js).
+ * Every route below is GET-only and purely read-only — no handler here
+ * writes to any table. Not rate-limited: DB-only reads, same posture as
+ * every other read endpoint on this router. This is a visualization layer
+ * over the existing P0-P5 lifecycle; it introduces no new learning
+ * behavior, no new scheduler, and no new write path.
+ */
+router.get('/observatory/summary', getObservatorySummary);
+router.get('/observatory/agents', getObservatoryAgents);
+router.get('/observatory/activity', validate({ query: observatoryActivityQuery }), getObservatoryActivity);
+router.get('/observatory/knowledge-health', validate({ query: observatoryAgentQuery }), getObservatoryKnowledgeHealth);
+router.get('/observatory/knowledge-nodes', validate({ query: observatoryAgentQuery }), getObservatoryKnowledgeNodes);
+router.get(
+  '/observatory/knowledge/:id/connections',
+  validate({ params: observatoryKnowledgeIdParams }),
+  getObservatoryKnowledgeConnections
+);
 
 module.exports = router;

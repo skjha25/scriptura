@@ -33,7 +33,7 @@ const cases = [
     blocks: [
       { id: 'b1', type: 'paragraph', data: { text: 'Shravana arrives with a shift in cosmic rhythm.', is_lead: true } },
       { id: 'b2', type: 'heading', data: { level: 2, text: 'The Essence of Shravana' } },
-      { id: 'b3', type: 'paragraph', data: { html: 'This is <strong>devotion</strong> and <a href="https://divinetalk.com/shravana">renewal</a>.' } },
+      { id: 'b3', type: 'paragraph', data: { html: 'This is <strong>devotion</strong> and <a href="https://divinetalk.in/shravana">renewal</a>.' } },
       { id: 'b4', type: 'heading', data: { level: 3, text: 'Rituals that matter' } },
       { id: 'b5', type: 'list', data: { style: 'bullet', items: ['Offer water to Shiva', 'Observe Monday fasts'] } },
       { id: 'b6', type: 'list', data: { style: 'numbered', items: ['Wake before sunrise', 'Bathe the lingam', 'Offer bel leaves'] } },

@@ -2,7 +2,8 @@
 /**
  * FAQ block settings: how many question/answer pairs.
  *
- * The questions and answers are typed on the canvas, where they read as an accordion.
+ * The questions and answers are typed on the canvas, where they read as open
+ * question-then-answer prose, the same as they render on the page.
  * The count lives here for the same reason the table's does — adding an item changes
  * the block's shape rather than its words, and the panel can say how many there are.
  *
@@ -30,8 +31,8 @@ export default function FaqSettings({ block, readOnly, onChange }) {
         onRemove={() => onChange({ ...block.data, items: items.slice(0, -1) }, null)}
       />
       <SettingsNote>
-        Questions render as a real `details`/`summary` accordion, so they stay
-        expandable for crawlers and keyboard users with no JavaScript.
+        Questions render open on the page — each question as a heading with its
+        answer below it, the same as the rest of the article.
       </SettingsNote>
     </div>
   );

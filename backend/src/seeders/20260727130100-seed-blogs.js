@@ -139,7 +139,7 @@ const BLOGS = [
     serp: { keyword: 'mercury retrograde virgo', position: 7, checked: d('2026-07-20') },
     brand_voice: {
       source_type: 'web_scrape',
-      source_ref: 'https://divinetalk.com/blog/transits',
+      source_ref: 'https://divinetalk.in/blog/transits',
       tone: 'Calm, evidence-aware, reassuring',
       pov: 'second_person',
       traits: ['Names the common fear, then right-sizes it', 'Prefers concrete examples over abstractions'],
@@ -399,7 +399,7 @@ const BLOGS = [
     external_web_grounding: true,
     brand_voice: {
       source_type: 'web_scrape',
-      source_ref: 'https://divinetalk.com/blog/vastu',
+      source_ref: 'https://divinetalk.in/blog/vastu',
       tone: 'Practical, budget-aware',
       pov: 'second_person',
       traits: ['Assumes the reader cannot renovate', 'Gives a no-cost option for every suggestion'],
@@ -536,7 +536,7 @@ module.exports = {
           ? `${blocksToHtml(blocks.slice(0, 1)).replace(/<[^>]+>/g, '').slice(0, 150)}...`
           : null,
         og_image: hasContent ? primaryImage : null,
-        canonical_url: `https://divinetalk.com/blog/${slugifyTitle(blog.blog_title)}`,
+        canonical_url: `https://divinetalk.in/blog/${slugifyTitle(blog.blog_title)}`,
 
         article_type: blog.article_type || 'general',
         tone_of_voice: blog.tone_of_voice || null,

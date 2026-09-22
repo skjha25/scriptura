@@ -12,11 +12,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 
 import { clustersApi } from '../lib/api';
-import { humanizeEnum, CLUSTER_KEYWORD_STATUS_META } from '../lib/constants';
+import {
+  humanizeEnum,
+  CLUSTER_KEYWORD_STATUS_META,
+  LANGUAGES,
+  LANGUAGE_LABELS,
+  IMAGE_COUNT_MIN,
+  IMAGE_COUNT_MAX,
+} from '../lib/constants';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
 import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
+import { Select } from '../components/ui/form';
 import {
   Badge,
   Card,
@@ -25,6 +35,12 @@ import {
   Skeleton,
   StatusBadge,
 } from '../components/ui/feedback';
+
+const LANGUAGE_OPTIONS = LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_LABELS[code] || code }));
+const IMAGE_COUNT_OPTIONS = Array.from(
+  { length: IMAGE_COUNT_MAX - IMAGE_COUNT_MIN + 1 },
+  (_, i) => IMAGE_COUNT_MIN + i
+).map((n) => ({ value: String(n), label: String(n) }));
 
 // ---------------------------------------------------------------------------
 // Date formatting helpers — IST, 12-hour, human-friendly
@@ -95,6 +111,8 @@ export default function ClusterDetailPage() {
   const [expanding, setExpanding] = useState(false);
   const [expandError, setExpandError] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,6 +148,26 @@ export default function ClusterDetailPage() {
       setCluster((prev) => ({ ...prev, status: newStatus }));
     } catch (err) {
       setError(err);
+    }
+  }
+
+  /**
+   * Saves this cluster's autopilot generation settings (language,
+   * image_count) — same immediate-PATCH-on-change pattern as
+   * handleStatusChange. Both fields are nullable: null means "use the
+   * app-wide default" (see autopilotScheduler.js), so this never needs an
+   * explicit "reset to default" control.
+   */
+  async function handleGenerationSettingChange(patch) {
+    setSavingSettings(true);
+    setSettingsError(null);
+    try {
+      await clustersApi.update(id, patch);
+      setCluster((prev) => ({ ...prev, ...patch }));
+    } catch (err) {
+      setSettingsError(err);
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -186,7 +224,7 @@ export default function ClusterDetailPage() {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative">
           <div className="space-y-2 relative pl-5">
             <div className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-glow-accent opacity-75" />
-            <h1 className="text-4xl font-bold tracking-tight text-ink drop-shadow-md">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
               {cluster.name}
             </h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-ink-secondary">
@@ -273,7 +311,8 @@ export default function ClusterDetailPage() {
               onClick={() => setShowScheduleModal(true)}
               disabled={keywords.filter((k) => k.status === 'pending').length === 0}
             >
-              ⚡ Auto-Schedule
+              <Zap className="h-4 w-4" strokeWidth={1.75} />
+              Auto-Schedule
             </Button>
             {cluster.status === 'planning' ? (
               <Button variant="secondary" className="w-full" onClick={() => handleStatusChange('active')}>
@@ -332,15 +371,45 @@ export default function ClusterDetailPage() {
 
         {/* Associated blogs */}
         <div className="space-y-4">
+          <div className="rounded-2xl border border-hairline bg-panel-raised/40 shadow-panel backdrop-blur-sm overflow-hidden">
+            <div className="border-b border-hairline px-6 py-5 bg-void/30">
+              <h2 className="text-lg font-semibold text-ink">Generation Settings</h2>
+              <p className="text-sm text-ink-muted mt-1">
+                Applied to every article autopilot generates for this cluster.
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <Select
+                label="Language"
+                value={cluster.language || 'en'}
+                disabled={savingSettings}
+                onChange={(event) => handleGenerationSettingChange({ language: event.target.value })}
+                options={LANGUAGE_OPTIONS}
+              />
+              <Select
+                label="Number of images"
+                value={String(cluster.image_count || 2)}
+                disabled={savingSettings}
+                onChange={(event) =>
+                  handleGenerationSettingChange({ image_count: Number(event.target.value) })
+                }
+                options={IMAGE_COUNT_OPTIONS}
+              />
+              {settingsError ? (
+                <ErrorBanner error={settingsError} onDismiss={() => setSettingsError(null)} />
+              ) : null}
+            </div>
+          </div>
+
           {blogs.length > 0 ? (
             <div className="rounded-2xl border border-hairline bg-panel-raised/40 shadow-panel backdrop-blur-sm overflow-hidden">
               <div className="border-b border-hairline px-6 py-5 bg-void/30">
                 <h2 className="text-lg font-semibold text-ink">Generated Blogs</h2>
                 <p className="text-sm text-ink-muted mt-1">Articles produced in this cluster.</p>
               </div>
-              <ul className="divide-y divide-hairline max-h-[600px] overflow-y-auto custom-scrollbar">
+              <ul className="divide-y divide-hairline max-h-[600px] overflow-y-auto">
                 {blogs.map((blog) => (
-                  <li key={blog.id} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-white/[0.02] transition-colors group">
+                  <li key={blog.id} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-panel-raised/40 transition-colors group">
                     <Link to={`/blogs/${blog.id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink group-hover:text-accent-bright transition-colors">
                       {blog.blog_title}
                     </Link>
@@ -451,7 +520,7 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
   const hasConflict = slotStatus && typeof slotStatus === 'object' && slotStatus.keyword;
 
   return (
-    <li className="px-6 py-4 hover:bg-white/[0.02] transition-colors group">
+    <li className="px-6 py-4 hover:bg-panel-raised/40 transition-colors group">
       <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         {/* Left: keyword + schedule info */}
         <div className="min-w-0 flex-1 space-y-3">
@@ -548,7 +617,7 @@ function KeywordListItem({ kw, clusterId, onUpdate, onDelete }) {
                 <button
                   disabled={loading}
                   onClick={() => { setIsEditing(false); setSlotStatus(null); }}
-                  className="text-xs px-4 py-1.5 rounded-lg border border-hairline bg-panel-raised text-ink-muted hover:text-ink hover:bg-white/5 transition-colors disabled:opacity-50"
+                  className="text-xs px-4 py-1.5 rounded-lg border border-hairline bg-panel-raised text-ink-muted hover:text-ink hover:bg-panel-raised transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -653,27 +722,33 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
-        {/* Backdrop */}
-        <div className="fixed inset-0 bg-void/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
-        
-        {/* Modal Panel */}
-        <div className="relative w-full max-w-2xl transform text-left rounded-2xl bg-panel-raised border border-hairline shadow-panel overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
-          <div className="absolute inset-0 bg-glow-subtle opacity-10 pointer-events-none" />
-          
-          {/* Header */}
-          <div className="border-b border-hairline px-6 py-5 bg-void/50 relative z-10 shrink-0">
-            <h2 className="text-xl font-bold text-ink drop-shadow-md flex items-center gap-2">
-              <span className="text-accent-bright">⚡</span> Auto-Schedule Keywords
-            </h2>
-            <p className="text-sm text-ink-muted mt-1.5">
-              Automatically space out generation and publishing dates for all pending keywords across the cluster.
-            </p>
-          </div>
-
-          {/* Form Content (Scrollable if needed) */}
-          <div className="space-y-6 px-6 py-6 relative z-10 overflow-y-auto custom-scrollbar">
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-accent-bright" strokeWidth={1.75} />
+          Auto-Schedule Keywords
+        </span>
+      }
+      subtitle="Automatically space out generation and publishing dates for all pending keywords across the cluster."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={handleApply}
+            loading={applying}
+            disabled={!preview || preview.length === 0}
+            className="shadow-glow-sm hover:shadow-glow transition-shadow"
+          >
+            {applying ? 'Applying...' : `Confirm & Apply (${preview?.length || 0})`}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-ink-secondary">Start from</label>
@@ -734,7 +809,7 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
 
           {/* Preview table */}
           {preview && preview.length > 0 && (
-            <div className="max-h-[240px] overflow-y-auto border border-hairline rounded-xl bg-void/30 custom-scrollbar shadow-inner mt-4">
+            <div className="max-h-[240px] overflow-y-auto border border-hairline rounded-xl bg-void/30 shadow-inner mt-4">
               <table className="w-full text-sm">
                 <thead className="bg-panel-raised/80 sticky top-0 backdrop-blur-sm z-20">
                   <tr>
@@ -746,7 +821,7 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
                 </thead>
                 <tbody className="divide-y divide-hairline">
                   {preview.map((item, i) => (
-                    <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={item.id} className="hover:bg-panel-raised/40 transition-colors">
                       <td className="px-4 py-3 text-ink-faint font-numeric">{i + 1}</td>
                       <td className="px-4 py-3 text-ink font-medium max-w-[180px] truncate" title={item.keyword}>{item.keyword}</td>
                       <td className="px-4 py-3 text-ink-secondary font-numeric">{formatDateShort(item.scheduled_generation_date)}</td>
@@ -757,23 +832,7 @@ function AutoScheduleModal({ clusterId, cluster, onClose, onApplied }) {
               </table>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-4 border-t border-hairline px-6 py-4 bg-void/50 relative z-10 shrink-0">
-          <Button variant="ghost" onClick={onClose} className="hover:bg-white/5">Cancel</Button>
-          <Button
-            variant="primary"
-            onClick={handleApply}
-            loading={applying}
-            disabled={!preview || preview.length === 0}
-            className="shadow-glow-sm hover:shadow-glow transition-shadow"
-          >
-            {applying ? 'Applying...' : `Confirm & Apply (${preview?.length || 0})`}
-          </Button>
-        </div>
       </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

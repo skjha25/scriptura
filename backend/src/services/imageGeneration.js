@@ -26,12 +26,49 @@ const sharp = require('sharp');
 
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
-const { IMAGE_STYLES, IMAGE_COUNT_MIN, IMAGE_COUNT_MAX, LOGO_POSITIONS } = require('../constants');
+const { IMAGE_STYLES, DEFAULT_IMAGE_STYLE, IMAGE_COUNT_MIN, IMAGE_COUNT_MAX, LOGO_POSITIONS } = require('../constants');
 const { compositeLogo, DEFAULT_SIZE_RATIO, DEFAULT_OPACITY } = require('./logoComposite');
 const { saveImage } = require('./storage');
 
 /** Square by default: it is the one aspect every downstream surface crops well. */
 const DEFAULT_SIZE = '1024x1024';
+
+/**
+ * The provider canvases we choose between (gpt-image-1 supports exactly these;
+ * 1792x1024 is dall-e-3 only). There is no native 16:9, so the configured
+ * output is reached by a blur fill (see resizeToConfiguredDefault) — picking
+ * the canvas closest to the target's aspect keeps the filled strips narrow.
+ * The old square request + `cover` crop threw away ~44% of a 16:9 image's
+ * height (heads and faces cut off).
+ */
+const PROVIDER_CANVASES = Object.freeze([
+  { size: '1536x1024', width: 1536, height: 1024 },
+  { size: '1024x1024', width: 1024, height: 1024 },
+  { size: '1024x1536', width: 1024, height: 1536 },
+]);
+
+/** Parses a configured `{width, height}` into its aspect ratio, or null when unusable. */
+function aspectOf(target) {
+  const width = Number(target?.width);
+  const height = Number(target?.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return width / height;
+}
+
+/**
+ * Picks the provider canvas whose aspect is closest to the configured output
+ * (compared in log space, so 3:2 vs 1:1 and 1:1 vs 2:3 are equally far).
+ *
+ * @param {{width: number, height: number}} target
+ * @returns {{size: string, width: number, height: number}}
+ */
+function providerCanvasForTarget(target) {
+  const ratio = aspectOf(target);
+  if (!ratio) return PROVIDER_CANVASES.find((c) => c.size === DEFAULT_SIZE);
+  const distance = (c) => Math.abs(Math.log(c.width / c.height) - Math.log(ratio));
+  return PROVIDER_CANVASES.reduce((best, c) => (distance(c) < distance(best) ? c : best));
+}
+
 
 /**
  * Style directives, in one place.
@@ -63,19 +100,27 @@ const STYLE_DIRECTIVES = Object.freeze({
 /**
  * Framing shared by every prompt.
  *
- * Two constraints are non-negotiable for this brand and are therefore not
+ * These constraints are non-negotiable for this brand and are therefore not
  * caller-overridable:
  *
  *   - No text in the image. Image models render text badly, and a misspelt
  *     Sanskrit word on a Divinetalk asset is worse than no word at all.
  *   - Respectful depiction. The subject matter is Hindu religious practice, and
  *     an image that reads as kitsch or as parody is unpublishable.
+ *   - Hopeful mood. "Dignity" alone made the model render solemn, worried
+ *     faces — especially for topics like Sade Sati or doshas — so the mood is
+ *     stated explicitly, and symbols are preferred over portraits.
  */
 const BASE_DIRECTIVES =
   'Editorial header image for an article on a respected Indian astrology and ' +
   'spirituality publication. Treat the subject matter with dignity and cultural ' +
   'accuracy; avoid caricature, kitsch and religious parody. Do not render any ' +
-  'words, letters, numerals or watermarks in the image.';
+  'words, letters, numerals or watermarks in the image. ' +
+  'Mood: serene, hopeful, calm and uplifting — the feeling of guidance and ' +
+  'reassurance, never fear. Any person shown looks peaceful or gently smiling; ' +
+  'never sad, worried, crying or distressed. Prefer symbolic imagery over ' +
+  'portraits: planets, the night sky, diyas, lotus flowers, yantras, temple ' +
+  'silhouettes and sacred geometry. Show people only when the topic truly needs them.';
 
 /** Longest topic/prompt fragment we forward, so one field cannot dominate. */
 const MAX_PROMPT_FRAGMENT = 400;
@@ -115,7 +160,7 @@ function tidy(value, maxLength = MAX_PROMPT_FRAGMENT) {
  * @param {number} [args.count] Total images in the run.
  * @returns {Promise<string>}
  */
-async function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, count = 1 } = {}) {
+async function buildImagePrompt({ prompt, topic, style = DEFAULT_IMAGE_STYLE, index = 0, count = 1 } = {}) {
   const subject = tidy(prompt) || tidy(topic);
   if (!subject) {
     throw ApiError.unprocessable('An image needs either a prompt or a topic to work from.', {
@@ -128,7 +173,7 @@ async function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, cou
   // matching the lazy-require convention already used for `./ai` below.
   const { ScripturaSettings } = require('../models');
   const overrides = (await ScripturaSettings.getValue('agents.image.style_overrides', { fallback: {} })) || {};
-  const directive = overrides[style]?.directive_text || STYLE_DIRECTIVES[style] || STYLE_DIRECTIVES.photo;
+  const directive = overrides[style]?.directive_text || STYLE_DIRECTIVES[style] || STYLE_DIRECTIVES[DEFAULT_IMAGE_STYLE];
   const parts = [`Subject: ${subject}.`];
 
   // Keep the article's topic as context when the author supplied both.
@@ -167,7 +212,7 @@ async function buildImagePrompt({ prompt, topic, style = 'photo', index = 0, cou
  * @param {number} [args.count]
  * @returns {string}
  */
-function buildAltText({ topic, prompt, style = 'photo', index = 0, count = 1 } = {}) {
+function buildAltText({ topic, prompt, style = DEFAULT_IMAGE_STYLE, index = 0, count = 1 } = {}) {
   const subject = tidy(topic, 120) || tidy(prompt, 120) || 'the article topic';
   const noun = style === 'photo' ? 'Photograph' : 'Illustration';
   const suffix = count > 1 ? ` (${index + 1} of ${count})` : '';
@@ -201,6 +246,88 @@ function extensionFor(mimeType, format) {
   return 'png';
 }
 
+/** Background for the blur fill is built at 1/BLUR_DOWNSCALE size, then scaled up — this is what keeps its gradients smooth (a full-size blur bands visibly). */
+const BLUR_DOWNSCALE = 12;
+
+/**
+ * Fits the provider's raw output to the org's configured global default
+ * WITHOUT cropping anything: the whole image is scaled to fit inside the
+ * target and centred, and any leftover strips are filled with a blurred,
+ * slightly darkened copy of the same image. Never a crop, never a distorting
+ * stretch — a generated header image must never lose a head, face or symbol
+ * (the old `cover` crop did, visibly, on the live site). When the aspects
+ * already match, it is a plain resize.
+ *
+ * Applied to every image this file produces (featured image and block-level
+ * regeneration both go through `generateBlogImage`). Best-effort: a resize
+ * failure returns the original buffer rather than failing the whole
+ * generation, same posture as `compositeLogo`'s own fail-open contract.
+ *
+ * @param {Buffer} buffer
+ * @param {{width: number, height: number}} target
+ * @returns {Promise<Buffer>}
+ */
+async function resizeToConfiguredDefault(buffer, target) {
+  const { width: rawWidth, height: rawHeight } = target || {};
+  const width = Math.round(Number(rawWidth));
+  const height = Math.round(Number(rawHeight));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return buffer;
+
+  try {
+    const source = await sharp(buffer).metadata();
+    const foreground = await sharp(buffer).resize(width, height, { fit: 'inside' }).toBuffer({ resolveWithObject: true });
+    const { width: fgWidth, height: fgHeight } = foreground.info;
+
+    // Aspects match (within a pixel of rounding): nothing to fill.
+    if (width - fgWidth <= 1 && height - fgHeight <= 1) {
+      return await sharp(buffer).resize(width, height, { fit: 'fill' }).toFormat(source.format || 'png').toBuffer();
+    }
+
+    // Background: the image mirrored outwards into the empty strips, then
+    // blurred — so a strip continues that side's own edge colours instead of
+    // pulling centre content (a lit diya, a face) into the margin, and is not
+    // darkened (dark bars stood out on light, flat illustrations). Built small
+    // and scaled up so the gradients stay smooth. Separate pipelines on
+    // purpose: sharp applies only the LAST resize in a chain, and extend/blur
+    // ordering within one chain is not ours to choose.
+    const smallWidth = Math.max(1, Math.round(width / BLUR_DOWNSCALE));
+    const smallHeight = Math.max(1, Math.round(height / BLUR_DOWNSCALE));
+    const small = await sharp(buffer).resize(smallWidth, smallHeight, { fit: 'inside' }).toBuffer({ resolveWithObject: true });
+    const padX = Math.max(0, smallWidth - small.info.width);
+    const padY = Math.max(0, smallHeight - small.info.height);
+    // Mirroring cannot reach further than the image itself; extreme aspects fall back to repeating the edge.
+    const canMirror = Math.ceil(padX / 2) <= small.info.width && Math.ceil(padY / 2) <= small.info.height;
+    const smallExtended = await sharp(small.data)
+      .extend({
+        left: Math.floor(padX / 2),
+        right: Math.ceil(padX / 2),
+        top: Math.floor(padY / 2),
+        bottom: Math.ceil(padY / 2),
+        extendWith: canMirror ? 'mirror' : 'copy',
+      })
+      .toBuffer();
+    const smallBlurred = await sharp(smallExtended).blur(3).toBuffer();
+    const background = await sharp(smallBlurred).resize(width, height, { fit: 'fill', kernel: 'cubic' }).toBuffer();
+
+    return await sharp(background)
+      .composite([
+        {
+          input: foreground.data,
+          left: Math.round((width - fgWidth) / 2),
+          top: Math.round((height - fgHeight) / 2),
+        },
+      ])
+      .toFormat(source.format || 'png')
+      .toBuffer();
+  } catch (err) {
+    logger.warn("Image resize to the configured default size failed — using the provider's original output instead.", {
+      message: err.message,
+      target: { width, height },
+    });
+    return buffer;
+  }
+}
+
 /**
  * Generates, optionally watermarks, and stores one or more blog images.
  *
@@ -211,11 +338,12 @@ function extensionFor(mimeType, format) {
  * @param {object} args
  * @param {string} [args.prompt] Author-written subject description.
  * @param {string} [args.topic] The blog's topic; used when `prompt` is absent.
- * @param {string} [args.style] One of constants.IMAGE_STYLES. Default 'photo'.
+ * @param {string} [args.style] One of constants.IMAGE_STYLES. Default constants.DEFAULT_IMAGE_STYLE.
  * @param {boolean} [args.logoOverlay] Burn the brand logo in. Default false.
  * @param {string} [args.logoPosition] One of constants.LOGO_POSITIONS.
  * @param {number} [args.count] IMAGE_COUNT_MIN..IMAGE_COUNT_MAX. Default min.
- * @param {string} [args.size] Provider size hint, e.g. '1024x1024'.
+ * @param {string} [args.size] Provider size hint, e.g. '1024x1024'. Omit to pick
+ *   the canvas closest to the configured output aspect (what every caller does).
  * @param {number} [args.sizeRatio] Logo width / image width.
  * @param {number} [args.opacity] Logo opacity, 0..1.
  * @returns {Promise<Array<{relativePath: string, publicUrl: string, alt_text: string,
@@ -225,11 +353,11 @@ function extensionFor(mimeType, format) {
 async function generateBlogImage({
   prompt,
   topic,
-  style = 'photo',
+  style = DEFAULT_IMAGE_STYLE,
   logoOverlay = false,
   logoPosition = 'none',
   count,
-  size = DEFAULT_SIZE,
+  size,
   sizeRatio = DEFAULT_SIZE_RATIO,
   opacity = DEFAULT_OPACITY,
 } = {}) {
@@ -260,6 +388,20 @@ async function generateBlogImage({
   const { getImageProvider } = require('./ai');
   const provider = getImageProvider();
 
+  // P6-A: the org's configured global output size, read once per run (it
+  // cannot change mid-run) — every image below is cropped to this via
+  // `resizeToConfiguredDefault`, regardless of what `size` was requested
+  // from the provider. Lazy require, same reasoning as `getImageProvider` above.
+  const { ScripturaSettings } = require('../models');
+  const { IMAGE_DEFAULTS_SETTINGS_KEY, IMAGE_DEFAULTS_FALLBACK } = require('../constants');
+  const targetDimensions = await ScripturaSettings.getValue(IMAGE_DEFAULTS_SETTINGS_KEY, {
+    fallback: IMAGE_DEFAULTS_FALLBACK,
+  });
+
+  // Ask the provider for the canvas closest to the configured aspect so the
+  // blur-filled strips stay narrow. An explicit `size` still wins.
+  const providerSize = size || providerCanvasForTarget(targetDimensions).size;
+
   const results = [];
 
   // Sequential, not Promise.all: image providers rate-limit aggressively and a
@@ -272,7 +414,7 @@ async function generateBlogImage({
     let generated;
     try {
       /* eslint-disable-next-line no-await-in-loop */
-      generated = await provider.generateImage({ prompt: imagePrompt, size, style });
+      generated = await provider.generateImage({ prompt: imagePrompt, size: providerSize, style });
     } catch (err) {
       if (err instanceof ApiError) throw err;
       throw ApiError.upstream(
@@ -287,7 +429,11 @@ async function generateBlogImage({
       });
     }
 
-    let buffer = generated.buffer;
+    // P6-A: crop to the configured global default BEFORE the logo overlay,
+    // so the logo is positioned against the final, served dimensions —
+    // never the provider's raw (often square) output.
+    /* eslint-disable-next-line no-await-in-loop */
+    let buffer = await resizeToConfiguredDefault(generated.buffer, targetDimensions);
     let hasLogo = false;
 
     if (effectivePosition !== 'none') {
@@ -339,6 +485,8 @@ module.exports = {
   buildAltText,
   normaliseCount,
   extensionFor,
+  resizeToConfiguredDefault,
+  providerCanvasForTarget,
   STYLE_DIRECTIVES,
   BASE_DIRECTIVES,
   DEFAULT_SIZE,

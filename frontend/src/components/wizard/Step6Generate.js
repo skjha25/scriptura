@@ -26,6 +26,7 @@ import { useCallback, useState } from 'react';
 import { blogsApi, generateApi } from '../../lib/api';
 import {
   ARTICLE_TYPE_LABELS,
+  DEFAULT_IMAGE_STYLE,
   GENERATION_IN_FLIGHT,
   GENERATION_STATUS,
   IMAGE_STYLE_LABELS,
@@ -112,7 +113,7 @@ export function buildGenerationConfig(config) {
 
     include_images: config.include_images !== false,
     image_count: Number(config.image_count) || 1,
-    image_style: config.image_style || 'photo',
+    image_style: config.image_style || DEFAULT_IMAGE_STYLE,
     logo_overlay: Boolean(config.logo_overlay),
     logo_position: config.logo_position || 'none',
 
@@ -126,6 +127,7 @@ export function buildGenerationConfig(config) {
   if (config.tone_of_voice) built.tone_of_voice = config.tone_of_voice;
   if (config.point_of_view) built.point_of_view = config.point_of_view;
   if (config.target_country) built.target_country = config.target_country;
+  if (config.custom_prompt) built.custom_prompt = config.custom_prompt;
 
   return built;
 }

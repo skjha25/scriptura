@@ -19,6 +19,7 @@
  */
 
 const sanitizeHtml = require('sanitize-html');
+const { toPublicBlogHref } = require('./publicLinks');
 
 /** Inline tags permitted inside paragraph/heading/cell text. */
 const INLINE_TAGS = ['strong', 'b', 'em', 'i', 'u', 's', 'code', 'a', 'br', 'span', 'sup', 'sub'];
@@ -86,9 +87,10 @@ const baseOptions = {
      * internal linking does not get spurious attributes.
      */
     a(tagName, attribs) {
-      const href = attribs.href || '';
+      const href = toPublicBlogHref(attribs.href || '');
       const isExternal = /^https?:\/\//i.test(href);
       const next = { ...attribs };
+      if (attribs.href !== undefined) next.href = href;
       if (isExternal) {
         next.rel = 'noopener noreferrer';
         if (!next.target) next.target = '_blank';

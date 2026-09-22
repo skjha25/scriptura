@@ -22,7 +22,23 @@ function getBasename() {
   if (typeof window !== 'undefined' && window.location) {
     const path = window.location.pathname;
     const match = path.match(/^(\/[^/]+)/);
-    if (match && !['/blogs', '/blog', '/login', '/api', '/static', '/agents'].includes(match[1])) {
+    if (
+      match &&
+      ![
+        '/blogs',
+        '/blog',
+        '/login',
+        '/welcome',
+        '/api',
+        '/static',
+        '/agents',
+        '/settings',
+        '/keywords',
+        '/clusters',
+        '/config',
+        '/users',
+      ].includes(match[1])
+    ) {
       return match[1];
     }
   }

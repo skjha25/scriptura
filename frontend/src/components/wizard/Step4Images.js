@@ -19,6 +19,7 @@ import {
   IMAGE_COUNT_MIN,
   IMAGE_STYLES,
   IMAGE_STYLE_LABELS,
+  DEFAULT_IMAGE_STYLE,
 } from '../../lib/constants';
 import Button from '../ui/Button';
 import { Checkbox, Select, Toggle } from '../ui/form';
@@ -49,7 +50,7 @@ export default function Step4Images({ config, onChange }) {
     try {
       const result = await mediaApi.generateImage({
         topic: (config.topic || config.blog_title || '').trim(),
-        style: config.image_style || 'photo',
+        style: config.image_style || DEFAULT_IMAGE_STYLE,
         // One image, whatever the article will use: the point is to judge the
         // style, and a four-image preview costs four provider calls to answer the
         // same question.
@@ -123,7 +124,7 @@ export default function Step4Images({ config, onChange }) {
               <Select
                 label="Image style"
                 required
-                value={config.image_style || 'photo'}
+                value={config.image_style || DEFAULT_IMAGE_STYLE}
                 onChange={(event) => onChange({ image_style: event.target.value })}
                 options={optionsFrom(IMAGE_STYLES, IMAGE_STYLE_LABELS)}
                 hint="Brand-coloured tints the result towards Divinetalk's palette."

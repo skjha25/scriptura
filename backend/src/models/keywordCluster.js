@@ -1,7 +1,7 @@
 'use strict';
 
 const { DataTypes } = require('sequelize');
-const { CLUSTER_STATUS, CLUSTER_TYPE } = require('../constants');
+const { CLUSTER_STATUS, CLUSTER_TYPE, LANGUAGES, IMAGE_COUNT_MIN, IMAGE_COUNT_MAX } = require('../constants');
 
 module.exports = (sequelize) => {
   const KeywordCluster = sequelize.define(
@@ -80,6 +80,23 @@ module.exports = (sequelize) => {
       pillar_blog_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: true,
+      },
+      language: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+          isIn: { args: [LANGUAGES], msg: `language must be one of ${LANGUAGES.join(', ')}.` },
+        },
+      },
+      image_count: {
+        type: DataTypes.TINYINT.UNSIGNED,
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+          min: { args: [IMAGE_COUNT_MIN], msg: `image_count must be at least ${IMAGE_COUNT_MIN}.` },
+          max: { args: [IMAGE_COUNT_MAX], msg: `image_count must be at most ${IMAGE_COUNT_MAX}.` },
+        },
       },
     },
     {

@@ -72,6 +72,9 @@ export const BRAND_VOICE_SOURCE_TYPES = Object.freeze(['text', 'web_scrape', 'fi
 
 export const IMAGE_STYLES = Object.freeze(['photo', 'illustration', 'minimal', 'brand_colored']);
 
+/** Mirrors backend constants.DEFAULT_IMAGE_STYLE — realistic photos read as solemn/sad for astrology topics. */
+export const DEFAULT_IMAGE_STYLE = 'illustration';
+
 export const LOGO_POSITIONS = Object.freeze([
   'top_left',
   'top_right',
@@ -115,6 +118,26 @@ export const DEFAULT_SEO_STRUCTURE = Object.freeze({
 
 export const IMAGE_COUNT_MIN = 1;
 export const IMAGE_COUNT_MAX = 4;
+
+/**
+ * Curated generation languages — mirrors backend/src/constants/index.js's
+ * LANGUAGES exactly (asserted by constants.parity.test.js). Order matters:
+ * it drives the wizard's and the cluster generation-settings dropdown.
+ */
+export const LANGUAGES = Object.freeze([
+  'en',
+  'hi',
+  'gu',
+  'mr',
+  'ta',
+  'te',
+  'kn',
+  'bn',
+  'pa',
+  'ml',
+  'or',
+  'ur',
+]);
 
 export const DEFAULT_PUBLISHED_BY = 'DivineTalk Astrology';
 
@@ -165,6 +188,21 @@ export const POV_LABELS = Object.freeze({
   first_person_plural: 'First person plural (we)',
   second_person: 'Second person (you)',
   third_person: 'Third person',
+});
+
+export const LANGUAGE_LABELS = Object.freeze({
+  en: 'English',
+  hi: 'Hindi',
+  gu: 'Gujarati',
+  mr: 'Marathi',
+  ta: 'Tamil',
+  te: 'Telugu',
+  kn: 'Kannada',
+  bn: 'Bengali',
+  pa: 'Punjabi',
+  ml: 'Malayalam',
+  or: 'Odia',
+  ur: 'Urdu',
 });
 
 export const IMAGE_STYLE_LABELS = Object.freeze({

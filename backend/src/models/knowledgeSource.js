@@ -54,6 +54,31 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
+      // SOURCE ACCESS STATE — "how much of the actual source content did we
+      // successfully access", never knowledge confidence (see
+      // models/agentKnowledge.js's `confidence`/`status`, which is a separate
+      // axis entirely). Gates knowledgeExtraction.js: 'metadata_only' and
+      // 'unavailable' sources are never sent to Claude for substantive claim
+      // extraction — see extractFromSources's per-source content_status check.
+      // 'unknown' is the safe legacy value for rows created before this
+      // column existed (see migration 20260812... default) — never written by
+      // new code, only ever backfilled onto old rows.
+      content_status: {
+        type: DataTypes.ENUM('full', 'partial', 'metadata_only', 'unavailable', 'user_provided', 'unknown'),
+        allowNull: false,
+        defaultValue: 'unknown',
+      },
+      // PROVENANCE — how the content was actually obtained, independent of
+      // content_status. 'unknown' is the same legacy-backfill value as above.
+      content_method: {
+        // 'captions' = old, now-broken direct-timedtext-fetch method, kept
+        // only for backward compat with historical rows — never written by
+        // new code. 'youtube_captions' = the real transcript-panel-scrape
+        // method (see services/agents/knowledge/youtubeTranscriptProvider.js).
+        type: DataTypes.ENUM('captions', 'youtube_captions', 'oembed', 'html', 'manual_text', 'whisper', 'image_upload', 'unknown'),
+        allowNull: false,
+        defaultValue: 'unknown',
+      },
       metadata: {
         type: DataTypes.JSON,
         allowNull: true,

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { knowledgeApi, mediaApi } from '../lib/api';
+import { agentsApi, knowledgeApi, mediaApi } from '../lib/api';
 import { AGENT_META, AGENT_ORDER } from '../lib/agentMeta';
 import Button from '../components/ui/Button';
 import { Textarea, TagInput } from '../components/ui/form';
@@ -41,6 +41,54 @@ const VERDICT_META = {
 function VerdictBadge({ verdict }) {
   const meta = VERDICT_META[verdict] || VERDICT_META.new;
   return <Badge tone={meta.tone}>{meta.label}</Badge>;
+}
+
+/**
+ * SOURCE ACCESS STATE (source-ingestion audit, FIX 7) — this is NOT knowledge
+ * confidence. It answers one question only: "how much of the actual source
+ * content did we successfully access?" A metadata-only or unavailable source
+ * must never look like a successful content source in this UI — the admin
+ * needs to see exactly what the system did and did not read.
+ */
+const CONTENT_STATUS_META = {
+  full: { label: 'Full content', icon: '✓', tone: 'good' },
+  user_provided: { label: 'Manual text', icon: '✓', tone: 'good' },
+  partial: { label: 'Partial content', icon: '⚠', tone: 'warning' },
+  metadata_only: { label: 'Metadata only', icon: '⚠', tone: 'warning' },
+  unavailable: { label: 'Content unavailable', icon: '✕', tone: 'critical' },
+  unknown: { label: 'Access state unknown (legacy source)', icon: '?', tone: 'neutral' },
+};
+
+function ContentStatusBadge({ status }) {
+  const meta = CONTENT_STATUS_META[status] || CONTENT_STATUS_META.unknown;
+  return (
+    <Badge tone={meta.tone}>
+      {meta.icon} {meta.label}
+    </Badge>
+  );
+}
+
+/** One line per submitted source — type, what was obtained, and its access state. Never hidden, even when metadata-only. */
+function SourceStatusRow({ source }) {
+  const label = source.url || source.path || (source.type === 'text' ? `Pasted text (${source.chars ?? '?'} chars)` : source.type);
+  return (
+    <li className="flex flex-wrap items-center gap-2 rounded-md border border-hairline bg-panel px-2.5 py-1.5 text-xs">
+      <span className="max-w-xs truncate text-ink-secondary" title={label}>
+        {label}
+      </span>
+      {source.error ? (
+        <span className="text-status-critical">✕ {source.error}</span>
+      ) : (
+        <>
+          <ContentStatusBadge status={source.content_status} />
+          {source.content_status === 'metadata_only' ? (
+            <span className="text-ink-faint">Source content was not accessible — no substantive knowledge was extracted from it.</span>
+          ) : null}
+          {source.reused ? <Badge tone="neutral">Already known — reused, not re-analyzed</Badge> : null}
+        </>
+      )}
+    </li>
+  );
 }
 
 /** Read-only list of an agent's current confirmed/supported knowledge. */
@@ -130,6 +178,16 @@ function CurrentKnowledgeList({ agentName }) {
               {entry.row.knowledge_type ? `${entry.row.knowledge_type} · ` : ''}
               {entry.row.status}
             </p>
+            {/* FIX 10 — source trace: what type/URL this claim was distilled from, and how much of it we actually read. */}
+            {entry.row.source ? (
+              <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-faint">
+                <span>
+                  {entry.row.source.source_type}
+                  {entry.row.source.source_url ? `: ${entry.row.source.source_url}` : ''}
+                </span>
+                <ContentStatusBadge status={entry.row.source.content_status} />
+              </p>
+            ) : null}
           </li>
         )
       )}
@@ -400,19 +458,22 @@ function DraftReview({ agentName, draft, onConfirmed, onDiscard }) {
     }
   };
 
-  const failedSources = draft.sources.filter((s) => s.error);
+  // Keyed for the per-item source trace below (FIX 10) — a candidate carries
+  // only source_id; this maps it back to that source's access state.
+  const sourceById = new Map(draft.sources.filter((s) => s.source_id != null).map((s) => [s.source_id, s]));
 
   return (
     <div className="mt-4 rounded-lg border border-accent/25 bg-accent/5 p-4">
       <p className="mb-1 text-sm font-medium text-ink">
         {draft.items.length} candidate{draft.items.length === 1 ? '' : 's'} extracted — nothing is saved yet.
       </p>
-      {failedSources.length > 0 ? (
-        <p className="mb-3 text-xs text-status-critical">
-          {failedSources.length} source{failedSources.length === 1 ? '' : 's'} could not be read (
-          {failedSources.map((s) => s.url || s.path || s.type).join(', ')}) — the rest were still analyzed.
-        </p>
-      ) : null}
+
+      {/* Every submitted source, not just failures — a metadata-only source must never quietly look like a successful one. */}
+      <ul className="mb-3 space-y-1">
+        {draft.sources.map((source, i) => (
+          <SourceStatusRow key={i} source={source} />
+        ))}
+      </ul>
 
       <div className="mb-3 flex items-center gap-3 text-xs">
         <span className="text-ink-faint">Applies to</span>
@@ -459,6 +520,13 @@ function DraftReview({ agentName, draft, onConfirmed, onDiscard }) {
               {item.category} · {item.topic}
               {item.related_id ? ` · related to #${item.related_id}` : ''}
             </p>
+            {sourceById.has(item.source_id) ? (
+              <p className="mt-1 pl-6 text-xs text-ink-faint">
+                From: {sourceById.get(item.source_id).url || sourceById.get(item.source_id).path || sourceById.get(item.source_id).type}
+                {' · '}
+                <ContentStatusBadge status={sourceById.get(item.source_id).content_status} />
+              </p>
+            ) : null}
             {item.reason ? <p className="mt-1 pl-6 text-xs text-ink-muted">{item.reason}</p> : null}
           </li>
         ))}
@@ -478,6 +546,301 @@ function DraftReview({ agentName, draft, onConfirmed, onDiscard }) {
   );
 }
 
+/**
+ * P4-D: Learning Candidate review — the human gate between P2/P3's
+ * deterministic outcome measurement (real recommendation_outcome rows) and
+ * agent_knowledge. Patterns are detected in the background
+ * (services/learningCandidateScheduler.js); this section is purely a
+ * viewer + decision UI over the already-existing, unmodified
+ * learningCandidateDecisions API — it never detects, writes agent_knowledge
+ * directly, or runs any action itself. See learningCandidates.js's own
+ * header comment on the backend: "P4 may IDENTIFY. P4 must NOT TEACH."
+ * Confirming is the one bridge to agent_knowledge, and it goes exclusively
+ * through the existing confirmKnowledgeBatch — same as the Teach flow
+ * below.
+ */
+const CANDIDATE_STATUS_META = {
+  pending_review: { label: 'Pending Review', tone: 'warning' },
+  confirmed: { label: 'Confirmed', tone: 'good' },
+  rejected: { label: 'Rejected', tone: 'neutral' },
+};
+
+const CANDIDATE_STATUS_FILTERS = [
+  { value: 'pending_review', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+const CANDIDATE_EMPTY_META = {
+  pending_review: {
+    title: 'No pending candidates',
+    message: 'Nothing detected yet — this fills up automatically as recommendation outcomes accumulate.',
+  },
+  confirmed: {
+    title: 'Nothing confirmed yet',
+    message: 'Candidates you confirm will show up here as a record of what was taught from real outcomes.',
+  },
+  rejected: {
+    title: 'Nothing rejected yet',
+    message: 'Candidates you reject will show up here.',
+  },
+};
+
+/** `evidence_refs` — pointers only (never duplicated data), exactly as stored. Provenance stays visible so the reviewer can judge the claim before teaching it. */
+function EvidenceRefsList({ refs }) {
+  if (!Array.isArray(refs) || refs.length === 0) {
+    return <span className="text-xs text-ink-faint">No evidence references recorded.</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {refs.map((ref, i) => (
+        <span
+          // eslint-disable-next-line react/no-array-index-key -- refs carry no independent id of their own, (type,id) pairs may legitimately repeat across different candidates
+          key={`${ref.type}-${ref.id}-${i}`}
+          className="rounded border border-hairline bg-panel px-1.5 py-0.5 text-[11px] text-ink-faint"
+        >
+          {ref.type === 'recommendation_outcome' ? 'Outcome' : ref.type} #{ref.id}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Raw counts, shown alongside the deterministic `evidence` sentence — never just the rendered text alone, so the reviewer can audit the numbers independently. */
+function CandidateCounts({ candidate }) {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-secondary">
+      <span>
+        Sample size: <strong className="text-ink">{candidate.sample_size}</strong>
+      </span>
+      <span className="text-status-good">Improved: {candidate.improved_count}</span>
+      <span className="text-status-critical">Declined: {candidate.declined_count}</span>
+      <span className="text-ink-faint">Neutral: {candidate.neutral_count}</span>
+      <span className="text-ink-faint">Inconclusive: {candidate.inconclusive_count}</span>
+      <span>
+        Confidence: <strong className="text-ink">{Math.round((candidate.confidence || 0) * 100)}%</strong>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One candidate. `decision` is this session's own optimistic override right
+ * after a confirm/reject click (mirrors AgentActivityPage's
+ * decisionOverride pattern for recommendations) — the underlying row is
+ * already durable server-side the moment the API call resolves; this is
+ * purely immediate UI feedback. `resolvedScope` is used instead when the
+ * row arrived already-confirmed from a *previous* session: the
+ * learning_candidates row's own `scope` column always stays 'agent'
+ * regardless of the reviewer's choice (only the resulting agent_knowledge
+ * row reflects Agent vs Global — see learningCandidateDecisions.js), so the
+ * parent resolves it by cross-referencing the existing per-agent knowledge
+ * read endpoint.
+ */
+function LearningCandidateCard({ candidate, decision, resolvedScope, busyAction, onConfirm, onReject }) {
+  const agentMeta = AGENT_META[candidate.agent_name] || { label: candidate.agent_name, icon: '🤖' };
+  const status = decision?.status || candidate.status;
+  const scope = decision?.scope || resolvedScope;
+  const statusMeta = CANDIDATE_STATUS_META[status] || CANDIDATE_STATUS_META.pending_review;
+  const busy = Boolean(busyAction);
+
+  return (
+    <Card interactive={false} className="p-4" data-testid={`learning-candidate-${candidate.id}`}>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-ink-faint">
+        <Badge tone="accent">
+          {agentMeta.icon} {agentMeta.label}
+        </Badge>
+        <span>
+          {candidate.category}
+          {candidate.topic ? ` · ${candidate.topic}` : ''}
+        </span>
+        <span className="font-mono" title={candidate.pattern_key} data-testid="pattern-key">
+          {candidate.pattern_key}
+        </span>
+        <span>Detected {new Date(candidate.created_at).toLocaleString()}</span>
+      </div>
+
+      <p className="mt-2 text-sm text-ink">{candidate.claim}</p>
+      {candidate.evidence ? <p className="mt-1 text-xs text-ink-secondary">{candidate.evidence}</p> : null}
+
+      <div className="mt-2">
+        <CandidateCounts candidate={candidate} />
+      </div>
+
+      <div className="mt-2">
+        <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-faint">Evidence references</p>
+        <EvidenceRefsList refs={candidate.evidence_refs} />
+      </div>
+
+      <div className="mt-3">
+        {status === 'pending_review' ? (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="primary" size="sm" loading={busyAction === 'agent'} disabled={busy} onClick={() => onConfirm('agent')}>
+              Confirm as Agent
+            </Button>
+            <Button type="button" variant="secondary" size="sm" loading={busyAction === 'global'} disabled={busy} onClick={() => onConfirm('global')}>
+              Confirm as Global
+            </Button>
+            <Button type="button" variant="ghost" size="sm" loading={busyAction === 'reject'} disabled={busy} onClick={onReject}>
+              Reject
+            </Button>
+          </div>
+        ) : status === 'confirmed' ? (
+          <Badge tone="good">Confirmed{scope ? ` — ${scope === 'global' ? 'Global' : 'Agent'}` : ''}</Badge>
+        ) : (
+          <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function LearningCandidatesReview() {
+  const [statusFilter, setStatusFilter] = useState('pending_review');
+  const [rows, setRows] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState({}); // { [candidateId]: 'agent' | 'global' | 'reject' }
+  const [decisionOverride, setDecisionOverride] = useState({}); // { [candidateId]: {status, scope} }
+  const [resolvedScopes, setResolvedScopes] = useState({}); // { [candidateId]: 'agent' | 'global' }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await agentsApi.listLearningCandidates({ status: statusFilter });
+      setRows(data);
+      setDecisionOverride({});
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Best-effort Agent/Global resolution for rows that arrived already
+  // confirmed (i.e. not decided in this session, so there's no local
+  // `decisionOverride` for them) — see LearningCandidateCard's own comment
+  // on why this can't be read off the candidate row itself. Read-only reuse
+  // of the existing knowledgeApi.get() endpoint, already used elsewhere on
+  // this page; failure here only means the "— Agent"/"— Global" suffix is
+  // omitted, it never blocks rendering the confirmed state itself.
+  useEffect(() => {
+    if (!rows) return;
+    const unresolved = rows.filter(
+      (r) => r.status === 'confirmed' && r.confirmed_knowledge_id && !(r.id in resolvedScopes) && !(r.id in decisionOverride)
+    );
+    if (unresolved.length === 0) return;
+    const agentNames = Array.from(new Set(unresolved.map((r) => r.agent_name)));
+    let cancelled = false;
+    (async () => {
+      const next = {};
+      for (const agentName of agentNames) {
+        try {
+          // eslint-disable-next-line no-await-in-loop -- bounded (<=8 agents), sequential is fine for a background resolution pass
+          const knowledgeRows = await knowledgeApi.get(agentName);
+          const byId = new Map(knowledgeRows.map((k) => [k.id, k]));
+          for (const candidate of unresolved.filter((r) => r.agent_name === agentName)) {
+            const knowledgeRow = byId.get(candidate.confirmed_knowledge_id);
+            if (knowledgeRow) next[candidate.id] = knowledgeRow.scope;
+          }
+        } catch {
+          // Best-effort only — see comment above.
+        }
+      }
+      if (!cancelled && Object.keys(next).length > 0) setResolvedScopes((prev) => ({ ...prev, ...next }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, resolvedScopes, decisionOverride]);
+
+  const decide = useCallback(async (candidate, action) => {
+    setBusy((prev) => ({ ...prev, [candidate.id]: action }));
+    setError(null);
+    try {
+      if (action === 'reject') {
+        const updated = await agentsApi.rejectLearningCandidate(candidate.id);
+        setDecisionOverride((prev) => ({ ...prev, [candidate.id]: { status: updated.status } }));
+      } else {
+        // action is 'agent' or 'global' — 'agent' never sends a scope key at
+        // all (see agentsApi.confirmLearningCandidate), so there is no path
+        // by which clicking "Confirm as Agent" can end up global.
+        const updated = await agentsApi.confirmLearningCandidate(candidate.id, action === 'global' ? 'global' : undefined);
+        setDecisionOverride((prev) => ({ ...prev, [candidate.id]: { status: updated.status, scope: action } }));
+      }
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy((prev) => {
+        const next = { ...prev };
+        delete next[candidate.id];
+        return next;
+      });
+    }
+  }, []);
+
+  const emptyMeta = CANDIDATE_EMPTY_META[statusFilter] || CANDIDATE_EMPTY_META.pending_review;
+
+  return (
+    <Card as="section" aria-labelledby="learning-candidates-heading">
+      <CardHeader
+        title={<span id="learning-candidates-heading">Learning Candidates</span>}
+        subtitle="Patterns detected from real recommendation outcomes — nothing here is taught until you confirm it."
+      />
+      <div className="px-5 pb-5 pt-4">
+        <div role="tablist" aria-label="Candidate status" className="mb-4 flex flex-wrap gap-2">
+          {CANDIDATE_STATUS_FILTERS.map((f) => {
+            const selected = statusFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setStatusFilter(f.value)}
+                className={
+                  selected
+                    ? 'rounded-full bg-accent/20 px-3 py-1.5 text-sm font-medium text-accent-bright ring-1 ring-accent/40'
+                    : 'rounded-full px-3 py-1.5 text-sm text-ink-secondary hover:bg-panel-sunken'
+                }
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <ErrorBanner error={error} onRetry={load} onDismiss={() => setError(null)} className="mb-3" />
+
+        {loading && !rows ? (
+          <Skeleton rows={3} />
+        ) : !rows || rows.length === 0 ? (
+          <EmptyState title={emptyMeta.title} message={emptyMeta.message} />
+        ) : (
+          <div className="space-y-3">
+            {rows.map((candidate) => (
+              <LearningCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                decision={decisionOverride[candidate.id]}
+                resolvedScope={resolvedScopes[candidate.id]}
+                busyAction={busy[candidate.id]}
+                onConfirm={(scope) => decide(candidate, scope)}
+                onReject={() => decide(candidate, 'reject')}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function AgentKnowledgePage() {
   const [activeAgent, setActiveAgent] = useState(TEACHABLE_AGENTS[0]);
   const [draft, setDraft] = useState(null);
@@ -493,13 +856,15 @@ export default function AgentKnowledgePage() {
   return (
     <div className="space-y-8 animate-fade-in-up">
       <header className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight text-ink">Agent Knowledge</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Agent Knowledge</h1>
         <p className="max-w-2xl text-base text-ink-secondary">
           Teach an agent from text, links, images, or video — every submission is reviewed and confidence-checked
           against what it already knows before anything is saved. Generate Agent has its own dedicated flow on
           Platform Rules.
         </p>
       </header>
+
+      <LearningCandidatesReview />
 
       <div role="tablist" aria-label="Agent" className="flex flex-wrap gap-2">
         {TEACHABLE_AGENTS.map((name) => {

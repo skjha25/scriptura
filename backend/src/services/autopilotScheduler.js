@@ -27,7 +27,14 @@
 
 const logger = require('../utils/logger');
 const activity = require('./activityLogger');
-const { CLUSTER_STATUS, CLUSTER_KEYWORD_STATUS, BLOG_STATUS, GENERATION_STATUS } = require('../constants');
+const {
+  CLUSTER_STATUS,
+  CLUSTER_KEYWORD_STATUS,
+  BLOG_STATUS,
+  GENERATION_STATUS,
+  IMAGE_STYLES,
+  DEFAULT_IMAGE_STYLE,
+} = require('../constants');
 
 /**
  * Reads the admin-configurable retry ceiling via the Autopilot Scheduler
@@ -41,6 +48,20 @@ const { CLUSTER_STATUS, CLUSTER_KEYWORD_STATUS, BLOG_STATUS, GENERATION_STATUS }
 async function getMaxRetries() {
   const { ScripturaSettings } = require('../models');
   return ScripturaSettings.getValue('autopilot.max_retries', { fallback: 3 });
+}
+
+/**
+ * Image style for autopilot runs, from the `autopilot.image_style` setting.
+ * Was hardcoded here while the setting went unread. PUT /settings/autopilot
+ * does not validate this key, so an unknown stored value falls back to the
+ * house default rather than failing generation.
+ *
+ * @returns {Promise<string>}
+ */
+async function getImageStyle() {
+  const { ScripturaSettings } = require('../models');
+  const style = await ScripturaSettings.getValue('autopilot.image_style', { fallback: DEFAULT_IMAGE_STYLE });
+  return IMAGE_STYLES.includes(style) ? style : DEFAULT_IMAGE_STYLE;
 }
 
 /**
@@ -117,6 +138,8 @@ async function processNextDueKeyword() {
   keyword.status = CLUSTER_KEYWORD_STATUS.GENERATING;
 
   try {
+    const imageStyle = await getImageStyle();
+
     // -----------------------------------------------------------------------
     // 3. Check if a blog already exists for this keyword (from a prior failed
     //    attempt). If so, retry generation on that blog instead of creating
@@ -177,12 +200,12 @@ async function processNextDueKeyword() {
         generation_status: GENERATION_STATUS.DRAFT,
         cluster_id: Number(cluster.id),
         article_type: 'general',
-        language: 'en',
+        language: cluster.language || 'en',
         target_country: 'India',
         readability_level: '8th_grade',
         include_images: true,
-        image_count: 2,
-        image_style: 'illustration',
+        image_count: cluster.image_count || 2,
+        image_style: imageStyle,
         logo_overlay: true,
         logo_position: 'top_right',
         internal_linking: true,
@@ -224,13 +247,13 @@ async function processNextDueKeyword() {
       secondary_keywords: blog.secondary_keywords || [],
       article_type: 'general',
       target_word_count: 2000,
-      language: 'en',
+      language: cluster.language || 'en',
       target_country: 'India',
       readability_level: '8th_grade',
       tone_of_voice: 'informative',
       include_images: true,
-      image_count: 2,
-      image_style: 'illustration',
+      image_count: cluster.image_count || 2,
+      image_style: imageStyle,
       logo_overlay: true,
       logo_position: 'top_right',
       internal_linking: true,

@@ -123,7 +123,7 @@ class S3Driver extends StorageDriver {
   }
 
   /**
-   * `blogs/July2026/x.png` -> `https://cdn.divinetalk.com/blogs/July2026/x.png`.
+   * `blogs/July2026/x.png` -> `https://cdn.divinetalk.in/blogs/July2026/x.png`.
    *
    * Implemented, unlike the I/O methods — see the file header for why.
    * @param {string} relativePath

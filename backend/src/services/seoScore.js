@@ -198,7 +198,7 @@ const POWER_WORDS = Object.freeze([
 ]);
 
 /** Hosts treated as our own when classifying a link. */
-const INTERNAL_HOSTS = Object.freeze(['divinetalk.com', 'www.divinetalk.com']);
+const INTERNAL_HOSTS = Object.freeze(['divinetalk.in', 'www.divinetalk.in']);
 
 // ===========================================================================
 // Shared helpers

@@ -153,7 +153,7 @@ export default function BlogViewPage() {
       </div>
 
       <header className="mb-8">
-        <h1 className="text-3xl font-semibold leading-tight text-ink sm:text-4xl">
+        <h1 className="font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">
           {blog.blog_title}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">

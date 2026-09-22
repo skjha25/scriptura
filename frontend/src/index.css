@@ -1,4 +1,6 @@
 /* frontend/src/index.css */
+@import './fonts.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,12 +15,49 @@
  */
 
 @layer base {
+  /**
+   * Theme tokens.
+   *
+   * Surface/ink/border values live as CSS custom properties so Tailwind's
+   * `bg-panel`, `text-ink-muted`, `border-hairline` (and their opacity-modifier
+   * variants like `bg-panel/60`) become theme-reactive automatically instead of
+   * relying on the `html.light` !important overrides below. `--color-*` values
+   * that feed an alpha-aware Tailwind color (rgb(var(--x) / <alpha-value>)) are
+   * unitless "R G B" triples; `--color-hairline*` already bakes in its own alpha
+   * and is consumed as a plain CSS value, not through the alpha-value helper.
+   */
   :root {
     color-scheme: dark;
+
+    --color-void: 9 9 13;
+    --color-panel: 17 17 24;
+    --color-panel-raised: 24 24 36;
+    --color-panel-sunken: 11 11 16;
+
+    --color-ink: 255 255 255;
+    --color-ink-secondary: 161 161 170;
+    --color-ink-muted: 113 113 122;
+    --color-ink-faint: 82 82 91;
+
+    --color-hairline: rgba(255, 255, 255, 0.09);
+    --color-hairline-strong: rgba(255, 255, 255, 0.18);
   }
 
   html.light {
     color-scheme: light;
+
+    --color-void: 248 250 252;
+    --color-panel: 255 255 255;
+    --color-panel-raised: 255 255 255;
+    --color-panel-sunken: 248 250 252;
+
+    --color-ink: 15 23 42;
+    --color-ink-secondary: 51 65 85;
+    --color-ink-muted: 100 116 139;
+    --color-ink-faint: 148 163 184;
+
+    --color-hairline: #e2e8f0;
+    --color-hairline-strong: #cbd5e1;
   }
 
   html.light body {
@@ -27,26 +66,15 @@
     background-image: radial-gradient(circle at 50% 0%, rgba(79, 140, 255, 0.06), transparent 50%);
   }
 
-  /* Surfaces */
-  html.light .bg-void {
-    background-color: #f8fafc !important;
-  }
-
+  /* Surfaces — background/border colors now come from the CSS custom
+     properties above via tailwind.config.js's rgb(var(--color-*)) tokens, so
+     only the non-color light-mode-only styling (shadows) stays here. */
   html.light .bg-panel {
-    background-color: #ffffff !important;
-    border-color: #e2e8f0 !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   }
 
   html.light .bg-panel-raised {
-    background-color: #ffffff !important;
-    border-color: #cbd5e1 !important;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  }
-
-  html.light .bg-panel-sunken {
-    background-color: #f8fafc !important;
-    border-color: #cbd5e1 !important;
   }
 
   html.light aside {
@@ -59,34 +87,11 @@
     border-color: #e2e8f0 !important;
   }
 
-  /* Typography / Ink */
-  html.light .text-ink {
-    color: #0f172a !important;
-  }
-
-  html.light .text-ink-secondary {
-    color: #334155 !important;
-  }
-
-  html.light .text-ink-muted {
-    color: #64748b !important;
-  }
-
-  html.light .text-ink-faint {
-    color: #94a3b8 !important;
-  }
-
+  /* Typography / Ink — text-ink and border-hairline classes are theme-reactive
+     via the CSS custom properties above; only ::placeholder (not a token
+     class) needs an explicit light-mode color. */
   html.light ::placeholder {
     color: #94a3b8 !important;
-  }
-
-  /* Borders */
-  html.light .border-hairline {
-    border-color: #e2e8f0 !important;
-  }
-
-  html.light .border-hairline-strong {
-    border-color: #cbd5e1 !important;
   }
 
   /* Controls & Inputs */
@@ -329,9 +334,22 @@
     @apply border-t border-hairline px-4 py-2.5 align-top;
   }
 
+  /* FAQs render open, as question-then-answer prose. The `details`/`summary`
+     rules stay because articles saved before that change still hold the old
+     markup in `blog_content` until they are re-saved. */
   .prose-scriptura section.scriptura-faq {
-    @apply my-7 space-y-2;
+    @apply my-7 space-y-5;
   }
+  .prose-scriptura div.scriptura-faq-item {
+    @apply space-y-1;
+  }
+  .prose-scriptura h3.scriptura-faq-question {
+    @apply mt-0 mb-1 text-base font-semibold text-ink;
+  }
+  .prose-scriptura div.scriptura-faq-answer {
+    @apply mt-0 text-sm leading-6;
+  }
+
   .prose-scriptura details.scriptura-faq-item {
     @apply rounded-xl border border-hairline bg-panel-raised/60 px-4 py-3;
   }
@@ -348,8 +366,8 @@
   .prose-scriptura details[open] > summary.scriptura-faq-question::after {
     content: '−';
   }
-  .prose-scriptura div.scriptura-faq-answer {
-    @apply mt-2 text-sm leading-6;
+  .prose-scriptura details.scriptura-faq-item > div.scriptura-faq-answer {
+    @apply mt-2;
   }
 
   .prose-scriptura section.scriptura-takeaway {
@@ -443,6 +461,35 @@
     background-size: 500px 100%;
     background-repeat: no-repeat;
     @apply animate-shimmer;
+  }
+
+  /**
+   * Ambient mouse glow (MouseGlow.js) — landing/login only.
+   *
+   * Alpha stops mirror `cosmic-wash` in tailwind.config.js (0.22/0.16 there)
+   * so this reads at the same intensity as the app's other ambient accent
+   * glow rather than introducing a new brightness level. Position updates
+   * are instant (no transition on transform) — only opacity eases, same as
+   * the reference this was modelled on.
+   */
+  .mouse-glow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 480px;
+    height: 480px;
+    border-radius: 9999px;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(
+      circle,
+      rgba(59, 130, 246, 0.2) 0%,
+      rgba(139, 92, 246, 0.1) 45%,
+      rgba(139, 92, 246, 0) 70%
+    );
+    transition: opacity 300ms ease;
+    will-change: transform;
   }
 }
 

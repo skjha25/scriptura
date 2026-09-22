@@ -27,12 +27,15 @@ import clsx from 'clsx';
 import { brandVoiceApi } from '../../lib/api';
 import { POINTS_OF_VIEW, POV_LABELS } from '../../lib/constants';
 import Button from '../ui/Button';
-import { Field, Input, Select, TagInput, Textarea } from '../ui/form';
+import { Field, Input, Select, TagInput, Textarea, Toggle } from '../ui/form';
 import { Card, CardHeader, ErrorBanner, InfoBanner } from '../ui/feedback';
 import { optionsFrom } from './steps';
 
 /** The backend refuses a shorter sample with 422 SAMPLE_TOO_SHORT. */
 const MIN_SAMPLE_LENGTH = 200;
+
+/** Matches the backend's optionalText(3000) cap on custom_prompt. */
+const MAX_CUSTOM_PROMPT_LENGTH = 3000;
 
 const MODES = Object.freeze([
   { value: 'text', label: 'Paste writing', hint: 'A published article or two' },
@@ -59,6 +62,15 @@ export default function Step2BrandVoice({ config, onChange }) {
   /** Returned prose. There is no column for it, so it lives and dies in-session. */
   const [summary, setSummary] = useState('');
   const fileInputRef = useRef(null);
+
+  /**
+   * On/off UI state for the custom-prompt toggle, independent of whether
+   * `custom_prompt` currently holds text — same reasoning as `mode` above:
+   * an empty-but-checked box must stay visibly checked.
+   */
+  const [customPromptEnabled, setCustomPromptEnabled] = useState(
+    Boolean(config.custom_prompt)
+  );
 
   const sourceType = config.brand_voice_source_type ?? null;
   const confirmed = config.brand_voice_confirmed === true;
@@ -189,7 +201,7 @@ export default function Step2BrandVoice({ config, onChange }) {
               type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://divinetalk.com/blog/some-article"
+              placeholder="https://divinetalk.in/blog/some-article"
               hint="Public https pages only. Internal and private addresses are refused."
             />
           ) : null}
@@ -226,6 +238,35 @@ export default function Step2BrandVoice({ config, onChange }) {
               Continue without a brand voice
             </Button>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Custom prompt for this article"
+          subtitle="Optional. Independent of the brand voice above — for a one-off instruction specific to this blog."
+        />
+        <div className="space-y-3 p-5">
+          <Toggle
+            label="Add a custom prompt for this blog"
+            hint="Tone, editorial standards, structure — anything specific to this one article."
+            checked={customPromptEnabled}
+            onChange={(checked) => {
+              setCustomPromptEnabled(checked);
+              if (!checked) onChange({ custom_prompt: '' });
+            }}
+          />
+          {customPromptEnabled ? (
+            <Textarea
+              value={config.custom_prompt || ''}
+              onChange={(event) =>
+                onChange({ custom_prompt: event.target.value.slice(0, MAX_CUSTOM_PROMPT_LENGTH) })
+              }
+              rows={4}
+              placeholder="e.g. Write this as a numbered listicle, keep every paragraph under 3 sentences, and end each section with a practical tip."
+              hint={`${(config.custom_prompt || '').length} of ${MAX_CUSTOM_PROMPT_LENGTH} characters. This takes priority over the tone/style settings in step 3.`}
+            />
+          ) : null}
         </div>
       </Card>
 

@@ -62,6 +62,11 @@ describe('enum values match the backend exactly', () => {
     expect([...frontend.IMAGE_STYLES]).toEqual([...backend.IMAGE_STYLES]);
   });
 
+  it('LANGUAGES', () => {
+    // Order matters: it drives the wizard's and the cluster settings' dropdown.
+    expect([...frontend.LANGUAGES]).toEqual([...backend.LANGUAGES]);
+  });
+
   it('LOGO_POSITIONS', () => {
     expect([...frontend.LOGO_POSITIONS]).toEqual([...backend.LOGO_POSITIONS]);
   });
@@ -108,6 +113,7 @@ describe('label maps cover every enum value', () => {
     ['POV_LABELS', frontend.POINTS_OF_VIEW, frontend.POV_LABELS],
     ['IMAGE_STYLE_LABELS', frontend.IMAGE_STYLES, frontend.IMAGE_STYLE_LABELS],
     ['LOGO_POSITION_LABELS', frontend.LOGO_POSITIONS, frontend.LOGO_POSITION_LABELS],
+    ['LANGUAGE_LABELS', frontend.LANGUAGES, frontend.LANGUAGE_LABELS],
   ];
 
   it.each(cases)('%s has an entry for every value', (name, values, labels) => {

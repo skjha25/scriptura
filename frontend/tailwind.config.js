@@ -11,20 +11,20 @@ module.exports = {
     extend: {
       colors: {
         void: {
-          DEFAULT: '#09090D',
+          DEFAULT: 'rgb(var(--color-void) / <alpha-value>)',
           soft: '#0E0E14',
         },
         panel: {
-          DEFAULT: '#111118',
-          raised: '#181824',
-          sunken: '#0B0B10',
+          DEFAULT: 'rgb(var(--color-panel) / <alpha-value>)',
+          raised: 'rgb(var(--color-panel-raised) / <alpha-value>)',
+          sunken: 'rgb(var(--color-panel-sunken) / <alpha-value>)',
         },
 
         ink: {
-          DEFAULT: '#FFFFFF',
-          secondary: '#A1A1AA',
-          muted: '#71717A',
-          faint: '#52525B',
+          DEFAULT: 'rgb(var(--color-ink) / <alpha-value>)',
+          secondary: 'rgb(var(--color-ink-secondary) / <alpha-value>)',
+          muted: 'rgb(var(--color-ink-muted) / <alpha-value>)',
+          faint: 'rgb(var(--color-ink-faint) / <alpha-value>)',
         },
 
         accent: {
@@ -69,8 +69,8 @@ module.exports = {
       },
 
       borderColor: {
-        hairline: 'rgba(255, 255, 255, 0.09)',
-        'hairline-strong': 'rgba(255, 255, 255, 0.18)',
+        hairline: 'var(--color-hairline)',
+        'hairline-strong': 'var(--color-hairline-strong)',
       },
 
       backgroundImage: {
@@ -92,6 +92,7 @@ module.exports = {
 
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif'],
         numeric: ['Inter', 'system-ui', 'sans-serif'],
       },
 

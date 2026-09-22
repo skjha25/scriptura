@@ -221,7 +221,7 @@ API=http://localhost:5000/api/v1
 # 1. Sign in
 TOKEN=$(curl -s -X POST $API/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"harsh@divinetalk.com","password":"Scriptura@Dev2026"}' \
+  -d '{"email":"harsh@divinetalk.in","password":"Scriptura@Dev2026"}' \
   | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
 
 # 2. Create a draft

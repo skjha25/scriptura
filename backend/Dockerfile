@@ -79,7 +79,14 @@ RUN npm install -g npm@11 --no-audit --no-fund \
   # sequelize-cli is a devDependency, but the entrypoint runs migrations, so it is
   # needed at runtime. Installed HERE rather than in the runtime stage so that stage
   # performs no network access — see the CA note above.
-  && npm install --no-save --no-audit --no-fund --maxsockets 4 sequelize-cli@^6.6.2
+  #
+  # `--omit=dev` here too, deliberately: a bare `npm install <pkg>` (no --omit=dev)
+  # reconciles the WHOLE tree against package.json, not just the named package —
+  # it silently re-installs every devDependency `npm ci --omit=dev` just excluded
+  # above (sqlite3 included, whose install script then fails trying to fetch/build
+  # a binary with no network/Python in this stage). Omitting it here keeps the
+  # first command's exclusion intact.
+  && npm install --no-save --omit=dev --no-audit --no-fund --maxsockets 4 sequelize-cli@^6.6.2
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime

@@ -86,7 +86,7 @@ const MAX_SUMMARY_CHARS = 600;
  * an unrecognised agent, and a stripped page produces a brand-voice analysis of
  * boilerplate. The identifier still names the tool.
  */
-const USER_AGENT = 'Mozilla/5.0 (compatible; ScripturaBrandVoice/1.0; +https://divinetalk.com)';
+const USER_AGENT = 'Mozilla/5.0 (compatible; ScripturaBrandVoice/1.0; +https://divinetalk.in)';
 
 // ---------------------------------------------------------------------------
 // SSRF guard

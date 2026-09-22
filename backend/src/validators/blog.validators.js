@@ -182,6 +182,7 @@ const writableFields = {
   language: z.string().trim().min(2).max(10).optional(),
   readability_level: z.enum(READABILITY_LEVELS).nullable().optional(),
   ai_content_cleaning: z.boolean().optional(),
+  custom_prompt: optionalText(3000),
 
   brand_voice_source_type: z.enum(BRAND_VOICE_SOURCE_TYPES).nullable().optional(),
   brand_voice_source_ref: optionalText(1000),
@@ -276,6 +277,15 @@ const idParamSchema = z.object({
     .positive('id must be positive.'),
 });
 
+const blockIdParamSchema = idParamSchema.extend({
+  blockId: z.string().trim().min(1).max(64),
+});
+
+/** POST body for regenerating one image content block. The instruction is optional — empty means "regenerate with the existing context, no new direction." */
+const regenerateBlockImageSchema = z.object({
+  prompt: z.string().trim().max(500).optional(),
+});
+
 /** Columns a client may sort by. An allow-list, because this reaches ORDER BY. */
 const SORTABLE_COLUMNS = Object.freeze([
   'created_at',
@@ -345,6 +355,8 @@ module.exports = {
   listBlogsSchema,
   linkableSearchSchema,
   idParamSchema,
+  blockIdParamSchema,
+  regenerateBlockImageSchema,
   blockSchema,
   contentBlocksSchema,
   blogStatusSchema,

@@ -4,8 +4,8 @@
 /**
  * Zod schemas for the /serp endpoints.
  *
- * The domain field is deliberately permissive about form — `divinetalk.com`,
- * `https://divinetalk.com/blog/x` and `www.divinetalk.com` are all accepted and
+ * The domain field is deliberately permissive about form — `divinetalk.in`,
+ * `https://divinetalk.in/blog/x` and `www.divinetalk.in` are all accepted and
  * reduced to a hostname by services/serp.hostOf. Rejecting a pasted full URL
  * would be technically defensible and practically annoying, since pasting the
  * article URL is what a user actually does.
@@ -43,7 +43,7 @@ const checkRankBody = z
       .max(255)
       .regex(
         /^(?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?::\d{2,5})?(?:\/.*)?$/i,
-        'Provide a domain such as "divinetalk.com" or a full article URL.'
+        'Provide a domain such as "divinetalk.in" or a full article URL.'
       ),
     /** When present, the result is written to the blog's serp_rank_* columns. */
     blog_id: z.coerce.number().int().positive().optional(),

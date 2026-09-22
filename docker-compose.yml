@@ -76,6 +76,16 @@ services:
       SERPAPI_ENABLED: ${SERPAPI_ENABLED:-false}
       SERPAPI_KEY: ${SERPAPI_KEY:-}
 
+      # Google Search Console — off by default (mirrors backend/.env.example)
+      GSC_ENABLED: ${GSC_ENABLED:-false}
+      GSC_SITE_URL: ${GSC_SITE_URL:-}
+      GSC_SERVICE_ACCOUNT_KEY: ${GSC_SERVICE_ACCOUNT_KEY:-}
+      GSC_TIMEOUT_MS: ${GSC_TIMEOUT_MS:-20000}
+
+      # Encrypts publishing-integration credentials at rest (Config page) — unset,
+      # any integration using auth_type other than 'none' fails to save/decrypt.
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY:-}
+
       STORAGE_DRIVER: local
       UPLOADS_DIR: ./uploads
 

@@ -70,7 +70,7 @@ const RESPONSES = {
 
   // --- Auth / meta -------------------------------------------------------
   'POST /auth/login': { access_token: 'a', refresh_token: 'r', user: { id: 1 } },
-  'GET /auth/me': { user: { id: 1, email: 'harsh@divinetalk.com' } },
+  'GET /auth/me': { user: { id: 1, email: 'harsh@divinetalk.in' } },
   'GET /meta': { features: { serp_api: false }, enums: {}, defaults: {} },
 };
 

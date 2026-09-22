@@ -184,6 +184,10 @@ const ai = {
     // Knowledge Layer v2's hybrid retrieval — reuses the already-configured
     // OpenAI client (same one Whisper transcription uses), not a new provider.
     embeddingModel: str(process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small'),
+    // Mirrors anthropic.agentMaxTokens above — agent chat turns are short
+    // replies/tool calls, not full articles, so this stays independent of
+    // maxTokens (the article-generation budget).
+    agentMaxTokens: int(process.env.OPENAI_AGENT_MAX_TOKENS, 4096),
   },
   // Generation is the slowest path in the app; a request-level ceiling keeps a
   // hung provider call from pinning a worker forever.
@@ -214,6 +218,62 @@ const serp = {
   apiKey: serpKey,
   baseUrl: str(process.env.SERPAPI_BASE_URL, 'https://serpapi.com/search.json'),
   timeoutMs: int(process.env.SERPAPI_TIMEOUT_MS, 20000),
+};
+
+// --- Google Search Console (feature-flagged) ---------------------------------
+// Same "enabled requires BOTH the flag and real credentials" shape as SerpAPI
+// above, so a half-configured deployment behaves like a disabled one instead
+// of failing at call time. GSC_SERVICE_ACCOUNT_KEY accepts either the raw
+// service-account JSON (common for platform/Docker secrets — sniffed by a
+// leading `{`) or a path to a JSON key file (common for a mounted secret) —
+// one variable, auto-detected, matching what the deploy runbook is likely to
+// hand this either way.
+const gscFlag = bool(process.env.GSC_ENABLED, false);
+const gscSiteUrl = str(process.env.GSC_SITE_URL);
+const gscKeyRaw = str(process.env.GSC_SERVICE_ACCOUNT_KEY);
+
+let gscServiceAccount = null;
+let gscConfigError = null;
+if (gscKeyRaw) {
+  try {
+    const raw = gscKeyRaw.trim().startsWith('{') ? gscKeyRaw : fs.readFileSync(gscKeyRaw, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.client_email === 'string' && typeof parsed.private_key === 'string') {
+      gscServiceAccount = parsed;
+    } else {
+      gscConfigError = 'GSC_SERVICE_ACCOUNT_KEY JSON is missing client_email/private_key.';
+    }
+  } catch (err) {
+    // err.message is a safe, generic parse/read failure (e.g. "Unexpected
+    // token", "ENOENT") — never the file contents or key material itself.
+    gscConfigError = `GSC_SERVICE_ACCOUNT_KEY could not be read/parsed: ${err.message}`;
+  }
+}
+
+const gscHasCredentials = Boolean(gscServiceAccount) && gscSiteUrl !== '';
+
+if (gscFlag && !gscHasCredentials && !isTest) {
+  warnings.push(
+    `GSC_ENABLED=true but valid GSC configuration is not present (${
+      gscConfigError || 'GSC_SITE_URL or GSC_SERVICE_ACCOUNT_KEY is missing'
+    }) — Search Console features will stay disabled. Set GSC_SITE_URL and a valid GSC_SERVICE_ACCOUNT_KEY, or flip the flag to false.`
+  );
+}
+
+const gsc = {
+  enabled: gscFlag && gscHasCredentials,
+  // Exposed separately, same reason as serp.flagEnabled/hasKey above — lets
+  // the /health payload and the UI distinguish "switched off" from "switched
+  // on but misconfigured" instead of collapsing both into one boolean.
+  flagEnabled: gscFlag,
+  hasCredentials: gscHasCredentials,
+  configError: gscConfigError,
+  siteUrl: gscSiteUrl,
+  // {client_email, private_key, ...} or null. Never logged, never serialised
+  // into an API response — services/gscAuth.js is the only reader.
+  serviceAccount: gscServiceAccount,
+  scopes: Object.freeze(['https://www.googleapis.com/auth/webmasters.readonly']),
+  timeoutMs: int(process.env.GSC_TIMEOUT_MS, 20000),
 };
 
 // --- Storage -----------------------------------------------------------------
@@ -301,6 +361,7 @@ const config = Object.freeze({
   database: Object.freeze(database),
   ai: Object.freeze(ai),
   serp: Object.freeze(serp),
+  gsc: Object.freeze(gsc),
   storage: Object.freeze(storage),
   logoPath,
 
@@ -350,6 +411,62 @@ const config = Object.freeze({
     cronExpression: str(process.env.AUTOPILOT_CRON, '* * * * *'),
     timezone: str(process.env.AUTOPILOT_TIMEZONE, 'Asia/Kolkata'),
     maxRetries: int(process.env.AUTOPILOT_MAX_RETRIES, 3),
+  }),
+
+  /**
+   * P2-C: outcome evaluation cron job — the scheduler that turns a
+   * recommendation_outcomes row from 'pending' into 'evaluated'/'inconclusive'
+   * once its observation window has elapsed. Same "no queue, single
+   * instance, in-process node-cron" shape as scheduler/autopilot above, and
+   * disabled in tests for the same reason (no background timer outliving a
+   * test file). Runs once a day by default — unlike scheduler/autopilot,
+   * there is no value in checking every minute for a window measured in
+   * days, and a daily cadence keeps SERP/GSC call volume bounded.
+   */
+  outcomeEvaluation: Object.freeze({
+    enabled: bool(process.env.OUTCOME_EVALUATION_ENABLED, !isTest),
+    cronExpression: str(process.env.OUTCOME_EVALUATION_CRON, '0 3 * * *'),
+    timezone: str(process.env.OUTCOME_EVALUATION_TIMEZONE, 'Asia/Kolkata'),
+    // Bounded batch per tick — an admin-scale tool, not a bulk processor;
+    // matches autopilotScheduler's "one keyword per tick" restraint in
+    // spirit (here, a small batch rather than strictly one, since
+    // evaluation is read-then-compare, not a paid generation call).
+    batchSize: int(process.env.OUTCOME_EVAL_BATCH_SIZE, 20),
+    // After this many attempts with no resolvable fresh evidence, a pending
+    // outcome terminalizes as 'inconclusive' rather than retrying forever.
+    maxAttempts: int(process.env.OUTCOME_EVAL_MAX_ATTEMPTS, 3),
+  }),
+
+  /**
+   * P4-B: learning candidate detection cron job — periodically aggregates
+   * already-evaluated outcomes (via recommendationEvaluation.js) into
+   * pending_review learning_candidates rows. Same "no queue, single
+   * instance, in-process node-cron" shape as every other scheduler above,
+   * disabled in tests for the same reason. Runs weekly by default,
+   * deliberately decoupled from the daily outcome-evaluation cadence — a
+   * meaningful pattern needs more than one day's newly-evaluated outcomes
+   * to be worth flagging, and a slower cadence here can never delay
+   * individual outcome evaluations.
+   */
+  learningCandidates: Object.freeze({
+    enabled: bool(process.env.LEARNING_CANDIDATES_ENABLED, !isTest),
+    cronExpression: str(process.env.LEARNING_CANDIDATES_CRON, '0 4 * * 1'),
+    timezone: str(process.env.LEARNING_CANDIDATES_TIMEZONE, 'Asia/Kolkata'),
+  }),
+
+  /**
+   * GSC daily sync cron job — the automatic counterpart to the "Sync now"
+   * button (controllers/gsc.controller.js). Same "no queue, single
+   * instance, in-process node-cron" shape as every scheduler above,
+   * disabled in tests for the same reason. Gated independently of
+   * `gsc.enabled` so the daily job can be turned off (e.g. to conserve API
+   * quota) without disabling GSC itself for the manual button/agent tool —
+   * see services/gscSyncScheduler.js.
+   */
+  gscSync: Object.freeze({
+    enabled: bool(process.env.GSC_SYNC_ENABLED, !isTest),
+    cronExpression: str(process.env.GSC_SYNC_CRON, '0 5 * * *'),
+    timezone: str(process.env.GSC_SYNC_TIMEZONE, 'Asia/Kolkata'),
   }),
 
   warnings: Object.freeze(warnings),

@@ -86,6 +86,7 @@ function configFromBlog(blog) {
     language: blog.language || INITIAL_CONFIG.language,
     readability_level: blog.readability_level || INITIAL_CONFIG.readability_level,
     ai_content_cleaning: blog.ai_content_cleaning === true,
+    custom_prompt: blog.custom_prompt || '',
 
     seo_structure_config: blog.seo_structure_config || { ...INITIAL_CONFIG.seo_structure_config },
     internal_linking: blog.internal_linking === true,

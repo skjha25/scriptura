@@ -114,13 +114,20 @@ function scoreKnowledgeCandidate(row, { queryTerms, queryEmbedding }) {
  * @param {number} [queryContext.limit] Defaults to 12, capped at 30.
  * @param {object} [options]
  * @param {object} [options.embeddingClient] Injected OpenAI client, for tests.
+ * @param {boolean} [options.includeSource] FIX 10 (source-ingestion audit) —
+ *   joins each row's KnowledgeSource (type/url/content_status/content_method/
+ *   metadata, never the full `content` — that's LONGTEXT and this can return
+ *   up to CANDIDATE_POOL_CAP rows) so an admin can see exactly what was, and
+ *   wasn't, actually read for any knowledge item. Only the admin listing
+ *   (controllers/agents.controller.js's getKnowledgeBase) sets this — the
+ *   live per-turn prompt-injection call (runAgentTurn.js) has no use for it.
  * @returns {Promise<Array<object>>} AgentKnowledge rows (real model instances), ranked.
  *   Each row also carries non-persisted `relevanceScore`/`retrievalMethod` properties
  *   when a text query was given, for callers that need to log why a row was retrieved
  *   (see runAgentTurn.js's recordKnowledgeUsage).
  */
 async function retrieveKnowledge(agentName, { text = '', limit = DEFAULT_RETRIEVE_LIMIT } = {}, options = {}) {
-  const { AgentKnowledge } = require('../../../models');
+  const { AgentKnowledge, KnowledgeSource } = require('../../../models');
   const { Op } = require('sequelize');
 
   const boundedLimit = Math.min(Math.max(1, Number(limit) || DEFAULT_RETRIEVE_LIMIT), MAX_RETRIEVE_LIMIT);
@@ -138,6 +145,18 @@ async function retrieveKnowledge(agentName, { text = '', limit = DEFAULT_RETRIEV
       ['usage_count', 'DESC'],
     ],
     limit: CANDIDATE_POOL_CAP,
+    ...(options.includeSource
+      ? {
+          include: [
+            {
+              model: KnowledgeSource,
+              as: 'source',
+              attributes: ['id', 'source_type', 'source_url', 'title', 'author', 'content_status', 'content_method', 'metadata'],
+              required: false,
+            },
+          ],
+        }
+      : {}),
   });
 
   if (pool.length === 0) return [];
@@ -278,6 +297,58 @@ async function recordUsage(id, { success = null } = {}) {
   return row;
 }
 
+/**
+ * P5-A/B: applies bounded, deterministic reinforcement from ONE qualifying
+ * outcome to ONE knowledge row — increments `success_count` XOR
+ * `failure_count`, and once `minSamples` qualifying observations have
+ * accumulated, nudges `confidence` by a small, symmetric, capped delta.
+ *
+ * Deliberately separate from `recordUsage` (bumps `usage_count` — a
+ * *retrieval*-time signal, already recorded once when this row was fetched
+ * into a chat turn's context; reinforcement is a *later validation* of that
+ * same use, not a new use, so `usage_count` must NOT move here) and from
+ * `updateKnowledge` (a human-edit path that always refreshes
+ * `last_verified_at` — reinforcement must never touch that field, or
+ * `status`, `scope`, `agent_name`, `claim`, or any other column). This
+ * function writes ONLY `success_count`/`failure_count`/`confidence` — the
+ * exact field set P5 is scoped to.
+ *
+ * All policy (threshold, delta magnitude, bounds) is passed in explicitly by
+ * the caller (services/agents/knowledge/knowledgeReinforcement.js) rather
+ * than defaulted here, so the numbers are documented and testable in
+ * exactly one place.
+ *
+ * @param {number} id
+ * @param {object} policy
+ * @param {boolean} policy.success true = this row's evidence was validated (outcome improved), false = contradicted (outcome declined).
+ * @param {number} policy.minSamples Total qualifying (success+failure) observations required before confidence moves at all.
+ * @param {number} policy.positiveDelta Added to confidence on a success, once minSamples is reached.
+ * @param {number} policy.negativeDelta Subtracted from confidence on a failure, once minSamples is reached.
+ * @param {number} policy.minConfidence Hard floor.
+ * @param {number} policy.maxConfidence Hard ceiling.
+ * @returns {Promise<object|null>} The updated row, or null if it no longer exists.
+ */
+async function reinforceKnowledge(id, { success, minSamples, positiveDelta, negativeDelta, minConfidence, maxConfidence }) {
+  const { AgentKnowledge } = require('../../../models');
+  const row = await AgentKnowledge.findByPk(id);
+  if (!row) return null;
+
+  const nextSuccessCount = row.success_count + (success ? 1 : 0);
+  const nextFailureCount = row.failure_count + (success ? 0 : 1);
+  const totalQualifying = nextSuccessCount + nextFailureCount;
+
+  const patch = success ? { success_count: nextSuccessCount } : { failure_count: nextFailureCount };
+
+  if (totalQualifying >= minSamples) {
+    const delta = success ? positiveDelta : -negativeDelta;
+    const current = typeof row.confidence === 'number' ? row.confidence : 0.5;
+    patch.confidence = Math.min(maxConfidence, Math.max(minConfidence, current + delta));
+  }
+
+  await row.update(patch);
+  return row;
+}
+
 module.exports = {
   retrieveKnowledge,
   getKnowledge,
@@ -285,6 +356,7 @@ module.exports = {
   updateKnowledge,
   invalidateKnowledge,
   recordUsage,
+  reinforceKnowledge,
   scoreKnowledgeCandidate,
   RETRIEVABLE_STATUSES,
   DEFAULT_RETRIEVE_LIMIT,

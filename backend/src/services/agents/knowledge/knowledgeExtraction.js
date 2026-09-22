@@ -48,6 +48,15 @@ const EXTRACTION_FOCUS = {
   [AGENT_NAMES.GENERATE]: 'writing style, structure, and editorial knowledge relevant to future content generation',
 };
 
+// FIX 3 (source-ingestion audit) — content_status values that must NEVER
+// reach Claude for substantive claim extraction. 'metadata_only' is
+// title/author/oEmbed text, not the source's actual content; 'unavailable'
+// sources don't even make it into the `sources` array (see
+// knowledgeIngestion.gatherContent), but the check stays defense-in-depth.
+// Enforced here at CODE level — never left to the extraction prompt to
+// notice a fallback sentence, per the audit's explicit requirement.
+const NO_EXTRACTION_CONTENT_STATUSES = ['metadata_only', 'unavailable'];
+
 const MAX_CANDIDATES = 10;
 const MAX_CLAIM_CHARS = 500;
 const MAX_EVIDENCE_CHARS = 500;
@@ -268,8 +277,33 @@ async function extractFromSources({ agentName, sources = [] } = {}, options = {}
   }
 
   const allCandidates = [];
+  let gatedCount = 0;
+  let reusedCount = 0;
 
   for (const source of sources) {
+    // FIX 3 — code-level gate, not a prompt instruction. A source we did not
+    // substantively access (title/author only, or unavailable) must never be
+    // sent to Claude for claim extraction, no matter what text happens to be
+    // sitting in `fullText` (e.g. the oEmbed fallback's descriptive sentence).
+    if (NO_EXTRACTION_CONTENT_STATUSES.includes(source.contentStatus)) {
+      gatedCount += 1;
+      logger.info('Skipping knowledge extraction for a source with no substantive content', {
+        sourceId: source.sourceId,
+        sourceType: source.sourceType,
+        contentStatus: source.contentStatus,
+      });
+      // eslint-disable-next-line no-continue -- guard clause reads clearer than nesting the whole loop body.
+      continue;
+    }
+    // FIX 8 — a resubmission of identical content reuses the existing source
+    // (see knowledgeIngestion.persistTextSource); re-extracting from it would
+    // call Claude again for nothing new.
+    if (source.reused) {
+      reusedCount += 1;
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
     if (source.images.length > 0) {
       // eslint-disable-next-line no-await-in-loop -- sequential, admin-paced batch, not a hot path.
       const candidates = await safeExtract(
@@ -314,6 +348,20 @@ async function extractFromSources({ agentName, sources = [] } = {}, options = {}
   const deduped = dedupeCandidates(allCandidates);
 
   if (deduped.length === 0) {
+    // Every source was gated/reused, not a genuine "Claude found nothing" —
+    // give an honest, specific reason rather than the generic upstream message.
+    if (gatedCount > 0 && gatedCount + reusedCount === sources.length) {
+      throw ApiError.unprocessable(
+        'No substantive content was actually accessible from the provided source(s) — only metadata (e.g. a title/author) was ' +
+          'obtained, which is never treated as learned content. Provide a source whose content can actually be read.',
+        { code: 'NO_SUBSTANTIVE_CONTENT' }
+      );
+    }
+    if (reusedCount > 0 && reusedCount === sources.length) {
+      throw ApiError.unprocessable('This exact content has already been submitted — nothing new to extract.', {
+        code: 'DUPLICATE_SOURCE',
+      });
+    }
     throw ApiError.upstream('The model returned no usable knowledge candidates from any source. Try different or more sources.', {
       code: 'UPSTREAM_BAD_RESPONSE',
     });

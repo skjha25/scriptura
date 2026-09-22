@@ -22,6 +22,8 @@ import { useFeatures } from '../../context/AuthContext';
 import {
   ARTICLE_TYPES,
   ARTICLE_TYPE_LABELS,
+  LANGUAGES,
+  LANGUAGE_LABELS,
   POINTS_OF_VIEW,
   POV_LABELS,
   READABILITY_LABELS,
@@ -138,14 +140,13 @@ export default function Step3Content({ config, onChange, blogId }) {
             maxLength={100}
             hint="Shapes examples, festivals and dates."
           />
-          <Input
+          <Select
             label="Language"
             required
             value={config.language || 'en'}
             onChange={(event) => onChange({ language: event.target.value })}
-            placeholder="en"
-            maxLength={10}
-            hint="An ISO code, such as en or hi."
+            options={optionsFrom(LANGUAGES, LANGUAGE_LABELS)}
+            hint="Applies to the title, headings, body and conclusion."
           />
           <div className="sm:col-span-2">
             <Toggle

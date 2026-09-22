@@ -43,7 +43,7 @@ const analysisResponse = {
       description:
         'Provenance. For a scrape this is the URL actually read, after redirects — not necessarily ' +
         'the one submitted. For an upload it is the original filename.',
-      example: 'https://divinetalk.com/blog/transits',
+      example: 'https://divinetalk.in/blog/transits',
     },
     sample_length: {
       type: 'integer',
@@ -130,7 +130,7 @@ module.exports = {
                       type: 'string',
                       format: 'uri',
                       maxLength: 2000,
-                      example: 'https://divinetalk.com/blog/transits',
+                      example: 'https://divinetalk.in/blog/transits',
                     },
                     blog_id: { type: 'integer', minimum: 1 },
                   },

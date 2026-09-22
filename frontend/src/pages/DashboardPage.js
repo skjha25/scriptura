@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { FileText, CheckCircle2, LineChart, Sparkles, Globe2, Eye, Loader2 } from 'lucide-react';
 
 import { analyticsApi } from '../lib/api';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
@@ -313,7 +314,7 @@ export default function DashboardPage() {
           selector never disappears out from under the user. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">Dashboard</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Publishing volume, content quality and what is generating right now.
           </p>
@@ -341,11 +342,16 @@ export default function DashboardPage() {
             aria-label="Key metrics"
             className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4"
           >
-            <StatTile label="Total blogs" value={formatCount(totals.total)} />
+            <StatTile
+              label="Total blogs"
+              value={formatCount(totals.total)}
+              icon={<FileText className="h-4 w-4" strokeWidth={1.75} />}
+            />
             <StatTile
               label="Published"
               value={formatCount(totals.published)}
               hint={`${formatCount(totals.draft)} still in draft`}
+              icon={<CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />}
             />
             <StatTile
               label="Avg SEO score"
@@ -354,22 +360,30 @@ export default function DashboardPage() {
               // none has been scored.
               value={formatAverage(totals.avg_seo_score)}
               hint="Scored articles only"
+              icon={<LineChart className="h-4 w-4" strokeWidth={1.75} />}
             />
             <StatTile
               label="Avg AEO score"
               value={formatAverage(totals.avg_aeo_score)}
               hint="Featured-snippet readiness"
+              icon={<Sparkles className="h-4 w-4" strokeWidth={1.75} />}
             />
             <StatTile
               label="Avg GEO score"
               value={formatAverage(totals.avg_geo_score)}
               hint="AI-citation readiness"
+              icon={<Globe2 className="h-4 w-4" strokeWidth={1.75} />}
             />
-            <StatTile label="Total views" value={formatCompact(totals.total_views)} />
+            <StatTile
+              label="Total views"
+              value={formatCompact(totals.total_views)}
+              icon={<Eye className="h-4 w-4" strokeWidth={1.75} />}
+            />
             <StatTile
               label="In-flight"
               value={formatCount(totals.in_flight)}
               hint="Queued or generating"
+              icon={<Loader2 className="h-4 w-4" strokeWidth={1.75} />}
             />
           </motion.section>
 

@@ -28,6 +28,12 @@ function getModel() {
 /**
  * Internal helper — creates an activity row, swallowing errors.
  * @param {object} data
+ * @returns {Promise<import('../models').AgentActivity|null>} The created row,
+ *   or null on failure. Every existing call site ignores this return value
+ *   (confirmed — none of them capture it), so returning it is purely
+ *   additive: callers that need the row's id for provenance/idempotency
+ *   (see services/agents/recommendations.js) now can, without any existing
+ *   caller's behavior changing.
  */
 async function safeCreate(data) {
   try {
@@ -36,7 +42,7 @@ async function safeCreate(data) {
     // fire outside a live chat turn (e.g. a standalone Apply click), so any
     // caller that didn't have one gets a fresh id here rather than the insert
     // failing (and, per the fire-and-forget contract above, failing silently).
-    await AgentActivity.create({ ...data, trace_id: data.trace_id || crypto.randomUUID() });
+    return await AgentActivity.create({ ...data, trace_id: data.trace_id || crypto.randomUUID() });
   } catch (err) {
     logger.error('agentActivityLogger: failed to write activity entry', {
       event_type: data.event_type,
@@ -77,9 +83,17 @@ async function delegation({ traceId, fromAgent, toAgent, instruction, userId, me
 
 /**
  * Log: an agent invoking one of its tools.
+ *
+ * @returns {Promise<import('../models').AgentActivity|null>} The created row
+ *   — see safeCreate's own doc comment. Confirmed (grep, one real call site:
+ *   runAgentTurn.js) that the existing caller ignores this return value, so
+ *   returning it is purely additive — needed by the new `type:'recommendation'`
+ *   branch there as the provenance/idempotency anchor (services/agents/
+ *   recommendations.js), since that path deliberately never calls
+ *   settingProposed (see runAgentTurn.js's own comment on that branch).
  */
 async function toolCall({ traceId, agentName, toolName, input, result, userId, status, metadata } = {}) {
-  await safeCreate({
+  return safeCreate({
     trace_id: traceId,
     agent_name: agentName,
     event_type: AGENT_EVENT_TYPES.TOOL_CALL,
@@ -93,8 +107,13 @@ async function toolCall({ traceId, agentName, toolName, input, result, userId, s
 /**
  * Log: a tool proposed a settings change (NOT yet applied — nothing was written).
  */
+/**
+ * @returns {Promise<import('../models').AgentActivity|null>} The created row
+ *   — see safeCreate's own doc comment for why this is now returned (needed
+ *   by services/agents/recommendations.js as the provenance/idempotency key).
+ */
 async function settingProposed({ traceId, agentName, toolName, settingKey, currentValue, proposedValue, userId, metadata } = {}) {
-  await safeCreate({
+  return safeCreate({
     trace_id: traceId,
     agent_name: agentName,
     event_type: AGENT_EVENT_TYPES.SETTING_PROPOSED,

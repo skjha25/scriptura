@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Ruler, Sparkles } from 'lucide-react';
 
 import { clustersApi } from '../lib/api';
 import { humanizeEnum } from '../lib/constants';
@@ -17,6 +18,7 @@ import { Input, Select } from '../components/ui/form';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
 import {
   Badge,
+  Card,
   EmptyState,
   ErrorBanner,
   Skeleton,
@@ -73,7 +75,7 @@ export default function ClusterPage() {
       <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between relative">
         <div className="space-y-2 relative">
           <div className="absolute -left-4 top-0 h-full w-1 rounded-r-md bg-glow-accent opacity-75" />
-          <h1 className="text-4xl font-bold tracking-tight text-ink drop-shadow-md">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
             Keyword Clusters
           </h1>
           <p className="max-w-2xl text-base text-ink-secondary">
@@ -81,12 +83,8 @@ export default function ClusterPage() {
           </p>
         </div>
         <Button as={Link} to="/keywords" variant="primary" className="shadow-glow-sm hover:shadow-glow transition-shadow">
-          <span className="flex items-center gap-2">
-            Explore Keyword Pool 
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </span>
+          Explore Keyword Pool
+          <ArrowRight className="h-4 w-4" strokeWidth={2} />
         </Button>
       </header>
 
@@ -114,20 +112,20 @@ export default function ClusterPage() {
       {loading && !clusters ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-2xl border border-hairline bg-panel-raised/50 p-6 shadow-panel backdrop-blur-sm">
+            <Card key={i} interactive={false} className="p-6">
               <Skeleton rows={3} />
-            </div>
+            </Card>
           ))}
         </div>
       ) : clusters && clusters.length === 0 ? (
-        <div className="rounded-2xl border border-hairline bg-panel-raised/30 p-12 backdrop-blur-sm shadow-panel">
+        <Card interactive={false} className="p-12">
           <EmptyState
             icon={<span className="text-4xl text-accent drop-shadow-glow">◎</span>}
             title="No clusters constructed yet"
             message="Your strategic network begins here. Select a keyword from the pool and click 'Expand to Cluster' to initiate generation."
             action={<Button as={Link} to="/keywords" variant="primary">Access Keyword Pool</Button>}
           />
-        </div>
+        </Card>
       ) : clusters ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clusters.map((cluster) => {
@@ -157,15 +155,11 @@ export default function ClusterPage() {
                     </div>
                     
                     <div className="flex items-center gap-2 mb-6 text-sm text-ink-muted">
-                      <svg className="h-4 w-4 text-accent/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                      </svg>
+                      <Ruler className="h-4 w-4 text-accent/70" strokeWidth={1.75} />
                       <span className="truncate">Head: <span className="text-ink-secondary">{cluster.head_keyword}</span></span>
                       {cluster.is_seasonal && (
                          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-accent-violet/10 px-2 py-0.5 text-xs text-accent-violet border border-accent-violet/20">
-                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                           </svg>
+                           <Sparkles className="h-3 w-3" strokeWidth={1.75} />
                            Seasonal
                          </span>
                       )}

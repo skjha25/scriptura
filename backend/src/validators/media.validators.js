@@ -24,6 +24,7 @@ const { z } = require('zod');
 
 const {
   IMAGE_STYLES,
+  DEFAULT_IMAGE_STYLE,
   LOGO_POSITIONS,
   IMAGE_COUNT_MIN,
   IMAGE_COUNT_MAX,
@@ -132,7 +133,7 @@ const generateImageBody = z
   .object({
     prompt: optionalText(2000),
     topic: optionalText(255),
-    style: imageStyleSchema.default('photo'),
+    style: imageStyleSchema.default(DEFAULT_IMAGE_STYLE),
     logo_overlay: boolish(false),
     logo_position: logoPositionSchema.default('none'),
     count: numberish(

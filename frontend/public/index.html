@@ -12,9 +12,13 @@
     <meta name="theme-color" content="#0a0912" />
     <meta
       name="description"
-      content="Scriptura — Divinetalk's internal AI blog automation tool. Generate, edit and publish SEO-optimised content at scale."
+      content="Scriptura — the intelligence layer for SEO content. Specialized agents propose, you approve, outcomes get measured."
     />
-    <!-- Internal tool: keep it out of search results entirely. -->
+    <!--
+      The authenticated app stays out of search results by default; the
+      /welcome landing page overrides this at runtime (see LandingPage.js)
+      to be the one indexable, public-facing route.
+    -->
     <meta name="robots" content="noindex, nofollow" />
     <title>Scriptura — Divinetalk Content Engine</title>
   </head>

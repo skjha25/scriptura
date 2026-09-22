@@ -40,6 +40,7 @@ export default function BlockSettingsPanel({
   onClose,
   onDuplicate,
   onDelete,
+  onRegenerateImage,
 }) {
   // Escape closes. Registered only while open so it does not compete with the insert
   // menu's own Escape handling.
@@ -119,6 +120,20 @@ export default function BlockSettingsPanel({
                     This block has no settings — edit it directly on the canvas.
                   </p>
                 )}
+
+                {block.type === 'image' ? (
+                  <div className="mt-5 border-t border-hairline pt-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                      disabled={readOnly}
+                      onClick={() => onRegenerateImage(block.id)}
+                    >
+                      Regenerate image
+                    </Button>
+                  </div>
+                ) : null}
 
                 <div className="mt-5 flex gap-2 border-t border-hairline pt-4">
                   <Button

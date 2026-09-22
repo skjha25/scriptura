@@ -2067,9 +2067,9 @@ v12+ is pure ESM, breaks Jest. Pin documented in package.json with reasoning.
 | Email | Role | Password |
 |---|---|---|
 | `shivamkumar@divinetalk.in` | admin | `123456` |
-| `harsh@divinetalk.com` | admin | `Scriptura@Dev2026` |
-| `ananya@divinetalk.com` | editor | `Scriptura@Dev2026` |
-| `rohit@divinetalk.com` | editor | `Scriptura@Dev2026` |
+| `harsh@divinetalk.in` | admin | `Scriptura@Dev2026` |
+| `ananya@divinetalk.in` | editor | `Scriptura@Dev2026` |
+| `rohit@divinetalk.in` | editor | `Scriptura@Dev2026` |
 
 **Seeded demo content:** ~10 realistic astrology/spiritual blog entries covering all blog and generation statuses, with `blog_content` generated programmatically from `content_blocks` by the real renderer.
 

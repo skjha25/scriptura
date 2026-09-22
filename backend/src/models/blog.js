@@ -183,6 +183,15 @@ module.exports = (sequelize) => {
       meta_description: { type: DataTypes.STRING(500), allowNull: true },
       og_image: { type: DataTypes.STRING(1000), allowNull: true },
       canonical_url: { type: DataTypes.STRING(1000), allowNull: true },
+      /**
+       * P6-B: the outcome of services/factVerification.js's check against
+       * the org's configured fact sources, if any ran. `null` means
+       * "verification was not run" (no fact sources were configured/active
+       * at generation time) — never interpret `null` as "verified". See
+       * migrations/20260814220000-add-fact-verification-to-blogs.js for the
+       * full shape.
+       */
+      fact_verification: { type: DataTypes.JSON, allowNull: true },
       /** Extra target keywords. `seo_keywords` remains the primary/legacy one. */
       secondary_keywords: {
         type: DataTypes.JSON,
@@ -230,6 +239,13 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
+      /**
+       * Optional free-text instruction for THIS article only, supplied via
+       * the Wizard's Step 2. When present, given priority over every other
+       * tone/style knob for this article's generation — see
+       * services/ai/prompts.js's articlePrompt.
+       */
+      custom_prompt: { type: DataTypes.TEXT, allowNull: true },
 
       // =======================================================================
       // NEW: brand voice (denormalised per blog — see file header)

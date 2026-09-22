@@ -76,7 +76,7 @@ module.exports = {
                   type: 'string',
                   maxLength: 255,
                   description: 'A hostname or a full article URL; both are reduced to a hostname.',
-                  example: 'divinetalk.com',
+                  example: 'divinetalk.in',
                 },
                 blog_id: { type: 'integer', minimum: 1 },
                 country: {
@@ -99,7 +99,7 @@ module.exports = {
                 type: 'object',
                 properties: {
                   keyword: { type: 'string' },
-                  domain: { type: 'string', example: 'divinetalk.com' },
+                  domain: { type: 'string', example: 'divinetalk.in' },
                   position: { type: 'integer', nullable: true, example: 7 },
                   url: { type: 'string', nullable: true },
                   found: { type: 'boolean' },

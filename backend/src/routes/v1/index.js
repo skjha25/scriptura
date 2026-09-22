@@ -15,7 +15,10 @@
  *   /brand-voice  tone analysis from pasted text, a scraped URL, or a file
  *   /media        uploads, AI image generation, logo compositing
  *   /serp         rank checking and fact grounding (feature-flagged)
+ *   /gsc          Search Console sync (feature-flagged)
+ *   /config       client publish-API integrations (Config page)
  *   /analytics    dashboard aggregates
+ *   /users        platform user management (admin-only)
  */
 
 const express = require('express');
@@ -26,9 +29,12 @@ const generateRoutes = require('./generate.routes');
 const brandVoiceRoutes = require('./brandVoice.routes');
 const mediaRoutes = require('./media.routes');
 const serpRoutes = require('./serp.routes');
+const gscRoutes = require('./gsc.routes');
+const publishingIntegrationRoutes = require('./publishingIntegration.routes');
 const analyticsRoutes = require('./analytics.routes');
 const settingsRoutes = require('./settings.routes');
 const agentsRoutes = require('./agents.routes');
+const { sourcesRouter: factSourcesRoutes, policyRouter: factVerificationPolicyRoutes } = require('./factSources.routes');
 
 const router = express.Router();
 
@@ -59,6 +65,7 @@ router.get('/meta', (req, res) => {
   res.json({
     features: {
       serp_api: config.serp.enabled,
+      gsc: config.gsc.enabled,
       text_provider: config.ai.textProvider,
       image_provider: config.ai.imageProvider,
       storage_driver: config.storage.driver,
@@ -89,10 +96,17 @@ router.use('/generate', generateRoutes);
 router.use('/brand-voice', brandVoiceRoutes);
 router.use('/media', mediaRoutes);
 router.use('/serp', serpRoutes);
+router.use('/gsc', gscRoutes);
+router.use('/config', publishingIntegrationRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/settings', settingsRoutes);
+// P6-B: fact-source management/policy — own route file because it needs its
+// own Multer instance (see factSources.routes.js's header comment).
+router.use('/settings/fact-sources', factSourcesRoutes);
+router.use('/settings/fact-verification-policy', factVerificationPolicyRoutes);
 router.use('/keywords', require('./keywords.routes'));
 router.use('/clusters', require('./clusters.routes'));
 router.use('/agents', agentsRoutes);
+router.use('/users', require('./users.routes'));
 
 module.exports = router;

@@ -16,7 +16,11 @@ const { sequelize, assertConnection } = require('./config/database');
 const { ensureStorageReady } = require('./services/storage');
 const { startScheduledPublisher } = require('./services/scheduledPublisher');
 const { startAutopilotScheduler } = require('./services/autopilotScheduler');
+const { startOutcomeEvaluationScheduler } = require('./services/outcomeEvaluationScheduler');
+const { startLearningCandidateScheduler } = require('./services/learningCandidateScheduler');
+const { startGscSyncScheduler } = require('./services/gscSyncScheduler');
 const { reapStaleGenerations } = require('./services/generation');
+const youtubeTranscriptProvider = require('./services/agents/knowledge/youtubeTranscriptProvider');
 
 /** Surfaces the config warnings collected at load time, once, on boot. */
 function reportWarnings() {
@@ -64,6 +68,15 @@ async function start() {
     logger.info(
       `  autopilot     ${config.autopilot.enabled ? `enabled (${config.autopilot.cronExpression})` : 'disabled'}`
     );
+    logger.info(
+      `  outcome eval  ${config.outcomeEvaluation.enabled ? `enabled (${config.outcomeEvaluation.cronExpression})` : 'disabled'}`
+    );
+    logger.info(
+      `  learn cand.   ${config.learningCandidates.enabled ? `enabled (${config.learningCandidates.cronExpression})` : 'disabled'}`
+    );
+    logger.info(
+      `  gsc sync      ${config.gscSync.enabled ? `enabled (${config.gscSync.cronExpression})` : 'disabled'}`
+    );
   });
 
   // Slightly above a typical 60s ALB idle timeout so the load balancer, not the
@@ -86,6 +99,18 @@ async function start() {
   // has arrived. See services/autopilotScheduler.js.
   const autopilotTask = startAutopilotScheduler();
 
+  // P2-C: evaluates recommendation_outcomes rows whose observation window
+  // has elapsed. See services/outcomeEvaluationScheduler.js.
+  const outcomeEvaluationTask = startOutcomeEvaluationScheduler();
+
+  // P4-B: detects learning candidates from already-evaluated outcomes. See
+  // services/learningCandidateScheduler.js.
+  const learningCandidateTask = startLearningCandidateScheduler();
+
+  // Daily automatic GSC snapshot refresh — the "Sync now" button's automatic
+  // counterpart. See services/gscSyncScheduler.js.
+  const gscSyncTask = startGscSyncScheduler();
+
   // --- Graceful shutdown -----------------------------------------------------
   // Stop accepting connections, let in-flight requests finish, then close the
   // pool. A hard ceiling prevents a stuck request from blocking a deploy.
@@ -103,10 +128,16 @@ async function start() {
 
     if (scheduledPublisherTask) scheduledPublisherTask.stop();
     if (autopilotTask) autopilotTask.stop();
+    if (outcomeEvaluationTask) outcomeEvaluationTask.stop();
+    if (learningCandidateTask) learningCandidateTask.stop();
+    if (gscSyncTask) gscSyncTask.stop();
 
     server.close(async (err) => {
       if (err) logger.error('Error while closing the HTTP server.', err);
       try {
+        // Avoids leaking a headless Chromium process across restarts/deploys
+        // — only actually launched if a YouTube transcript was ever fetched.
+        await youtubeTranscriptProvider.closeBrowser();
         await sequelize.close();
         logger.info('Database connections closed. Bye.');
       } catch (closeErr) {

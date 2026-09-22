@@ -26,17 +26,17 @@ const TEAM = [
   },
   {
     name: 'Harsh Sharma',
-    email: 'harsh@divinetalk.com',
+    email: 'harsh@divinetalk.in',
     role: 'admin',
   },
   {
     name: 'Ananya Iyer',
-    email: 'ananya@divinetalk.com',
+    email: 'ananya@divinetalk.in',
     role: 'editor',
   },
   {
     name: 'Rohit Deshpande',
-    email: 'rohit@divinetalk.com',
+    email: 'rohit@divinetalk.in',
     role: 'editor',
   },
 ];

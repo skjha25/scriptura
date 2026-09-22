@@ -44,7 +44,7 @@ const brandVoiceSchema = {
     'or generation is refused with 422 BRAND_VOICE_NOT_CONFIRMED.',
   properties: {
     source_type: { type: 'string', enum: ['text', 'web_scrape', 'file_upload', 'none'], default: 'none' },
-    source_ref: { type: 'string', nullable: true, example: 'https://divinetalk.com/blog/transits' },
+    source_ref: { type: 'string', nullable: true, example: 'https://divinetalk.in/blog/transits' },
     tone: { type: 'string', example: 'Calm, evidence-aware, reassuring' },
     pov: {
       type: 'string',

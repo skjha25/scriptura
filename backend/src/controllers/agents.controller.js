@@ -280,7 +280,7 @@ const confirmStyleProfileHandler = asyncHandler(async (req, res) => {
  * an admin to review the whole thing, not to bound a token budget.
  */
 const getKnowledgeBase = asyncHandler(async (req, res) => {
-  const rows = await knowledgeStore.retrieveKnowledge(req.params.agentName, { limit: 50 });
+  const rows = await knowledgeStore.retrieveKnowledge(req.params.agentName, { limit: 50 }, { includeSource: true });
   res.json({ data: rows });
 });
 
@@ -417,6 +417,231 @@ const listActivity = asyncHandler(async (req, res) => {
   res.json({ data: rows });
 });
 
+/**
+ * P1-A: recommendation approval/rejection — see
+ * services/agents/recommendationDecisions.js for the actual guarded state
+ * machine. These handlers do nothing but pass the authenticated admin's own
+ * id through as `decided_by`; the request body is never trusted for it.
+ */
+
+/** GET /agents/recommendations — defaults to the pending ("recommended") view the UI needs. */
+const listRecommendationsHandler = asyncHandler(async (req, res) => {
+  const { listRecommendations } = require('../services/agents/recommendationDecisions');
+  const { status, agent_name: agentName, limit } = req.query;
+  const rows = await listRecommendations({ status: status || 'recommended', agentName, limit });
+  res.json({ data: rows });
+});
+
+/** POST /agents/recommendations/:id/approve */
+const approveRecommendationHandler = asyncHandler(async (req, res) => {
+  const { approveRecommendation } = require('../services/agents/recommendationDecisions');
+  const row = await approveRecommendation(req.params.id, { userId: req.user.id });
+  res.json({ data: row });
+});
+
+/** POST /agents/recommendations/:id/reject */
+const rejectRecommendationHandler = asyncHandler(async (req, res) => {
+  const { rejectRecommendation } = require('../services/agents/recommendationDecisions');
+  const row = await rejectRecommendation(req.params.id, { userId: req.user.id });
+  res.json({ data: row });
+});
+
+/** POST /agents/recommendations/bulk-approve — every currently-pending row, not just a loaded page. */
+const bulkApproveRecommendationsHandler = asyncHandler(async (req, res) => {
+  const { bulkApproveRecommendations } = require('../services/agents/recommendationDecisions');
+  const result = await bulkApproveRecommendations({ userId: req.user.id });
+  res.json({ data: result });
+});
+
+/** POST /agents/recommendations/bulk-reject — every currently-pending row, not just a loaded page. */
+const bulkRejectRecommendationsHandler = asyncHandler(async (req, res) => {
+  const { bulkRejectRecommendations } = require('../services/agents/recommendationDecisions');
+  const result = await bulkRejectRecommendations({ userId: req.user.id });
+  res.json({ data: result });
+});
+
+/**
+ * P1-B: recommendation action tracking — see
+ * services/agents/recommendationActions.js. A human explicitly starts
+ * tracking an action against an already-approved recommendation and later
+ * self-reports the outcome; nothing here executes anything. `executed_by`
+ * always comes from the authenticated admin's own id, never the request body
+ * — same discipline as P1-A's `decided_by`.
+ */
+
+/** GET /agents/recommendations/:id/actions — full attempt history for one recommendation. */
+const listRecommendationActionsHandler = asyncHandler(async (req, res) => {
+  const { listActions } = require('../services/agents/recommendationActions');
+  const rows = await listActions(req.params.id);
+  res.json({ data: rows });
+});
+
+/** POST /agents/recommendations/:id/actions — create the next action (also serves as retry). */
+const createRecommendationActionHandler = asyncHandler(async (req, res) => {
+  const { createAction } = require('../services/agents/recommendationActions');
+  const { action_type: actionType, parameters, trace_id: traceId } = req.body;
+  const row = await createAction(req.params.id, { actionType, parameters, traceId });
+  res.status(201).json({ data: row });
+});
+
+/** POST /agents/recommendation-actions/:id/complete */
+const completeRecommendationActionHandler = asyncHandler(async (req, res) => {
+  const { completeAction } = require('../services/agents/recommendationActions');
+  const row = await completeAction(req.params.id, { resultSummary: req.body.result_summary, userId: req.user.id });
+  res.json({ data: row });
+});
+
+/** POST /agents/recommendation-actions/:id/fail */
+const failRecommendationActionHandler = asyncHandler(async (req, res) => {
+  const { failAction } = require('../services/agents/recommendationActions');
+  const row = await failAction(req.params.id, { error: req.body.error, userId: req.user.id });
+  res.json({ data: row });
+});
+
+/** POST /agents/recommendation-actions/:id/cancel */
+const cancelRecommendationActionHandler = asyncHandler(async (req, res) => {
+  const { cancelAction } = require('../services/agents/recommendationActions');
+  const row = await cancelAction(req.params.id, { userId: req.user.id });
+  res.json({ data: row });
+});
+
+/**
+ * POST /agents/recommendation-actions/:id/execute — P1-B4. Performs the
+ * real, whitelisted Blog mutation for an automated action. Takes no request
+ * body: `result_summary` is server-computed only, so nothing about the
+ * evidence can be faked from the client. `executed_by` comes from the
+ * authenticated admin's own id, same discipline as complete/fail/cancel.
+ */
+const executeRecommendationActionHandler = asyncHandler(async (req, res) => {
+  const { executeAction } = require('../services/agents/recommendationActions');
+  const row = await executeAction(req.params.id, { userId: req.user.id });
+  res.json({ data: row });
+});
+
+/**
+ * GET /agents/recommendation-actions/:id/outcome — P2-D. Read-only: exposes
+ * the deterministic baseline/fresh evidence + delta/classification P2-B/P2-C
+ * already computed, in an explicit, hand-shaped response — never the raw
+ * model instance — so nothing beyond these named fields can ever leak, and
+ * there is no field here a client could round-trip back into a write (no
+ * mutation endpoint exists for this resource at all). 404 (not an empty
+ * 200) when no baseline was ever captured for this action, so "no data yet"
+ * and "evaluated with nothing to show" are never confused.
+ */
+const getRecommendationActionOutcomeHandler = asyncHandler(async (req, res) => {
+  const { getOutcomeForAction } = require('../services/agents/outcomeMeasurement');
+  const outcome = await getOutcomeForAction(req.params.id);
+  if (!outcome) {
+    throw ApiError.notFound(`No outcome has been captured for action #${req.params.id} yet.`, {
+      code: 'OUTCOME_NOT_FOUND',
+    });
+  }
+  res.json({
+    data: {
+      id: outcome.id,
+      recommendation_id: outcome.recommendation_id,
+      action_id: outcome.action_id,
+      status: outcome.status,
+      outcome: outcome.outcome,
+      baseline_at: outcome.baseline_captured_at,
+      due_at: outcome.due_at,
+      baseline_evidence_refs: outcome.baseline_evidence_refs,
+      baseline_metric_snapshot: outcome.baseline_metric_snapshot,
+      fresh_evidence_refs: outcome.fresh_evidence_refs,
+      metric_deltas: outcome.metric_deltas,
+      observation_window_days: outcome.observation_window_days,
+      evaluation_attempts: outcome.evaluation_attempts,
+      outcome_reasoning: outcome.outcome_reasoning,
+      evaluated_at: outcome.evaluated_at,
+    },
+  });
+});
+
+/**
+ * P4-D: learning candidate review — see
+ * services/agents/learningCandidateDecisions.js. A candidate is never
+ * auto-created here (detection is the background scheduler); these handlers
+ * only let a human confirm/reject an already-detected one. Confirming
+ * writes to agent_knowledge exclusively via the existing, unmodified
+ * confirmKnowledgeBatch — no new write path. `reviewed_by`/`userId` always
+ * come from the authenticated admin's own id, same discipline as P1-A's
+ * `decided_by`.
+ */
+
+/** GET /agents/learning-candidates — defaults to nothing filtered; the caller narrows via status/agent_name. */
+const listLearningCandidatesHandler = asyncHandler(async (req, res) => {
+  const { listLearningCandidates } = require('../services/agents/learningCandidateDecisions');
+  const { status, agent_name: agentName, limit } = req.query;
+  const rows = await listLearningCandidates({ status, agentName, limit });
+  res.json({ data: rows });
+});
+
+/** POST /agents/learning-candidates/:id/confirm */
+const confirmLearningCandidateHandler = asyncHandler(async (req, res) => {
+  const { confirmLearningCandidate } = require('../services/agents/learningCandidateDecisions');
+  const row = await confirmLearningCandidate(req.params.id, { scope: req.body.scope, userId: req.user.id });
+  res.json({ data: row });
+});
+
+/** POST /agents/learning-candidates/:id/reject */
+const rejectLearningCandidateHandler = asyncHandler(async (req, res) => {
+  const { rejectLearningCandidate } = require('../services/agents/learningCandidateDecisions');
+  const row = await rejectLearningCandidate(req.params.id, { userId: req.user.id });
+  res.json({ data: row });
+});
+
+/**
+ * P5-D: Intelligence Observatory — every handler below is a thin,
+ * read-only pass-through to services/agents/observatory.js. No handler
+ * here writes anything; see that file's own header comment for the full
+ * read-only contract.
+ */
+
+/** GET /agents/observatory/summary */
+const getObservatorySummaryHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.getLiveCounters();
+  res.json({ data });
+});
+
+/** GET /agents/observatory/agents */
+const getObservatoryAgentsHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.getAgentStatuses();
+  res.json({ data });
+});
+
+/** GET /agents/observatory/activity */
+const getObservatoryActivityHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.getActivityStream({ limit: req.query.limit });
+  res.json({ data });
+});
+
+/** GET /agents/observatory/knowledge-health */
+const getObservatoryKnowledgeHealthHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.getKnowledgeHealth(req.query.agent_name);
+  res.json({ data });
+});
+
+/** GET /agents/observatory/knowledge-nodes */
+const getObservatoryKnowledgeNodesHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.listKnowledgeNodes(req.query.agent_name, { limit: req.query.limit });
+  res.json({ data });
+});
+
+/** GET /agents/observatory/knowledge/:id/connections */
+const getObservatoryKnowledgeConnectionsHandler = asyncHandler(async (req, res) => {
+  const observatory = require('../services/agents/observatory');
+  const data = await observatory.getKnowledgeConnections(req.params.id);
+  if (!data) {
+    throw ApiError.notFound(`Knowledge item #${req.params.id} not found.`, { code: 'KNOWLEDGE_NOT_FOUND' });
+  }
+  res.json({ data });
+});
+
 module.exports = {
   chat,
   getHistory,
@@ -433,4 +658,25 @@ module.exports = {
   dismissChange,
   getKnowledgeUsage,
   listActivity,
+  listRecommendations: listRecommendationsHandler,
+  approveRecommendation: approveRecommendationHandler,
+  rejectRecommendation: rejectRecommendationHandler,
+  bulkApproveRecommendations: bulkApproveRecommendationsHandler,
+  bulkRejectRecommendations: bulkRejectRecommendationsHandler,
+  listRecommendationActions: listRecommendationActionsHandler,
+  createRecommendationAction: createRecommendationActionHandler,
+  completeRecommendationAction: completeRecommendationActionHandler,
+  failRecommendationAction: failRecommendationActionHandler,
+  cancelRecommendationAction: cancelRecommendationActionHandler,
+  executeRecommendationAction: executeRecommendationActionHandler,
+  getRecommendationActionOutcome: getRecommendationActionOutcomeHandler,
+  listLearningCandidates: listLearningCandidatesHandler,
+  confirmLearningCandidate: confirmLearningCandidateHandler,
+  rejectLearningCandidate: rejectLearningCandidateHandler,
+  getObservatorySummary: getObservatorySummaryHandler,
+  getObservatoryAgents: getObservatoryAgentsHandler,
+  getObservatoryActivity: getObservatoryActivityHandler,
+  getObservatoryKnowledgeHealth: getObservatoryKnowledgeHealthHandler,
+  getObservatoryKnowledgeNodes: getObservatoryKnowledgeNodesHandler,
+  getObservatoryKnowledgeConnections: getObservatoryKnowledgeConnectionsHandler,
 };

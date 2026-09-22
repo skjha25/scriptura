@@ -1,7 +1,14 @@
 'use strict';
 
 const { z } = require('zod');
-const { CLUSTER_STATUS, CLUSTER_TYPE, SEARCH_INTENT } = require('../constants');
+const {
+  CLUSTER_STATUS,
+  CLUSTER_TYPE,
+  SEARCH_INTENT,
+  LANGUAGES,
+  IMAGE_COUNT_MIN,
+  IMAGE_COUNT_MAX,
+} = require('../constants');
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -26,6 +33,10 @@ const createClusterBody = z.object({
   lead_time_weeks: z.coerce.number().int().min(1).max(52).default(6),
   cadence_posts_per_week: z.coerce.number().int().min(1).max(14).default(2),
   priority_score: z.coerce.number().int().min(0).max(100).default(50),
+  // Autopilot generation settings for this cluster. Both optional/nullable —
+  // absent means "use the app-wide default" (see autopilotScheduler.js).
+  language: z.enum(LANGUAGES).nullable().optional(),
+  image_count: z.coerce.number().int().min(IMAGE_COUNT_MIN).max(IMAGE_COUNT_MAX).nullable().optional(),
   // Optional initial keywords to seed the cluster with.
   keywords: z.array(z.object({
     keyword: z.string().trim().min(1).max(500),
@@ -46,6 +57,8 @@ const updateClusterBody = z.object({
   cadence_posts_per_week: z.coerce.number().int().min(1).max(14).optional(),
   priority_score: z.coerce.number().int().min(0).max(100).optional(),
   pillar_blog_id: z.coerce.number().int().positive().nullable().optional(),
+  language: z.enum(LANGUAGES).nullable().optional(),
+  image_count: z.coerce.number().int().min(IMAGE_COUNT_MIN).max(IMAGE_COUNT_MAX).nullable().optional(),
 }).strict();
 
 /** GET /clusters — list with filters. */

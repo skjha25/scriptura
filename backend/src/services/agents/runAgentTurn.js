@@ -19,6 +19,7 @@ const { fence } = require('../ai/prompts');
 const agentActivity = require('../agentActivityLogger');
 const registry = require('./registry');
 const knowledgeStore = require('./knowledge/knowledgeStore');
+const { recordRecommendation } = require('./recommendations');
 const logger = require('../../utils/logger');
 const {
   AGENT_CHAT_CONTEXT_EXCHANGES_KEY,
@@ -389,7 +390,7 @@ async function runAgentTurn({ agentName, userId = null, message, traceId, fromAg
       }
 
       // eslint-disable-next-line no-await-in-loop
-      await agentActivity.toolCall({
+      const toolCallActivityRow = await agentActivity.toolCall({
         traceId: id,
         agentName,
         toolName: toolUse.name,
@@ -404,7 +405,7 @@ async function runAgentTurn({ agentName, userId = null, message, traceId, fromAg
       if (!failed && result?.type === 'proposed_change' && result.change) {
         proposedChanges.push(result.change);
         // eslint-disable-next-line no-await-in-loop
-        await agentActivity.settingProposed({
+        const proposedActivityRow = await agentActivity.settingProposed({
           traceId: id,
           agentName,
           toolName: toolUse.name,
@@ -412,6 +413,39 @@ async function runAgentTurn({ agentName, userId = null, message, traceId, fromAg
           currentValue: result.change.current_value,
           proposedValue: result.change.proposed_value,
           userId,
+        });
+
+        // P0 of the Decision/Outcome/Evaluation architecture: a durable,
+        // queryable record of the recommendation itself, alongside (not
+        // replacing) the settingProposed audit-log event above. Best-effort —
+        // recordRecommendation never throws, so a capture failure here can
+        // never affect the reply the admin sees.
+        // eslint-disable-next-line no-await-in-loop
+        await recordRecommendation({
+          traceId: id,
+          agentName,
+          sourceActivityId: proposedActivityRow?.id || null,
+          toolName: toolUse.name,
+          change: result.change,
+          message: result.message,
+        });
+      } else if (!failed && result?.type === 'recommendation' && result.change) {
+        // Structured, non-executable recommendation (e.g. SEO Analyst's
+        // recommend_seo_action — see sharedRecommendationTools.js). Deliberately
+        // NOT pushed into proposedChanges (no Apply button exists or should exist
+        // for this) and NOT logged via settingProposed (that name/shape implies
+        // something applyable). Anchored on the tool_call row itself, which fires
+        // for every tool call regardless of result type — see
+        // agentActivityLogger.toolCall's own doc comment for why this is safe to
+        // rely on now. Same best-effort contract as the proposed_change branch above.
+        // eslint-disable-next-line no-await-in-loop
+        await recordRecommendation({
+          traceId: id,
+          agentName,
+          sourceActivityId: toolCallActivityRow?.id || null,
+          toolName: toolUse.name,
+          change: result.change,
+          message: result.message,
         });
       }
 

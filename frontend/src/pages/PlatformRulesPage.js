@@ -218,7 +218,7 @@ export default function PlatformRulesPage() {
   return (
     <div className="space-y-8 animate-fade-in-up">
       <header className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight text-ink">Platform Rules</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Platform Rules</h1>
         <p className="max-w-2xl text-base text-ink-secondary">
           What every agent is bound by, what&rsquo;s currently configured, and what the platform has
           learned from your writing — all in one place.

@@ -21,6 +21,8 @@ const {
   listBlogsSchema,
   linkableSearchSchema,
   idParamSchema,
+  blockIdParamSchema,
+  regenerateBlockImageSchema,
 } = require('../../validators/blog.validators');
 const controller = require('../../controllers/blogs.controller');
 const { generationStatusHandler } = require('../../controllers/generation.controller');
@@ -42,6 +44,12 @@ router.patch(
   controller.update
 );
 router.delete('/:id', validate({ params: idParamSchema }), controller.remove);
+
+router.patch(
+  '/:id/blocks/:blockId/regenerate-image',
+  validate({ params: blockIdParamSchema, body: regenerateBlockImageSchema }),
+  controller.regenerateBlockImage
+);
 
 router.post(
   '/:id/publish',

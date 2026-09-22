@@ -21,7 +21,7 @@ module.exports = {
         type: 'object',
         required: ['email', 'password'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'harsh@divinetalk.com' },
+          email: { type: 'string', format: 'email', example: 'harsh@divinetalk.in' },
           password: { type: 'string', format: 'password', example: 'Scriptura@Dev2026' },
         },
       }),

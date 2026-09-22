@@ -9,9 +9,9 @@ export function Card({ children, className = '', glow = false, interactive = tru
   return (
     <Component
       className={clsx(
-        'rounded-xl border border-white/5 bg-panel/60 backdrop-blur-2xl shadow-panel',
+        'rounded-xl border border-hairline bg-panel/60 backdrop-blur-2xl shadow-panel',
         'transition-all duration-500 ease-out',
-        interactive && 'hover:-translate-y-1 hover:border-white/10 hover:shadow-glow-sm',
+        interactive && 'hover:-translate-y-1 hover:border-hairline-strong hover:shadow-glow-sm',
         glow && 'shadow-glow-sm border-accent/25',
         className
       )}
@@ -55,7 +55,7 @@ export function StatTile({ label, value, delta, deltaLabel, hint, icon, classNam
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-3xl font-semibold leading-none text-ink">
+      <p className="mt-2 font-display text-3xl font-semibold leading-none tabular text-ink">
         {value === null || value === undefined ? (
           // An em dash rather than 0: "no data" and "zero" are different facts,
           // and showing 0 for a missing average is a quiet lie.

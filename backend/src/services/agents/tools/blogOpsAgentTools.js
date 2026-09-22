@@ -21,7 +21,7 @@
  * chat card would be a confusing second, weaker mechanism next to it.
  */
 
-const { BLOG_STATUS, BLOG_STATUS_BY_LABEL, GENERATION_STATUS } = require('../../../constants');
+const { BLOG_STATUS, BLOG_STATUS_BY_LABEL, GENERATION_STATUS, BLOCK_TYPES } = require('../../../constants');
 
 const SORTABLE_COLUMNS = ['created_at', 'updated_at', 'publish_date', 'blog_title', 'total_views', 'seo_score', 'word_count'];
 
@@ -144,6 +144,138 @@ const proposeBlockEdit = {
   },
 };
 
+const proposeBlockInsert = {
+  name: 'propose_block_insert',
+  description:
+    'Propose inserting one NEW block into the current blog. Insert it immediately after ' +
+    'after_block_id (an id from the current blocks already given to you) — omit after_block_id ' +
+    'to insert at the very start of the article. `data` must match the shape for `type` exactly:\n' +
+    '  heading: {level: 2|3|4, text}\n' +
+    '  paragraph: {text, is_lead?}\n' +
+    '  image: {url, alt_text, caption?}\n' +
+    '  quote: {text, attribution?}\n' +
+    '  table: {caption?, headers: string[], rows: string[][]}\n' +
+    '  faq_accordion: {items: [{question, answer}]}\n' +
+    '  cta_button: {text, url}\n' +
+    "  list: {style: 'bullet'|'numbered', items: string[]}\n" +
+    '  embed: {url, title?}\n' +
+    '  key_takeaway: {title?, items: string[]}\n' +
+    'Only proposes the diff for the admin to review; never writes it — the admin\'s own Undo ' +
+    'button already covers reverting it once applied.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      blog_id: { type: 'integer' },
+      type: { type: 'string', enum: [...BLOCK_TYPES] },
+      data: { type: 'object', description: "The new block's `data`, shaped per `type` above." },
+      after_block_id: {
+        type: 'string',
+        description: 'Id of an existing block to insert after; omit to insert at the very start.',
+      },
+    },
+    required: ['blog_id', 'type', 'data'],
+  },
+  async execute({ blog_id, type, data, after_block_id } = {}) {
+    if (!BLOCK_TYPES.includes(type)) throw new Error(`type must be one of ${BLOCK_TYPES.join(', ')}.`);
+    if (!data || typeof data !== 'object') throw new Error('data must be an object.');
+
+    return {
+      type: 'proposed_change',
+      change: {
+        domain: 'blog_ops',
+        action: 'insert_block',
+        key: 'insert_block',
+        block_type: type,
+        current_value: null,
+        proposed_value: data,
+        after_block_id: after_block_id || null,
+        revertible: false,
+      },
+      message: 'Proposed a new block — nothing has been applied yet. Use the editor\'s own Undo to revert once you do apply it.',
+    };
+  },
+};
+
+const proposeBlockDelete = {
+  name: 'propose_block_delete',
+  description:
+    'Propose removing one specific block (by its id) from the current blog. Only proposes the ' +
+    'diff for the admin to review; never deletes it — the admin\'s own Undo button already ' +
+    'covers reverting it once applied.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      blog_id: { type: 'integer' },
+      block_id: { type: 'string', description: 'The id of the block to remove, from the current blocks.' },
+    },
+    required: ['blog_id', 'block_id'],
+  },
+  async execute({ blog_id, block_id } = {}) {
+    if (!block_id) throw new Error('block_id is required.');
+
+    let currentData = null;
+    if (blog_id) {
+      const blogService = require('../../blogService');
+      const blog = await blogService.findBlog(blog_id);
+      const block = (blog?.content_blocks || []).find((b) => b.id === block_id);
+      currentData = block?.data || null;
+    }
+
+    return {
+      type: 'proposed_change',
+      change: {
+        domain: 'blog_ops',
+        action: 'delete_block',
+        key: 'delete_block',
+        block_id,
+        current_value: currentData,
+        proposed_value: null,
+        revertible: false,
+      },
+      message: 'Proposed removing that block — nothing has been applied yet. Use the editor\'s own Undo to revert once you do apply it.',
+    };
+  },
+};
+
+const proposeTitleEdit = {
+  name: 'propose_title_edit',
+  description:
+    "Propose a new title for the current blog (the article's blog_title — separate from its " +
+    'content blocks). Only use this when the admin is clearly asking about the title itself, not ' +
+    'the body content. Only proposes the diff for the admin to review; never writes it.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      blog_id: { type: 'integer' },
+      new_title: { type: 'string', minLength: 1, maxLength: 255 },
+    },
+    required: ['blog_id', 'new_title'],
+  },
+  async execute({ blog_id, new_title } = {}) {
+    if (!new_title || !new_title.trim()) throw new Error('new_title is required.');
+
+    let currentTitle = null;
+    if (blog_id) {
+      const blogService = require('../../blogService');
+      const blog = await blogService.findBlog(blog_id);
+      currentTitle = blog?.blog_title ?? null;
+    }
+
+    return {
+      type: 'proposed_change',
+      change: {
+        domain: 'blog_ops',
+        action: 'update_title',
+        key: 'update_title',
+        current_value: currentTitle,
+        proposed_value: new_title.trim(),
+        revertible: false,
+      },
+      message: 'Proposed a new title — nothing has been applied yet. Use the editor\'s own Undo to revert once you do apply it.',
+    };
+  },
+};
+
 module.exports = {
-  TOOLS: [findBlogs, getCurrentBlocks, proposeBlockEdit],
+  TOOLS: [findBlogs, getCurrentBlocks, proposeBlockEdit, proposeBlockInsert, proposeBlockDelete, proposeTitleEdit],
 };

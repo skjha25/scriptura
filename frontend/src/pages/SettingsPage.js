@@ -3,14 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { settingsApi } from '../lib/api';
 import Button from '../components/ui/Button';
 import { Input } from '../components/ui/form';
+import { Card, CardHeader, ErrorBanner, Skeleton, EmptyState } from '../components/ui/feedback';
 import AgentChatWidget from '../components/agents/AgentChatWidget';
+import ImageDefaultsSettings from '../components/settings/ImageDefaultsSettings';
+import FactVerificationSettings from '../components/settings/FactVerificationSettings';
+import IntegrationsSettings from '../components/settings/IntegrationsSettings';
 
 /**
- * SettingsPage (Trending Topics)
+ * SettingsPage
  *
- * Allows SEO executives and admins to manage the dynamic topics used
- * by the Automated AI Blog generation tool. Includes AI-powered real-time
- * trend suggestions.
+ * Trending Topics: SEO executives and admins manage the dynamic topics used
+ * by the Automated AI Blog generation tool, with AI-powered real-time trend
+ * suggestions.
+ *
+ * Content Configuration (P6): global, org-wide generation defaults —
+ * currently Blog Image Defaults; Fact Verification and Reusable Links/CTAs
+ * join this section as later P6 sub-phases. These are consumed
+ * automatically by Autopilot and every manual generation — see
+ * ImageDefaultsSettings.js's own header comment.
  */
 export default function SettingsPage() {
   const [topics, setTopics] = useState([]);
@@ -85,141 +95,130 @@ export default function SettingsPage() {
 
   return (
     <motion.div
-      className="page-container"
+      className="space-y-8 animate-fade-in-up"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <header className="page-header">
-        <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
-            Trending Topics
-          </h1>
-          <p className="text-gray-400">
-            Manage the trending astrology topics for the Automated AI Blog engine.
-          </p>
-        </div>
+      <header className="space-y-2">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Settings</h1>
+        <p className="max-w-2xl text-base text-ink-secondary">
+          Platform-wide configuration — trending topics for Autopilot, and the content defaults every
+          generation and manual edit draws on automatically.
+        </p>
       </header>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6">
-          {error}
-        </div>
-      )}
+      <section aria-labelledby="topics-heading" className="space-y-4">
+        <h2 id="topics-heading" className="text-lg font-semibold text-ink">
+          Trending Topics
+        </h2>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        <div className="card">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Auto Suggest (AI)</h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Real-time analysis to suggest trending astrology topics based on current astrological events and search volume.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleSuggestTopics}
-              disabled={suggesting}
-              loading={suggesting}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-none whitespace-nowrap"
-            >
-              {suggesting ? 'Analyzing...' : 'Suggest Topics'}
-            </Button>
-          </div>
+        <ErrorBanner error={error ? { message: error } : null} onDismiss={() => setError('')} />
 
-          <div className="space-y-3">
-            {suggesting && <div className="text-center py-8 text-gray-400">Asking AI to analyze trends...</div>}
-            {!suggesting && suggestedTopics.length === 0 && (
-              <div className="text-center py-8 text-gray-500 bg-white/5 rounded-xl border border-white/5">
-                Click suggest to see real-time trends.
-              </div>
-            )}
-            <AnimatePresence>
-              {!suggesting && suggestedTopics.map((topic, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl"
-                >
-                  <span className="text-white font-medium">{topic}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => handleAddTopic(topic)}
-                    disabled={submitting}
-                    className="text-purple-400 hover:text-purple-300 hover:bg-purple-400/10"
-                  >
-                    Add
-                  </Button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4 text-white">Active Database Topics</h2>
-          <p className="text-sm text-gray-400 mb-6">
-            When an author clicks "Start Generating", the system randomly selects one of these as the primary keyword.
-          </p>
-
-          <form onSubmit={(e) => handleAddTopic(newTopic, e)} className="flex gap-3 mb-8">
-            <Input
-              type="text"
-              containerClassName="flex-1"
-              placeholder="e.g., Diwali Puja Astrology..."
-              value={newTopic}
-              onChange={(e) => setNewTopic(e.target.value)}
-              disabled={submitting}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card as="div">
+            <CardHeader
+              title="Auto Suggest (AI)"
+              subtitle="Real-time analysis to suggest trending astrology topics based on current astrological events and search volume."
+              action={
+                <Button type="button" variant="primary" size="sm" onClick={handleSuggestTopics} disabled={suggesting} loading={suggesting}>
+                  {suggesting ? 'Analyzing…' : 'Suggest Topics'}
+                </Button>
+              }
             />
-            <Button
-              type="submit"
-              variant="primary"
-              className="whitespace-nowrap"
-              disabled={!newTopic.trim() || submitting}
-              loading={submitting}
-            >
-              {submitting ? 'Adding...' : 'Add Topic'}
-            </Button>
-          </form>
-
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-            {loading ? (
-              <div className="text-center py-8 text-gray-400">Loading topics...</div>
-            ) : topics.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 bg-white/5 rounded-xl border border-white/10">
-                No topics found. Add some!
-              </div>
-            ) : (
-              <AnimatePresence>
-                {topics.map((t) => (
-                  <motion.div
-                    key={t.id}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-                  >
-                    <span className="text-white font-medium">{t.topic}</span>
-                    <Button
-                      type="button"
-                      variant="danger"
-                      onClick={() => handleDelete(t.id)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+            <div className="space-y-2.5 px-5 pb-5 pt-2">
+              {suggesting ? (
+                <Skeleton rows={3} />
+              ) : suggestedTopics.length === 0 ? (
+                <EmptyState title="No suggestions yet" message="Click “Suggest Topics” to see real-time trends." />
+              ) : (
+                <AnimatePresence initial={false}>
+                  {suggestedTopics.map((topic, i) => (
+                    <motion.div
+                      key={topic}
+                      layout
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 12 }}
+                      transition={{ delay: i * 0.05, duration: 0.2 }}
+                      className="flex items-center justify-between rounded-lg border border-accent/25 bg-accent/5 px-3 py-2"
                     >
-                      Remove
-                    </Button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
-          </div>
+                      <span className="text-sm font-medium text-ink">{topic}</span>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => handleAddTopic(topic)} disabled={submitting}>
+                        Add
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
+          </Card>
+
+          <Card as="div">
+            <CardHeader
+              title="Active Database Topics"
+              subtitle="When an author clicks “Start Generating”, the system randomly selects one of these as the primary keyword."
+            />
+            <div className="px-5 pb-5 pt-2">
+              <form onSubmit={(e) => handleAddTopic(newTopic, e)} className="mb-4 flex gap-2">
+                <Input
+                  type="text"
+                  containerClassName="flex-1"
+                  placeholder="e.g., Diwali Puja Astrology…"
+                  value={newTopic}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  disabled={submitting}
+                />
+                <Button type="submit" variant="primary" disabled={!newTopic.trim() || submitting} loading={submitting}>
+                  {submitting ? 'Adding…' : 'Add'}
+                </Button>
+              </form>
+
+              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                {loading ? (
+                  <Skeleton rows={4} />
+                ) : topics.length === 0 ? (
+                  <EmptyState title="No topics yet" message="Add one above, or generate suggestions on the left." />
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {topics.map((t) => (
+                      <motion.div
+                        key={t.id}
+                        layout
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center justify-between rounded-lg border border-hairline bg-panel-raised/50 px-3 py-2 transition-colors hover:border-hairline-strong"
+                      >
+                        <span className="text-sm text-ink">{t.topic}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDelete(t.id)}>
+                          Remove
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
-      </div>
+      </section>
+
+      <section aria-labelledby="content-config-heading" className="space-y-4">
+        <div>
+          <h2 id="content-config-heading" className="text-lg font-semibold text-ink">
+            Content Configuration
+          </h2>
+          <p className="text-sm text-ink-muted">
+            Global defaults every generation — manual or Autopilot — draws on automatically.
+          </p>
+        </div>
+
+        <ImageDefaultsSettings />
+        <FactVerificationSettings />
+      </section>
+
+      <IntegrationsSettings />
 
       <AgentChatWidget agents={['research_agent', 'autopilot_agent']} defaultAgent="research_agent" />
     </motion.div>

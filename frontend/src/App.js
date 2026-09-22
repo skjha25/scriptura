@@ -18,6 +18,7 @@ import { EmptyState } from './components/ui/feedback';
 import Button from './components/ui/Button';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const BlogListPage = lazy(() => import('./pages/BlogListPage'));
 const WizardPage = lazy(() => import('./pages/WizardPage'));
@@ -28,9 +29,13 @@ const KeywordsPage = lazy(() => import('./pages/KeywordsPage'));
 const ClusterPage = lazy(() => import('./pages/ClusterPage'));
 const ClusterDetailPage = lazy(() => import('./pages/ClusterDetailPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ConfigPage = lazy(() => import('./pages/ConfigPage'));
+const ConfigIntegrationDetailPage = lazy(() => import('./pages/ConfigIntegrationDetailPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
 const AgentActivityPage = lazy(() => import('./pages/AgentActivityPage'));
 const PlatformRulesPage = lazy(() => import('./pages/PlatformRulesPage'));
 const AgentKnowledgePage = lazy(() => import('./pages/AgentKnowledgePage'));
+const IntelligenceObservatoryPage = lazy(() => import('./pages/IntelligenceObservatoryPage'));
 /** Full-screen loading state, used while a lazy route or the session resolves. */
 function FullScreenLoader({ label = 'Loading' }) {
   return (
@@ -66,6 +71,16 @@ function RequireAuth({ children }) {
   return children;
 }
 
+/**
+ * Gate for admin-only routes. Mounted inside `<RequireAuth>`, so `user` is
+ * always already resolved here — no separate loading state needed.
+ */
+function RequireAdmin({ children }) {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return children;
+}
+
 /** Redirects an already-signed-in user away from the login screen. */
 function RedirectIfAuthenticated({ children }) {
   const { isAuthenticated, initialising } = useAuth();
@@ -96,6 +111,15 @@ export default function App() {
     <Suspense fallback={<FullScreenLoader />}>
       <Routes>
         <Route
+          path="/welcome"
+          element={
+            <RedirectIfAuthenticated>
+              <LandingPage />
+            </RedirectIfAuthenticated>
+          }
+        />
+
+        <Route
           path="/login"
           element={
             <RedirectIfAuthenticated>
@@ -125,7 +149,19 @@ export default function App() {
           <Route path="agents/activity" element={<AgentActivityPage />} />
           <Route path="agents/rules" element={<PlatformRulesPage />} />
           <Route path="agents/knowledge" element={<AgentKnowledgePage />} />
+          <Route path="agents/observatory" element={<IntelligenceObservatoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="config" element={<ConfigPage />} />
+          <Route path="config/new" element={<ConfigIntegrationDetailPage />} />
+          <Route path="config/:id" element={<ConfigIntegrationDetailPage />} />
+          <Route
+            path="users"
+            element={
+              <RequireAdmin>
+                <UsersPage />
+              </RequireAdmin>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

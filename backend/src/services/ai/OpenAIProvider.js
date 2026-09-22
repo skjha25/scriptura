@@ -67,7 +67,95 @@ const MAX_TOKENS = Object.freeze({
   titles: 1024,
   brandVoice: 1024,
   outline: 2048,
+  // Mirrors AnthropicProvider.MAX_TOKENS.knowledgeExtraction.
+  knowledgeExtraction: 4096,
 });
+
+// ---------------------------------------------------------------------------
+// Anthropic-shape <-> OpenAI-shape translation for the agentic tool-use loop.
+// ---------------------------------------------------------------------------
+//
+// services/agents/runAgentTurn.js is provider-agnostic by construction — it
+// builds `messages` and `tools` once, in Anthropic's content-block shape
+// (that is what AnthropicProvider, the original implementation, consumes
+// directly), and never inspects `rawAssistantContent` beyond threading it
+// back into the next `messages` array unchanged. Per the architecture
+// requirement ("the rest of the system must NOT know which provider is
+// being used"), runAgentTurn.js is NOT changed here — instead this file
+// translates in both directions at its own boundary:
+//
+//   incoming Anthropic-shaped {tools, messages} -> OpenAI Chat Completions request
+//   OpenAI's response                           -> the SAME {stopReason, text,
+//                                                    toolUses, rawAssistantContent}
+//                                                    contract AnthropicProvider returns
+//
+// The one piece that needs care is `rawAssistantContent`: runAgentTurn.js
+// pushes it back as `{role: 'assistant', content: rawAssistantContent}` on
+// the NEXT loop iteration, and passes the same `provider` instance for the
+// whole turn (see runAgentTurn.js — `const provider = getTextProvider()` is
+// called once per turn, outside the loop), so this provider's own
+// `rawAssistantContent` only ever needs to be understood by this provider's
+// own translator, never by AnthropicProvider's. It is therefore safe for it
+// to be OpenAI-shaped internally (`{content, tool_calls}`) rather than an
+// Anthropic content-block array — `toOpenAIMessages` below recognises its own
+// marker shape and reconstructs the real OpenAI assistant message from it.
+/**
+ * Translates the running `messages` array (Anthropic tool_result/assistant
+ * shapes, as built by runAgentTurn.js) into OpenAI Chat Completions messages.
+ * @private
+ */
+function toOpenAIMessages(systemPrompt, messages) {
+  const out = [{ role: 'system', content: systemPrompt }];
+
+  for (const msg of messages || []) {
+    // A tool_result batch: runAgentTurn.js always sends this as
+    // `{role: 'user', content: [{type:'tool_result', tool_use_id, content, is_error}, ...]}`.
+    if (msg.role === 'user' && Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block && block.type === 'tool_result') {
+          out.push({
+            role: 'tool',
+            tool_call_id: block.tool_use_id,
+            content: block.is_error ? `ERROR: ${block.content}` : block.content,
+          });
+        }
+      }
+      continue;
+    }
+
+    // This provider's own previous assistant turn — see the header comment
+    // above for why this is OpenAI-shaped rather than an Anthropic block array.
+    if (msg.role === 'assistant' && msg.content && typeof msg.content === 'object' && !Array.isArray(msg.content)) {
+      const entry = { role: 'assistant', content: msg.content.content ?? null };
+      if (Array.isArray(msg.content.tool_calls) && msg.content.tool_calls.length > 0) {
+        entry.tool_calls = msg.content.tool_calls;
+      }
+      out.push(entry);
+      continue;
+    }
+
+    // Plain {role, content: string} — the first user turn, or a prior
+    // exchange replayed from AgentActivity (see runAgentTurn.js's
+    // loadPriorMessages, which only ever stores plain text).
+    out.push({ role: msg.role, content: msg.content });
+  }
+
+  return out;
+}
+
+/**
+ * Translates Anthropic-shaped tool schemas ({name, description, input_schema})
+ * into OpenAI's function-calling shape. `input_schema` IS already a JSON
+ * Schema object (every tool in this codebase defines it that way), so it
+ * maps directly onto `function.parameters`.
+ * @private
+ */
+function toOpenAITools(tools) {
+  return (tools || []).map(({ name, description, input_schema }) => ({
+    type: 'function',
+    function: { name, description, parameters: input_schema || { type: 'object', properties: {} } },
+  }));
+}
 
 class OpenAIProvider extends BaseProvider {
   /**
@@ -218,6 +306,51 @@ class OpenAIProvider extends BaseProvider {
   }
 
   /**
+   * Vision-capable one-shot knowledge extraction — the provider-neutral
+   * counterpart to AnthropicProvider.analyzeKnowledgeSample. Same contract:
+   * a caller-supplied system prompt (parameterised by the target agent's
+   * persona — see knowledgeExtraction.js's buildSystemPrompt) and optional
+   * image content, returning `{raw, parsed}` so the caller's existing
+   * tolerant JSON handling (this.parse) is reused unchanged.
+   *
+   * @param {{systemPrompt: string, textContent: string, images?: Array<{mediaType: string, base64: string}>}} opts
+   * @returns {Promise<{raw: string, parsed: object}>}
+   */
+  async analyzeKnowledgeSample({ systemPrompt, textContent, images = [] } = {}) {
+    return this.run('analyzeKnowledgeSample', async () => {
+      const content = [
+        ...images.map((img) => ({
+          type: 'image_url',
+          image_url: { url: `data:${img.mediaType};base64,${img.base64}` },
+        })),
+        { type: 'text', text: textContent },
+      ];
+
+      const response = await this.client.chat.completions.create(
+        {
+          model: this.textModel,
+          max_tokens: MAX_TOKENS.knowledgeExtraction,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content },
+          ],
+        },
+        { timeout: this.timeoutMs }
+      );
+
+      const text = response?.choices?.[0]?.message?.content;
+      if (typeof text !== 'string' || text.trim() === '') {
+        throw ApiError.upstream('OpenAI returned no text content.', {
+          code: 'UPSTREAM_EMPTY_RESPONSE',
+          details: { provider: this.name, operation: 'analyzeKnowledgeSample' },
+        });
+      }
+
+      return { raw: text, parsed: this.parse(text, 'knowledge extraction response') };
+    });
+  }
+
+  /**
    * Generates a section outline.
    * @param {object} opts See prompts.outlinePrompt.
    * @returns {Promise<{outline: Array<{level: number, text: string}>}>}
@@ -277,6 +410,73 @@ class OpenAIProvider extends BaseProvider {
       meta_description:
         typeof parsed?.meta_description === 'string' ? parsed.meta_description.trim() : null,
     };
+  }
+
+  /**
+   * One step of an agentic tool-use conversation — the provider-neutral
+   * counterpart to AnthropicProvider.runAgentStep. See BaseProvider.runAgentStep
+   * and the translation helpers above this class for the full contract: this
+   * translates the incoming Anthropic-shaped `tools`/`messages` (built once by
+   * services/agents/runAgentTurn.js, unaware of which provider is configured)
+   * into an OpenAI Chat Completions request, and translates the response back
+   * into the exact same `{stopReason, text, toolUses, rawAssistantContent}`
+   * shape AnthropicProvider returns — `stopReason` uses Anthropic's own
+   * vocabulary ('tool_use' / 'end_turn') specifically because runAgentTurn.js
+   * checks for the literal string 'tool_use', not because OpenAI uses that
+   * term natively (its own finish_reason is 'tool_calls').
+   *
+   * Deliberately omits `temperature`, matching AnthropicProvider's
+   * runAgentStep — deterministic tool choice over creative sampling for an
+   * ops/admin agent, not a provider-shape necessity.
+   *
+   * @param {object} opts
+   * @param {string} opts.systemPrompt
+   * @param {Array<{name: string, description: string, input_schema: object}>} opts.tools
+   * @param {Array<{role: string, content: *}>} opts.messages
+   * @param {number} [opts.maxTokens]
+   * @returns {Promise<{stopReason: string, text: string|null, toolUses: Array<{id: string, name: string, input: object}>, rawAssistantContent: object}>}
+   */
+  async runAgentStep({ systemPrompt, tools, messages, maxTokens = config.ai.openai.agentMaxTokens } = {}) {
+    return this.run('runAgentStep', async () => {
+      const response = await this.client.chat.completions.create(
+        {
+          model: this.textModel,
+          max_tokens: maxTokens,
+          messages: toOpenAIMessages(systemPrompt, messages),
+          tools: toOpenAITools(tools),
+        },
+        { timeout: this.timeoutMs }
+      );
+
+      const message = response?.choices?.[0]?.message;
+      if (!message) {
+        throw ApiError.upstream('OpenAI returned no message.', {
+          code: 'UPSTREAM_EMPTY_RESPONSE',
+          details: { provider: this.name, operation: 'runAgentStep' },
+        });
+      }
+
+      const rawToolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+      const toolUses = rawToolCalls.map((call) => {
+        let input;
+        try {
+          input = call.function?.arguments ? JSON.parse(call.function.arguments) : {};
+        } catch {
+          throw ApiError.upstream(
+            `OpenAI returned malformed tool-call arguments for "${call.function?.name}".`,
+            { code: 'UPSTREAM_BAD_RESPONSE', details: { provider: this.name, operation: 'runAgentStep' } }
+          );
+        }
+        return { id: call.id, name: call.function.name, input };
+      });
+
+      return {
+        stopReason: toolUses.length > 0 ? 'tool_use' : 'end_turn',
+        text: message.content || null,
+        toolUses,
+        rawAssistantContent: { content: message.content ?? null, tool_calls: rawToolCalls },
+      };
+    });
   }
 
   /**
@@ -358,4 +558,8 @@ module.exports = {
   ALLOWED_IMAGE_SIZES,
   TEMPERATURE,
   MAX_TOKENS,
+  // Exported for direct unit testing, same convention as BaseProvider's own
+  // internal helpers (extractJson, stripFences, ...).
+  toOpenAIMessages,
+  toOpenAITools,
 };

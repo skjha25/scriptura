@@ -17,6 +17,7 @@ import {
   BLOG_STATUS,
   IMAGE_COUNT_MAX,
   IMAGE_COUNT_MIN,
+  DEFAULT_IMAGE_STYLE,
   DEFAULT_PUBLISHED_BY,
   DEFAULT_SEO_STRUCTURE,
 } from '../../lib/constants';
@@ -70,6 +71,9 @@ export const INITIAL_CONFIG = Object.freeze({
   language: 'en',
   readability_level: '8th_grade',
   ai_content_cleaning: false,
+  // Optional, per-blog: takes priority over the knobs above when generating
+  // THIS article. Empty string, not null, so the Textarea stays controlled.
+  custom_prompt: '',
 
   seo_structure_config: { ...DEFAULT_SEO_STRUCTURE },
   internal_linking: false,
@@ -84,7 +88,7 @@ export const INITIAL_CONFIG = Object.freeze({
 
   include_images: true,
   image_count: IMAGE_COUNT_MIN,
-  image_style: 'photo',
+  image_style: DEFAULT_IMAGE_STYLE,
   logo_overlay: false,
   logo_position: 'none',
 
